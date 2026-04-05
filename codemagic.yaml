@@ -1,161 +1,112 @@
 workflows:
 
   # ─────────────────────────────────────────────────────────────────────────
-  # BoAnalyst iOS — App Store & TestFlight Workflow
-  # Codemagic free tier: 500 min/month on macOS M2
+  # BoAnalyst iOS — App Store & TestFlight
+  # This file must be at the ROOT of your github.com/boanalyst/IOS repository.
   #
-  # REQUIRED environment variables (set in Codemagic UI → Environment Variables,
-  # mark every one of them as "Secret / Encrypted"):
-  #
-  #   APP_STORE_CONNECT_ISSUER_ID     — from App Store Connect > Users > Keys
-  #   APP_STORE_CONNECT_KEY_IDENTIFIER — Key ID (10 chars)
-  #   APP_STORE_CONNECT_PRIVATE_KEY   — full text of the .p8 file (paste as-is)
-  #   CERTIFICATE_PRIVATE_KEY         — full text of your Distribution .p12 key
-  #                                     (generated via OpenSSL from your .p12)
-  #   APPLE_TEAM_ID                   — your 10-char Apple Team ID (e.g. AB12CD34EF)
-  #
-  # HOW TO GET CERTIFICATE_PRIVATE_KEY on Windows:
-  #   openssl pkcs12 -in ios_distribution.p12 -nocerts -nodes -out private_key.pem
-  #   Then paste the full contents of private_key.pem into the env var.
+  # REQUIRED secrets — add in Codemagic UI → Environment Variables (mark encrypted):
+  #   APP_STORE_CONNECT_ISSUER_ID       ← App Store Connect > Users > Integrations > Keys
+  #   APP_STORE_CONNECT_KEY_IDENTIFIER  ← Key ID (10 chars)
+  #   APP_STORE_CONNECT_PRIVATE_KEY     ← Full text of your .p8 file (paste as-is)
+  #   APPLE_TEAM_ID                     ← Your 10-char Team ID (e.g. AB12CD34EF)
   # ─────────────────────────────────────────────────────────────────────────
 
   ios-release:
-    name: BoAnalyst — TestFlight & App Store (2026)
+    name: BoAnalyst — TestFlight & App Store
     instance_type: mac_mini_m2
-    max_build_duration: 60     # 60 min cap — keeps us inside free-tier budget
+    max_build_duration: 60
 
     environment:
-      xcode: latest            # Always use latest to satisfy Apple's SDK requirements
-      cocoapods: default        # Codemagic manages CocoaPods version
+      xcode: latest
+      cocoapods: default
       vars:
         BUNDLE_ID: "com.boanalyst.app"
         XCODE_SCHEME: "BoAnalyst"
-        XCODE_WORKSPACE: "BoAnalyst.xcworkspace"
-        EXPORT_PLIST: "ExportOptions-AppStore.plist"
-        BUILD_DIR: "build"
-        # NOTE: Do NOT put secrets here. Add them in the Codemagic UI.
+        XCODE_WORKSPACE: "BoAnalystXcode/BoAnalyst.xcworkspace"
+        BUILD_DIR: "BoAnalystXcode/build"
 
     scripts:
 
-      # ── Step 1: Install tools ───────────────────────────────────────────
+      # ── Step 1: Install build tools ────────────────────────────────────
       - name: Install XcodeGen & xcpretty
         script: |
-          # XcodeGen generates a proper .xcodeproj from a project.yml
-          # xcpretty formats xcodebuild output (much easier to read logs)
           brew install xcodegen
           gem install xcpretty --no-document
 
-      # ── Step 2: Scaffold the Xcode project from Swift source files ──────
+      # ── Step 2: Scaffold Xcode project from Swift source files ─────────
       - name: Scaffold Xcode Project
         script: |
           set -euo pipefail
-          BASE="$CM_BUILD_DIR/IOSDeployment"
-          PROJ="$BASE/BoAnalystXcode"
-          SRC="$BASE/swift"
 
-          echo "▶ Creating project directory structure..."
-          mkdir -p "$PROJ/BoAnalyst"
+          # The repo root IS the iOS project root
+          # Structure expected:
+          #   swift/       — all .swift source subdirs
+          #   Info.plist
+          #   Podfile
+          #   assets/      — AppIcon-1024.png, fonts
 
-          echo "▶ Copying Swift source files (flattened)..."
-          # Flatten all .swift files into BoAnalyst/ — matches XcodeGen sources config
-          find "$SRC" -name "*.swift" -exec cp {} "$PROJ/BoAnalyst/" \;
+          mkdir -p BoAnalystXcode/BoAnalyst
+
+          echo "▶ Copying Swift source files..."
+          find swift -name "*.swift" -exec cp {} BoAnalystXcode/BoAnalyst/ \;
 
           echo "▶ Copying Info.plist..."
-          cp "$BASE/Info.plist" "$PROJ/BoAnalyst/Info.plist"
+          cp Info.plist BoAnalystXcode/BoAnalyst/Info.plist
 
           echo "▶ Copying Podfile..."
-          cp "$BASE/Podfile" "$PROJ/Podfile"
+          cp Podfile BoAnalystXcode/Podfile
 
-          echo "▶ Copying ExportOptions..."
-          cp "$BASE/$EXPORT_PLIST" "$PROJ/$EXPORT_PLIST"
-
-          echo "▶ Creating Assets.xcassets structure..."
-          ASSETS="$PROJ/BoAnalyst/Assets.xcassets"
+          echo "▶ Building Assets.xcassets..."
+          ASSETS="BoAnalystXcode/BoAnalyst/Assets.xcassets"
           mkdir -p "$ASSETS/AppIcon.appiconset"
           mkdir -p "$ASSETS/AccentColor.colorset"
 
-          # Root Assets catalog manifest
-          cat > "$ASSETS/Contents.json" <<'ASSETS_JSON'
-          {
-            "info": { "author": "xcode", "version": 1 }
-          }
-          ASSETS_JSON
+          cat > "$ASSETS/Contents.json" << 'EOF'
+          {"info":{"author":"xcode","version":1}}
+          EOF
 
-          # AppIcon slot (1024×1024 universal)
-          cat > "$ASSETS/AppIcon.appiconset/Contents.json" <<'ICON_JSON'
+          cat > "$ASSETS/AppIcon.appiconset/Contents.json" << 'EOF'
           {
-            "images": [
-              {
-                "filename": "AppIcon-1024.png",
-                "idiom": "universal",
-                "platform": "ios",
-                "size": "1024x1024"
-              }
-            ],
-            "info": { "author": "xcode", "version": 1 }
+            "images":[{"filename":"AppIcon-1024.png","idiom":"universal","platform":"ios","size":"1024x1024"}],
+            "info":{"author":"xcode","version":1}
           }
-          ICON_JSON
+          EOF
 
-          # Copy the app icon if it exists in the assets folder
-          if [ -f "$BASE/assets/AppIcon-1024.png" ]; then
-            cp "$BASE/assets/AppIcon-1024.png" "$ASSETS/AppIcon.appiconset/AppIcon-1024.png"
-            echo "✅ App icon copied."
+          cat > "$ASSETS/AccentColor.colorset/Contents.json" << 'EOF'
+          {
+            "colors":[{"color":{"color-space":"srgb","components":{"alpha":"1.000","blue":"0.000","green":"0.843","red":"1.000"}},"idiom":"universal"}],
+            "info":{"author":"xcode","version":1}
+          }
+          EOF
+
+          if [ -f "assets/AppIcon-1024.png" ]; then
+            cp assets/AppIcon-1024.png "$ASSETS/AppIcon.appiconset/AppIcon-1024.png"
+            echo "✅ AppIcon copied."
           else
-            echo "⚠️  WARNING: No AppIcon-1024.png found in IOSDeployment/assets/"
-            echo "   Build will succeed but App Store submission will FAIL at review."
-            echo "   Add a 1024×1024 PNG to IOSDeployment/assets/AppIcon-1024.png"
+            echo "⚠️  WARNING: assets/AppIcon-1024.png missing — App Store will reject without it."
           fi
 
-          # AccentColor (gold)
-          cat > "$ASSETS/AccentColor.colorset/Contents.json" <<'COLOR_JSON'
-          {
-            "colors": [
-              {
-                "color": {
-                  "color-space": "srgb",
-                  "components": { "alpha": "1.000", "blue": "0.000", "green": "0.843", "red": "1.000" }
-                },
-                "idiom": "universal"
-              }
-            ],
-            "info": { "author": "xcode", "version": 1 }
-          }
-          COLOR_JSON
-
-          echo "▶ Copying Cinzel fonts (if present)..."
           for font in "Cinzel-Regular.ttf" "Cinzel-Bold.ttf" "Cinzel-Black.ttf"; do
-            if [ -f "$BASE/assets/$font" ]; then
-              cp "$BASE/assets/$font" "$PROJ/BoAnalyst/"
-              echo "   ✅ $font copied."
-            else
-              echo "   ⚠️  $font not found in IOSDeployment/assets/ — font fallback will apply."
-            fi
+            [ -f "assets/$font" ] && cp "assets/$font" BoAnalystXcode/BoAnalyst/ && echo "✅ $font copied."
           done
 
-          # ── Write ExportOptions with real Team ID from env var ──────────
-          cat > "$PROJ/$EXPORT_PLIST" <<EXPORT_PLIST_XML
+          echo "▶ Writing ExportOptions-AppStore.plist..."
+          cat > BoAnalystXcode/ExportOptions-AppStore.plist << EXPORT_EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
-            <key>method</key>
-            <string>app-store</string>
-            <key>teamID</key>
-            <string>${APPLE_TEAM_ID}</string>
-            <key>uploadBitcode</key>
-            <false/>
-            <key>uploadSymbols</key>
-            <true/>
-            <key>signingStyle</key>
-            <string>manual</string>
+            <key>method</key><string>app-store</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>uploadBitcode</key><false/>
+            <key>uploadSymbols</key><true/>
+            <key>signingStyle</key><string>manual</string>
           </dict>
           </plist>
-          EXPORT_PLIST_XML
+          EXPORT_EOF
 
-          # ── Generate project.yml for XcodeGen ──────────────────────────
-          # IMPORTANT: This heredoc MUST have no leading spaces on each line
-          # to produce valid YAML for XcodeGen to parse.
-          cat > "$PROJ/project.yml" <<PROJECT_YML
+          echo "▶ Generating project.yml for XcodeGen..."
+          cat > BoAnalystXcode/project.yml << PROJECT_EOF
           name: BoAnalyst
           options:
             bundleIdPrefix: com.boanalyst
@@ -173,7 +124,6 @@ workflows:
               DEVELOPMENT_TEAM: "${APPLE_TEAM_ID}"
               ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
               DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
-              SWIFT_COMPILATION_MODE: wholemodule
           targets:
             BoAnalyst:
               type: application
@@ -190,48 +140,36 @@ workflows:
                 base:
                   INFOPLIST_FILE: BoAnalyst/Info.plist
                   PRODUCT_NAME: BoAnalyst
-          PROJECT_YML
+          PROJECT_EOF
 
           echo "▶ Running XcodeGen..."
-          cd "$PROJ"
+          cd BoAnalystXcode
           xcodegen generate
-          echo "✅ BoAnalyst.xcodeproj generated successfully."
+          echo "✅ BoAnalyst.xcodeproj generated."
 
-      # ── Step 3: Install CocoaPods dependencies ──────────────────────────
+      # ── Step 3: Install CocoaPods ───────────────────────────────────────
       - name: Install Pods
         script: |
-          cd "$CM_BUILD_DIR/IOSDeployment/BoAnalystXcode"
+          cd BoAnalystXcode
           pod install --repo-update
-          echo "✅ CocoaPods installed."
+          echo "✅ Pods installed."
 
-      # ── Step 4: Set up code signing ─────────────────────────────────────
-      # Codemagic's built-in keychain tool uses:
-      #   APP_STORE_CONNECT_ISSUER_ID
-      #   APP_STORE_CONNECT_KEY_IDENTIFIER
-      #   APP_STORE_CONNECT_PRIVATE_KEY
-      # to fetch the distribution certificate + provisioning profile from Apple
-      # automatically — no manual certificate upload needed.
+      # ── Step 4: Code Signing (automatic via App Store Connect API) ──────
       - name: Set Up Code Signing
         script: |
           keychain initialize
-          # Fetch the App Store distribution certificate and provisioning profile
-          # --create will auto-create the profile if it doesn't exist
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
-          # Add the fetched certificate to the keychain
           keychain add-certificates
-          # Wire the provisioning profile into the Xcode build settings
           xcode-project use-profiles
           echo "✅ Code signing configured."
 
       # ── Step 5: Build & Archive ─────────────────────────────────────────
       - name: Build & Archive
         script: |
-          cd "$CM_BUILD_DIR/IOSDeployment/BoAnalystXcode"
           mkdir -p "$BUILD_DIR"
 
-          echo "▶ Archiving..."
           xcodebuild archive \
             -workspace "$XCODE_WORKSPACE" \
             -scheme "$XCODE_SCHEME" \
@@ -242,31 +180,20 @@ workflows:
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             2>&1 | xcpretty
 
-          echo "▶ Exporting IPA..."
           xcodebuild -exportArchive \
             -archivePath "$BUILD_DIR/BoAnalyst.xcarchive" \
             -exportPath "$BUILD_DIR/Export" \
-            -exportOptionsPlist "$EXPORT_PLIST" \
+            -exportOptionsPlist BoAnalystXcode/ExportOptions-AppStore.plist \
             2>&1 | xcpretty
 
-          echo "✅ IPA exported at: $BUILD_DIR/Export/"
+          echo "✅ Build complete."
 
-    # ── Artifacts (download from Codemagic after build) ───────────────────
     artifacts:
-      - IOSDeployment/BoAnalystXcode/build/Export/*.ipa
-      - IOSDeployment/BoAnalystXcode/build/BoAnalyst.xcarchive   # useful for dSYM / crash reports
+      - BoAnalystXcode/build/Export/*.ipa
 
-    # ── Publishing (auto-upload to TestFlight) ─────────────────────────────
     publishing:
       app_store_connect:
-        # Codemagic reads these from the env vars you set in the UI
         api_key: $APP_STORE_CONNECT_PRIVATE_KEY
         key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
-        # Set to true ONLY when you're ready for full App Store review
-        submit_to_app_review: false
-      slack:
-        # Optional: get a Slack notification when the build finishes
-        # channel: "#ios-builds"
-        # notify_on_build_start: true
