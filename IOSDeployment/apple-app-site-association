@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["TEAMID.com.boanalyst.app"],
+        "components": [
+          {
+            "/": "*",
+            "comment": "Match all paths — opens the app for any boanalyst.com deep link"
+          }
+        ]
+      }
+    ]
+  }
+}

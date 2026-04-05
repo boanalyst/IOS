@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+
+  <!-- ── App Identity ─────────────────────────────────────────────────── -->
+  <key>CFBundleName</key>
+  <string>BoAnalyst</string>
+  <key>CFBundleDisplayName</key>
+  <string>BoAnalyst</string>
+  <key>CFBundleIdentifier</key>
+  <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+  <key>CFBundleVersion</key>
+  <string>$(CURRENT_PROJECT_VERSION)</string>
+  <key>CFBundleShortVersionString</key>
+  <string>$(MARKETING_VERSION)</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleExecutable</key>
+  <string>$(EXECUTABLE_NAME)</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+
+  <!-- ── Supported OS / Orientations ──────────────────────────────────── -->
+  <key>LSRequiresIPhoneOS</key>
+  <true/>
+  <key>UILaunchScreen</key>
+  <dict/>
+  <key>UISupportedInterfaceOrientations</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+  </array>
+  <key>UIRequiresFullScreen</key>
+  <false/>
+
+  <!-- ── App Transport Security ────────────────────────────────────────── -->
+  <!-- boanalyst.com uses HTTPS; no exceptions needed. -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsArbitraryLoads</key>
+    <false/>
+  </dict>
+
+  <!-- ── URL Scheme (OAuth deep-link: boanalyst://auth?token=...) ──────── -->
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>com.boanalyst.app</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>boanalyst</string>
+      </array>
+    </dict>
+  </array>
+
+  <!-- ── Universal Links (Associated Domains) ─────────────────────────── -->
+  <!-- Configured in Xcode → Signing & Capabilities → Associated Domains  -->
+  <!-- applinks:boanalyst.com                                               -->
+
+  <!-- ── Privacy Usage Descriptions (Apple required) ──────────────────── -->
+  <key>NSPhotoLibraryUsageDescription</key>
+  <string>BoAnalyst needs access to your photo library to attach images to posts.</string>
+
+  <key>NSCameraUsageDescription</key>
+  <string>BoAnalyst needs camera access to take photos for your posts.</string>
+
+  <key>NSFaceIDUsageDescription</key>
+  <string>BoAnalyst uses Face ID to securely authenticate your account.</string>
+
+  <key>NSUserNotificationsUsageDescription</key>
+  <string>BoAnalyst sends notifications about new posts, box office updates, and replies.</string>
+
+  <!-- ── Custom Fonts ───────────────────────────────────────────────────── -->
+  <!-- Add Cinzel-Regular.ttf and Cinzel-Bold.ttf to the Xcode project     -->
+  <key>UIAppFonts</key>
+  <array>
+    <string>Cinzel-Regular.ttf</string>
+    <string>Cinzel-Bold.ttf</string>
+    <string>Cinzel-Black.ttf</string>
+  </array>
+
+  <!-- ── Scene Manifest (SwiftUI lifecycle) ───────────────────────────── -->
+  <key>UIApplicationSceneManifest</key>
+  <dict>
+    <key>UIApplicationSupportsMultipleScenes</key>
+    <false/>
+  </dict>
+
+</dict>
+</plist>
