@@ -90,5 +90,10 @@
     <false/>
   </dict>
 
+  <!-- ── Apple Export Compliance ──────────────────────────────────────── -->
+  <!-- Required to avoid "Missing Compliance" errors during TestFlight upload -->
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+
 </dict>
 </plist>
