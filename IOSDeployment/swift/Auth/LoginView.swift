@@ -183,7 +183,7 @@ struct LoginView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
-        .onChange(of: authViewModel.uiState.error) { _, newError in
+        .onChange(of: authViewModel.uiState.error) { newError in
             guard newError != nil else { return }
             // Error auto-clears after 5 seconds
             DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
