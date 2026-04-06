@@ -172,23 +172,12 @@ workflows:
       - name: Build & Archive
         script: |
           cd IOSDeployment
-          mkdir -p "$BUILD_DIR"
+          mkdir -p "$BUILD_DIR/Export"
 
-          xcodebuild archive \
-            -workspace "$XCODE_WORKSPACE" \
-            -scheme "$XCODE_SCHEME" \
-            -sdk iphoneos \
-            -configuration Release \
-            -archivePath "$BUILD_DIR/BoAnalyst.xcarchive" \
-            CODE_SIGN_STYLE=Manual \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            2>&1 | xcpretty
-
-          xcodebuild -exportArchive \
-            -archivePath "$BUILD_DIR/BoAnalyst.xcarchive" \
-            -exportPath "$BUILD_DIR/Export" \
-            -exportOptionsPlist BoAnalystXcode/ExportOptions-AppStore.plist \
-            2>&1 | xcpretty
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME" \
+            --ipa-directory "$BUILD_DIR/Export"
 
           echo "✅ Build complete."
 
