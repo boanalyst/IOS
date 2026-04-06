@@ -190,9 +190,6 @@ workflows:
           # Run Codemagic's publisher in verbose mode to catch Apple's exact error
           app-store-connect publish \
             --path "$BUILD_DIR/Export/BoAnalyst.ipa" \
-            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
-            --api-key "$APP_STORE_CONNECT_PRIVATE_KEY" \
             --verbose
 
     artifacts:
