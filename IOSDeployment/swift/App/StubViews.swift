@@ -384,12 +384,12 @@ struct FlockFeedView: View {
                                     post: post,
                                     isAdmin: authViewModel.currentUser?.isAdmin == true,
                                     isLiked: flockVM.likedPostIds.contains(post.id),
+                                    onTap: {},
                                     onLike: { flockVM.toggleLike(post) },
                                     onComment: {
                                         flockVM.loadComments(postId: post.id)
                                         activeCommentPostId = post.id
-                                    },
-                                    onTap: {}
+                                    }
                                 )
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 6)
