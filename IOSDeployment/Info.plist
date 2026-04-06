@@ -34,7 +34,7 @@
     <string>UIInterfaceOrientationPortrait</string>
   </array>
   <key>UIRequiresFullScreen</key>
-  <false/>
+  <true/>
 
   <!-- ── App Transport Security ────────────────────────────────────────── -->
   <!-- boanalyst.com uses HTTPS; no exceptions needed. -->
