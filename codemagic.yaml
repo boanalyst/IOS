@@ -181,12 +181,15 @@ workflows:
 
           echo "✅ Build complete."
 
+      # ── Step 6: Publish & Upload (Verbose) ──────────────────────────────
+      - name: Publish to App Store Connect
+        script: |
+          cd IOSDeployment
+          echo "▶ Uploading to Apple... (Verbose Mode)"
+          
+          app-store-connect publish \
+            --path "$BUILD_DIR/Export/BoAnalyst.ipa" \
+            --verbose
+
     artifacts:
       - IOSDeployment/BoAnalystXcode/build/Export/*.ipa
-
-    publishing:
-      app_store_connect:
-        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-        submit_to_testflight: true
