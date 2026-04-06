@@ -22,7 +22,7 @@ struct BoAnalystApp: App {
         // CRITICAL: Refresh user when app returns to foreground.
         // This ensures isPro / isDistributor are up-to-date after a
         // user subscribes on boanalyst.com and returns to the app.
-        .onChange(of: scenePhase) { _, phase in
+        .onChange(of: scenePhase) { phase in
             if phase == .active, authViewModel.isAuthenticated {
                 Task { await authViewModel.refreshUser() }
             }
