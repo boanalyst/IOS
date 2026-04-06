@@ -187,9 +187,11 @@ struct SubscriptionView: View {
                     .padding(.vertical, 14)
                     .foregroundColor(selectedPlan == idx ? .black : AppTheme.textSecondary)
                     .background(
-                        selectedPlan == idx
-                            ? AppTheme.goldGradient.opacity(1)
-                            : Color.clear
+                        ZStack {
+                            if selectedPlan == idx {
+                                AppTheme.goldGradient
+                            }
+                        }
                     )
                 }
             }
