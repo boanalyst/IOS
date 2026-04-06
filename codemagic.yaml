@@ -19,6 +19,9 @@ workflows:
     environment:
       groups:
         - env_codemagic
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.boanalyst.app
       xcode: latest
       cocoapods: default
       vars:
@@ -158,17 +161,12 @@ workflows:
           pod install --repo-update
           echo "✅ Pods installed."
 
-      # ── Step 4: Code Signing (automatic via App Store Connect API) ──────
+      # ── Step 4: Code Signing (using manually uploaded keys) ─────────────
       - name: Set Up Code Signing
         script: |
           cd IOSDeployment
-          keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --create
-          keychain add-certificates
           xcode-project use-profiles
-          echo "✅ Code signing configured."
+          echo "✅ Code signing configured from uploaded identities."
 
       # ── Step 5: Build & Archive ─────────────────────────────────────────
       - name: Build & Archive
