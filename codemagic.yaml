@@ -193,7 +193,7 @@ workflows:
           echo "✅ Build complete."
 
     artifacts:
-      - IOSDeployment/BoAnalystXcode/build/Export/*.ipa
+      - IOSDeployment/**/*.ipa
 
     publishing:
       app_store_connect:
