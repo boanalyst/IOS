@@ -8,6 +8,7 @@ import SwiftUI
 // MARK: - FlockPostCard (canonical — used by FlockFeedView and HomeView)
 // isLiked drives heart.fill / heart state.
 // onLike and onComment are separated from onTap so gesture areas don't clash.
+// isAdmin enables admin context menu (delete / pin) — Bug #1 fix.
 
 struct FlockPostCard: View {
     let post: FlockPost
@@ -16,6 +17,8 @@ struct FlockPostCard: View {
     var onTap: () -> Void = {}
     var onLike: () -> Void = {}
     var onComment: () -> Void = {}
+    var onDelete: () -> Void = {}
+    var onPin: () -> Void = {}
 
     var body: some View {
         Button(action: onTap) {
@@ -47,10 +50,33 @@ struct FlockPostCard: View {
                             .foregroundColor(AppTheme.textMuted)
                     }
                     Spacer()
-                    if post.isPinned {
-                        Image(systemName: "pin.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(AppTheme.goldGradient)
+
+                    // Right side: pin indicator + admin menu
+                    HStack(spacing: 8) {
+                        if post.isPinned {
+                            Image(systemName: "pin.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(AppTheme.goldGradient)
+                        }
+                        // Bug #1 fix: admin sees a context menu button
+                        if isAdmin {
+                            Menu {
+                                Button(role: .destructive) { onDelete() } label: {
+                                    Label("Delete Post", systemImage: "trash")
+                                }
+                                Button { onPin() } label: {
+                                    Label(post.isPinned ? "Unpin Post" : "Pin Post",
+                                          systemImage: post.isPinned ? "pin.slash" : "pin")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(AppTheme.textMuted)
+                                    .padding(8)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
 
