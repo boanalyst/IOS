@@ -36,6 +36,8 @@ struct UserProfileResponse: Decodable {
 struct UpdateProfileRequest: Encodable {
     let name: String?
     let email: String?
+    let username: String?
+    let bio: String?
 }
 
 // MARK: - Message Response
@@ -55,6 +57,15 @@ struct User: Decodable, Identifiable {
     let email: String
     let role: String            // "member" | "admin" | "superadmin" | "moderator"
     let subscriptionPlan: String?  // "premium-monthly" | "premium-yearly" | "distributors-hub"
+    let username: String?
+    let bio: String?
+    let profileBio: String?
+    
+    var resolvedBio: String? {
+        if let b = bio, !b.isEmpty { return b }
+        return profileBio
+    }
+
     private let _isAdmin: Bool?
     let avatarUrl: String?
     let createdAt: String?
@@ -90,7 +101,7 @@ struct User: Decodable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case id = "_id"
         case id2 = "id"           // some endpoints return "id" instead of "_id"
-        case name, email, role
+        case name, email, role, username, bio
         case subscriptionPlan = "subscriptionPlan"
         case _isAdmin = "isAdmin"
         case avatarUrl = "avatar_url"
@@ -103,9 +114,23 @@ struct User: Decodable, Identifiable {
         id = (try? c.decode(String.self, forKey: .id)) ?? (try? c.decode(String.self, forKey: .id2)) ?? UUID().uuidString
         name  = (try? c.decode(String.self, forKey: .name))  ?? ""
         email = (try? c.decode(String.self, forKey: .email)) ?? ""
+        username = try? c.decode(String.self, forKey: .username)
+        bio = try? c.decode(String.self, forKey: .bio)
+        
+        // For profile JSON string (simplified approach: skip profile bio unnesting here since 'bio' is usually top level too)
+        profileBio = nil 
+        
         role  = (try? c.decode(String.self, forKey: .role))  ?? "member"
         subscriptionPlan = try? c.decode(String.self, forKey: .subscriptionPlan)
-        _isAdmin  = try? c.decode(Bool.self, forKey: ._isAdmin)
+        
+        if let b = try? c.decode(Bool.self, forKey: ._isAdmin) {
+            _isAdmin = b
+        } else if let i = try? c.decode(Int.self, forKey: ._isAdmin) {
+            _isAdmin = (i != 0)
+        } else {
+            _isAdmin = false
+        }
+        
         avatarUrl = try? c.decode(String.self, forKey: .avatarUrl)
         createdAt = try? c.decode(String.self, forKey: .createdAt)
     }
