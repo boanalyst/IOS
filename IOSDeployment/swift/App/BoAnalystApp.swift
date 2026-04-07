@@ -37,11 +37,19 @@ struct BoAnalystApp: App {
     }
 
     private func handleDeepLink(url: URL) {
+        // SECURITY: Strictly validate scheme + host before processing any token.
+        // This prevents other apps from injecting tokens via custom URL schemes.
         guard url.scheme == "boanalyst", url.host == "auth" else { return }
         let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        if let token = components?.queryItems?.first(where: { $0.name == "token" })?.value {
-            Task { await authViewModel.handleOAuthCallback(token: token) }
+        guard let rawToken = components?.queryItems?.first(where: { $0.name == "token" })?.value,
+              !rawToken.isEmpty,
+              rawToken.count <= APIConfig.maxTokenLength,
+              // SECURITY: JWT must be exactly 3 non-empty base64url-encoded segments
+              rawToken.components(separatedBy: ".").count == 3,
+              rawToken.components(separatedBy: ".").allSatisfy({ !$0.isEmpty }) else {
+            return  // Discard malformed or suspiciously large tokens silently
         }
+        Task { await authViewModel.handleOAuthCallback(token: rawToken) }
     }
 }
 

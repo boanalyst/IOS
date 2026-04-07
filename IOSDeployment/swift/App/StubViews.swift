@@ -1383,15 +1383,22 @@ struct CreatePostSheet: View {
     @Environment(\.dismiss) var dismiss
     let title: String
     let onSubmit: (String) async -> Void
-    
+
+    // SECURITY: Hard cap on post length — prevents oversized payload attacks
+    private let maxLength = 5000
+
     @State private var text = ""
     @State private var isPosting = false
-    
+
+    private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var isOverLimit: Bool { text.count > maxLength }
+    private var canPost: Bool { !trimmed.isEmpty && !isOverLimit && !isPosting }
+
     var body: some View {
         NavigationView {
             ZStack {
                 AppTheme.background.ignoresSafeArea()
-                VStack {
+                VStack(spacing: 0) {
                     ZStack(alignment: .topLeading) {
                         TextEditor(text: $text)
                             .font(.system(size: 15))
@@ -1400,7 +1407,13 @@ struct CreatePostSheet: View {
                             .foregroundColor(AppTheme.textPrimary)
                             .cornerRadius(12)
                             .padding()
-                        
+                            // SECURITY: Enforce character limit via onChange
+                            .onChange(of: text) { newValue in
+                                if newValue.count > maxLength {
+                                    text = String(newValue.prefix(maxLength))
+                                }
+                            }
+
                         if text.isEmpty {
                             Text("What's on your mind?")
                                 .foregroundColor(AppTheme.textMuted)
@@ -1409,7 +1422,17 @@ struct CreatePostSheet: View {
                                 .allowsHitTesting(false)
                         }
                     }
-                    
+
+                    // Character counter
+                    HStack {
+                        Spacer()
+                        Text("\(text.count)/\(maxLength)")
+                            .font(.system(size: 11))
+                            .foregroundColor(isOverLimit ? AppTheme.error : AppTheme.textMuted)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 8)
+                    }
+
                     Spacer()
                 }
             }
@@ -1424,14 +1447,15 @@ struct CreatePostSheet: View {
                     Button("Post") {
                         Task {
                             isPosting = true
-                            await onSubmit(text)
+                            // SECURITY: Submit the trimmed value — not the raw text
+                            await onSubmit(trimmed)
                             isPosting = false
                             dismiss()
                         }
                     }
                     .bold()
-                    .foregroundColor(text.isEmpty || isPosting ? AppTheme.textMuted : AppTheme.goldPrimary)
-                    .disabled(text.isEmpty || isPosting)
+                    .foregroundColor(canPost ? AppTheme.goldPrimary : AppTheme.textMuted)
+                    .disabled(!canPost)
                 }
             }
         }
