@@ -28,32 +28,49 @@ private struct Plan: Identifiable {
 
 private let plans: [Plan] = [
     Plan(
-        name: "Pro",
-        badge: "⭐ PRO",
-        price: "Flexible pricing",
-        period: "monthly & yearly",
-        description: "Full access to all premium content",
+        name: "Pro Monthly",
+        badge: "STARTER",
+        price: "₹399",
+        period: "per month",
+        description: "Essential intelligence for fans",
         features: [
-            "Inside Talk — Exclusive industry insights",
-            "Unlimited Film analytics",
-            "Advanced collection charts & trends",
-            "Early access to exclusive reports",
-            "Ad-free experience",
+            "Advanced Movie Analytics",
+            "Inside Talks Exclusive Content",
+            "Priority Support",
+            "Early Access To New Features"
+        ],
+        isPopular: false
+    ),
+    Plan(
+        name: "Pro Yearly",
+        badge: "⭐ BEST VALUE",
+        price: "₹999",
+        period: "per year",
+        description: "Save ~80% vs monthly",
+        features: [
+            "Advanced Movie Analytics",
+            "Inside Talk (Prior to 4 Days)",
+            "Priority Support",
+            "Early Access To New Features",
+            "Ad Free Experience"
         ],
         isPopular: true
     ),
     Plan(
-        name: "Distributors",
+        name: "B2B Hub",
         badge: "🎬 DISTRIBUTORS",
-        price: "Industry pricing",
-        period: "yearly",
-        description: "For film distributors & trade professionals",
+        price: "₹24,999",
+        period: "per year",
+        description: "Trade professionals & distributors",
         features: [
-            "Everything in Pro",
-            "Exclusive Distributors Hub access",
-            "Trade-specific analytics",
-            "Direct industry network",
-            "Priority support",
+            "🎬 Early Inside Updates on Movie Projects",
+            "📊 Box Office Predictions & Analysis",
+            "💰 Investment Recommendations",
+            "🔮 Which Movies to Buy/Distribute",
+            "🎯 Exclusive Market Insights",
+            "🤝 Direct Access to Industry Contacts",
+            "🌟 Priority Support & Consultation",
+            "⚡ Scrap Inside Talk (Prior to a Month)"
         ],
         isPopular: false
     ),
@@ -172,7 +189,9 @@ struct SubscriptionView: View {
                 } label: {
                     VStack(spacing: 4) {
                         Text(plans[idx].badge)
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 11, weight: .bold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
                         if plans[idx].isPopular {
                             Text("POPULAR")
                                 .font(.system(size: 9, weight: .bold))
