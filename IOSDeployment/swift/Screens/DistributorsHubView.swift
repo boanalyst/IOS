@@ -223,14 +223,22 @@ struct DistributorsPostCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header
             HStack(spacing: 10) {
-                Circle()
-                    .fill(AppTheme.goldPrimary.opacity(0.2))
-                    .frame(width: 38, height: 38)
-                    .overlay(
-                        Text(String(post.authorName.prefix(1)).uppercased())
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(AppTheme.goldGradient)
-                    )
+                if post.authorName.lowercased() == "boanalyst" {
+                    Image("Logo")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 40, height: 40)
+                        .clipShape(Circle())
+                } else {
+                    Circle()
+                        .fill(AppTheme.goldPrimary.opacity(0.15))
+                        .frame(width: 40, height: 40)
+                        .overlay(
+                            Text(String(post.authorName.prefix(1)).uppercased())
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(AppTheme.goldGradient)
+                        )
+                }
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {

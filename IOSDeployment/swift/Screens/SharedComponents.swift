@@ -25,14 +25,22 @@ struct FlockPostCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 // Author header
                 HStack(spacing: 10) {
-                    Circle()
-                        .fill(AppTheme.goldPrimary.opacity(0.2))
-                        .frame(width: 36, height: 36)
-                        .overlay(
-                            Text(String(post.authorName.prefix(1)).uppercased())
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(AppTheme.goldGradient)
-                        )
+                    if post.authorName.lowercased() == "boanalyst" {
+                        Image("Logo")
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 36, height: 36)
+                            .clipShape(Circle())
+                    } else {
+                        Circle()
+                            .fill(AppTheme.goldPrimary.opacity(0.15))
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Text(String(post.authorName.prefix(1)).uppercased())
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(AppTheme.goldGradient)
+                            )
+                    }
 
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
@@ -147,10 +155,15 @@ struct FlockPostCard: View {
 func parseBoAnalystHTML(_ text: String) -> AttributedString {
     var clean = text
         .replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: .regularExpression)
+        .replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: .regularExpression)
         .replacingOccurrences(of: "(?i)</?p>", with: "\n", options: .regularExpression)
         .replacingOccurrences(of: "(?i)<li>", with: "\n• ", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)<b>(.*?)</b>", with: "**$1**", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)<i>(.*?)</i>", with: "_$1_", options: .regularExpression)
+        
+        // Match Android behavior while generating completely clean commonmark syntax spacing
+        .replacingOccurrences(of: "(?i)<b>\\s*\\*\\s*(.*?)\\s*</b>", with: " • **$1** ", options: .regularExpression)
+        .replacingOccurrences(of: "(?i)<b>\\s*(.*?)\\s*</b>", with: " **$1** ", options: .regularExpression)
+        .replacingOccurrences(of: "(?i)<i>\\s*(.*?)\\s*</i>", with: " _$1_ ", options: .regularExpression)
+        
         .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         .replacingOccurrences(of: "&nbsp;", with: " ")
         .replacingOccurrences(of: "&amp;", with: "&")
