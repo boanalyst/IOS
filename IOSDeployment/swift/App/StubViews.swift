@@ -143,7 +143,8 @@ struct CommentBottomSheet: View {
                         }
                     }
                 }
-                Text(c.content)
+                let attrComment = parseBoAnalystHTML(c.content)
+                Text(attrComment)
                     .font(.system(size: 13))
                     .foregroundColor(AppTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -786,21 +787,6 @@ struct InsideTalkCard: View {
     // The old check (content.count < 120) was wrong — it locked short posts for everyone.
     private var isLocked: Bool { !isUserPro }
 
-    private func renderMarkdown(_ raw: String) -> AttributedString {
-        let cleaned = raw
-            .replacingOccurrences(of: "<br>",  with: "\n")
-            .replacingOccurrences(of: "</br>", with: "\n")
-            .replacingOccurrences(of: "<br/>", with: "\n")
-            .replacingOccurrences(of: "<b>",   with: "**")
-            .replacingOccurrences(of: "</b>",  with: "**")
-            .replacingOccurrences(of: "<i>",   with: "_")
-            .replacingOccurrences(of: "</i>",  with: "_")
-            .replacingOccurrences(of: "<u>",   with: "")
-            .replacingOccurrences(of: "</u>",  with: "")
-            .replacingOccurrences(of: "\n",    with: "  \n")
-        return (try? AttributedString(markdown: cleaned)) ?? AttributedString(cleaned)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Author header
@@ -837,7 +823,7 @@ struct InsideTalkCard: View {
             // Content — extract social embeds, strip raw URLs, render markdown
             let socialEmbeds = isLocked ? [] : extractSocialEmbeds(from: content.content)
             let cleanText = stripEmbedUrls(from: content.content, embeds: socialEmbeds)
-            let attrText = renderMarkdown(cleanText)
+            let attrText = parseBoAnalystHTML(cleanText)
 
             Text(attrText)
                 .font(.system(size: 13))
@@ -845,6 +831,12 @@ struct InsideTalkCard: View {
                 .lineLimit(isLocked ? 3 : nil)
                 .lineSpacing(3)
                 .blur(radius: isLocked ? 3.5 : 0)
+
+            // ── Uploaded Media ───────────────────────────────────────
+            let mediaUrls = content.media.compactMap { $0.resolvedUrl() }
+            if !mediaUrls.isEmpty && !isLocked {
+                PostMediaView(urls: mediaUrls)
+            }
 
             // ── Social Embeds (YouTube / X / Instagram) — Pro-only ────────
             if !socialEmbeds.isEmpty {
