@@ -92,6 +92,7 @@ struct FlockPostCard: View {
                     .replacingOccurrences(of: "</i>", with: "_")
                     .replacingOccurrences(of: "<u>", with: "")
                     .replacingOccurrences(of: "</u>", with: "")
+                    .replacingOccurrences(of: "\n", with: "  \n")
                 let cleanContent = stripEmbedUrls(from: rawContent, embeds: socialEmbeds)
 
                 let attrString = (try? AttributedString(markdown: cleanContent)) ?? AttributedString(cleanContent)
