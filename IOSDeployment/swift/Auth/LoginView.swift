@@ -10,10 +10,9 @@ struct LoginView: View {
     @State private var password = ""
     @State private var showPassword = false
     // SECURITY: OAuth opens in-app SFSafariViewController (like Android Chrome Custom Tab)
-    // NOT external Safari — prevents redirect URL leaking to browser history
     @State private var oauthURL: URL? = nil
-    // Forgot Password: in-app browser so user stays in the app experience
-    @State private var forgotPasswordURL: URL? = nil
+    // Forgot Password: native in-app sheet — no external URL needed
+    @State private var showForgotPassword = false
 
     private var isFormValid: Bool {
         !email.trimmingCharacters(in: .whitespaces).isEmpty &&
@@ -45,7 +44,7 @@ struct LoginView: View {
                             .frame(width: 60, height: 1)
                             .padding(.top, 8)
 
-                        Text("India's Box Office Analysis Platform")
+                        Text("India's Film Analysis Platform")
                             .font(.system(size: 12))
                             .foregroundColor(AppTheme.textMuted)
                             .padding(.top, 4)
@@ -90,11 +89,11 @@ struct LoginView: View {
                         )
                         .textContentType(.password)
 
-                        // Forgot password — opens in-app browser (NOT external Safari)
+                        // Forgot password — opens native in-app sheet
                         HStack {
                             Spacer()
                             Button("Forgot Password?") {
-                                forgotPasswordURL = URL(string: "https://boanalyst.com/forgot-password")
+                                showForgotPassword = true
                             }
                             .font(.system(size: 13))
                             .foregroundStyle(AppTheme.goldGradient)
@@ -189,26 +188,13 @@ struct LoginView: View {
                 authViewModel.clearError()
             }
         }
-        // In-app OAuth browser — dismisses automatically when boanalyst:// deep link fires
-        .sheet(item: $oauthURL) { url in
-            SafariView(url: url)
-                .ignoresSafeArea()
+        .sheet(isPresented: $showForgotPassword) {
+            ForgotPasswordSheet()
+                .presentationDetents([.medium])
         }
-        // In-app Forgot Password browser — user can reset without leaving the app
-        .sheet(item: $forgotPasswordURL) { url in
-            NavigationView {
-                SafariView(url: url)
-                    .ignoresSafeArea()
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button("Done") {
-                                forgotPasswordURL = nil
-                            }
-                            .foregroundStyle(AppTheme.goldGradient)
-                        }
-                    }
-            }
+        // OAuth Safari sheet — dismisses when boanalyst:// deep link fires
+        .sheet(item: $oauthURL) { url in
+            SafariView(url: url).ignoresSafeArea()
         }
     }
 
@@ -310,6 +296,119 @@ struct SafariView: UIViewControllerRepresentable {
 // Conform URL to Identifiable so it can be used with .sheet(item:)
 extension URL: @retroactive Identifiable {
     public var id: String { absoluteString }
+}
+
+// MARK: - ForgotPasswordSheet (native in-app — no browser redirect)
+// Calls POST /api/auth/forgot-password with the user's email.
+// The server sends a reset link to the email; we show a success confirmation in-app.
+
+struct ForgotPasswordSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var email = ""
+    @State private var isSending = false
+    @State private var sent = false
+    @State private var errorMsg: String? = nil
+
+    private let api = APIClient.shared
+
+    private var isEmailValid: Bool {
+        let trimmed = email.trimmingCharacters(in: .whitespaces)
+        return trimmed.contains("@") && trimmed.contains(".")
+    }
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                AppTheme.background.ignoresSafeArea()
+                VStack(spacing: 28) {
+
+                    if sent {
+                        // Success state
+                        VStack(spacing: 16) {
+                            Image(systemName: "envelope.badge.checkmark.fill")
+                                .font(.system(size: 52))
+                                .foregroundStyle(AppTheme.goldGradient)
+                            Text("Check your email")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(AppTheme.textPrimary)
+                            Text("If an account exists for **\(email)**, you\'ll receive a password reset link shortly.")
+                                .font(.system(size: 14))
+                                .foregroundColor(AppTheme.textSecondary)
+                                .multilineTextAlignment(.center)
+                                .lineSpacing(5)
+                        }
+                        GoldButton(title: "Done") { dismiss() }
+                            .padding(.horizontal, 24)
+                    } else {
+                        // Input state
+                        VStack(spacing: 8) {
+                            Image(systemName: "lock.rotation")
+                                .font(.system(size: 44))
+                                .foregroundStyle(AppTheme.goldGradient)
+                            Text("Reset Password")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(AppTheme.textPrimary)
+                            Text("Enter your email and we'll send you a reset link.")
+                                .font(.system(size: 14))
+                                .foregroundColor(AppTheme.textSecondary)
+                                .multilineTextAlignment(.center)
+                        }
+
+                        if let err = errorMsg {
+                            Text(err)
+                                .font(.system(size: 13))
+                                .foregroundColor(AppTheme.error)
+                                .padding(10)
+                                .background(AppTheme.error.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+
+                        GoldTextField(placeholder: "Email address", text: $email, icon: "envelope")
+                            .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                            .textContentType(.emailAddress)
+                            .padding(.horizontal, 24)
+
+                        GoldButton(title: "Send Reset Link", isLoading: isSending) {
+                            Task { await sendReset() }
+                        }
+                        .disabled(!isEmailValid || isSending)
+                        .opacity(!isEmailValid ? 0.6 : 1)
+                        .padding(.horizontal, 24)
+                    }
+
+                    Spacer()
+                }
+                .padding(.top, 32)
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("FORGOT PASSWORD")
+                        .font(.custom("Cinzel-Regular", size: 12))
+                        .foregroundStyle(AppTheme.goldGradient)
+                }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+            }
+        }
+    }
+
+    private func sendReset() async {
+        isSending = true
+        errorMsg = nil
+        let trimmedEmail = email.trimmingCharacters(in: .whitespaces)
+        // POST /api/auth/forgot-password with { "email": "..." }
+        if let body = try? JSONSerialization.data(withJSONObject: ["email": trimmedEmail]) {
+            let endpoint = APIEndpoint(path: "/api/auth/forgot-password", method: .POST, body: body)
+            _ = try? await api.requestRaw(endpoint)
+        }
+        // Always show success (security: don't reveal if email exists)
+        isSending = false
+        sent = true
+    }
 }
 
 #Preview {
