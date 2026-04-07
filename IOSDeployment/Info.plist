@@ -37,12 +37,59 @@
   <true/>
 
   <!-- ── App Transport Security ────────────────────────────────────────── -->
-  <!-- boanalyst.com uses HTTPS; no exceptions needed. -->
+  <!-- Allow HTTPS for boanalyst.com + social embed widgets (Twitter/X, YouTube, Instagram) -->
   <key>NSAppTransportSecurity</key>
   <dict>
     <key>NSAllowsArbitraryLoads</key>
     <false/>
+    <!-- Twitter / X embed widget -->
+    <key>NSExceptionDomains</key>
+    <dict>
+      <key>twitter.com</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
+        <key>NSIncludesSubdomains</key><true/>
+      </dict>
+      <key>x.com</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
+        <key>NSIncludesSubdomains</key><true/>
+      </dict>
+      <key>twimg.com</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
+        <key>NSIncludesSubdomains</key><true/>
+      </dict>
+      <!-- Instagram embed -->
+      <key>instagram.com</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
+        <key>NSIncludesSubdomains</key><true/>
+      </dict>
+      <key>cdninstagram.com</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
+        <key>NSIncludesSubdomains</key><true/>
+      </dict>
+      <!-- YouTube thumbnails + mobile player -->
+      <key>youtube.com</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
+        <key>NSIncludesSubdomains</key><true/>
+      </dict>
+      <key>ytimg.com</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
+        <key>NSIncludesSubdomains</key><true/>
+      </dict>
+      <key>googlevideo.com</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
+        <key>NSIncludesSubdomains</key><true/>
+      </dict>
+    </dict>
   </dict>
+
 
   <!-- ── URL Scheme (OAuth deep-link: boanalyst://auth?token=...) ──────── -->
   <key>CFBundleURLTypes</key>
