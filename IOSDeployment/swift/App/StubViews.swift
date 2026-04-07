@@ -350,6 +350,33 @@ final class FlockViewModel: ObservableObject {
             }
         }
     }
+
+    // MARK: Admin: Delete Post (Bug #1 fix)
+
+    func deletePost(_ post: FlockPost) {
+        // Optimistic remove
+        let prior = posts
+        posts = posts.filter { $0.id != post.id }
+        Task {
+            let endpoint = APIEndpoint.deleteFlockPost(id: post.id)
+            if (try? await api.request(endpoint, responseType: MessageResponse.self)) == nil {
+                posts = prior // revert on failure
+                error = "Could not delete post. You may not have permission."
+            }
+        }
+    }
+
+    // MARK: Admin: Pin/Unpin Post (Bug #1 fix)
+
+    func togglePin(_ post: FlockPost) {
+        Task {
+            if let endpoint = try? APIEndpoint.pinFlockPost(id: post.id, isPinned: !post.isPinned) {
+                _ = try? await api.requestRaw(endpoint)
+                // Reload feed to get server-authoritative pin state (sorted pins first)
+                await fetchPosts(offset: 0, reset: true)
+            }
+        }
+    }
 }
 
 // MARK: - FlockFeedView (full feature implementation)
@@ -380,16 +407,19 @@ struct FlockFeedView: View {
                             emptyState
                         } else {
                             ForEach(flockVM.posts) { post in
+                                let isAdmin = authViewModel.currentUser?.isAdmin == true
                                 FlockPostCard(
                                     post: post,
-                                    isAdmin: authViewModel.currentUser?.isAdmin == true,
+                                    isAdmin: isAdmin,
                                     isLiked: flockVM.likedPostIds.contains(post.id),
                                     onTap: {},
                                     onLike: { flockVM.toggleLike(post) },
                                     onComment: {
                                         flockVM.loadComments(postId: post.id)
                                         activeCommentPostId = post.id
-                                    }
+                                    },
+                                    onDelete: { flockVM.deletePost(post) },
+                                    onPin: { flockVM.togglePin(post) }
                                 )
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 6)
@@ -873,15 +903,20 @@ struct ProfileView: View {
     var onSubscribeRequired: () -> Void = {}
     var isDistributor: Bool = false
     var isPro: Bool = false
+    var isAdmin: Bool = false          // Bug #1 fix: was not passed, so admin badge never showed
     @EnvironmentObject private var authViewModel: AuthViewModel
     @State private var showLogoutConfirm = false
+    @State private var showEditProfile = false
+    @State private var showPrivacy = false
+    @State private var showTerms = false
 
     var body: some View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
             ScrollView {
                 VStack(spacing: 24) {
-                    // Avatar
+
+                    // ── Avatar ─────────────────────────────────────────────
                     Circle()
                         .fill(AppTheme.goldPrimary.opacity(0.15))
                         .frame(width: 90, height: 90)
@@ -895,7 +930,7 @@ struct ProfileView: View {
                         )
                         .padding(.top, 20)
 
-                    // Name + email
+                    // ── Name + email + member since ───────────────────────
                     VStack(spacing: 4) {
                         Text(authViewModel.currentUser?.name ?? "")
                             .font(.system(size: 20, weight: .semibold))
@@ -903,20 +938,38 @@ struct ProfileView: View {
                         Text(authViewModel.currentUser?.email ?? "")
                             .font(.system(size: 13))
                             .foregroundColor(AppTheme.textSecondary)
+
+                        // Bug #2 fix: show membership duration
+                        if let days = authViewModel.currentUser?.memberSinceDays {
+                            HStack(spacing: 4) {
+                                Image(systemName: "calendar.badge.checkmark")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(AppTheme.goldGradient)
+                                Text("Member for \(days) day\(days == 1 ? "" : "s")")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(AppTheme.textMuted)
+                            }
+                            .padding(.top, 4)
+                        }
                     }
 
-                    // Subscription badge row
+                    // ── Subscription badge ────────────────────────────────
                     subscriptionBadge
 
-                    // Settings list
+                    // ── Settings list ─────────────────────────────────────
                     VStack(spacing: 0) {
-                        ProfileRow(icon: "person.circle", title: "Edit Profile") {}
+
+                        // Edit Profile — Bug #2 fix: opens EditProfileView modal
+                        ProfileRow(icon: "person.circle", title: "Edit Profile") {
+                            showEditProfile = true
+                        }
                         Divider().background(Color.white.opacity(0.05))
+
                         ProfileRow(icon: "bell", title: "Notifications") {}
                         Divider().background(Color.white.opacity(0.05))
 
                         // Distributors Hub — gated
-                        if isDistributor {
+                        if isDistributor || isAdmin {
                             NavigationLink {
                                 DistributorsHubView(
                                     isUserDistributor: true,
@@ -947,11 +1000,11 @@ struct ProfileView: View {
 
                         Divider().background(Color.white.opacity(0.05))
                         ProfileRow(icon: "shield", title: "Privacy Policy") {
-                            UIApplication.shared.open(URL(string: "https://boanalyst.com/privacy")!)
+                            showPrivacy = true
                         }
                         Divider().background(Color.white.opacity(0.05))
                         ProfileRow(icon: "doc.text", title: "Terms of Service") {
-                            UIApplication.shared.open(URL(string: "https://boanalyst.com/terms")!)
+                            showTerms = true
                         }
                         Divider().background(Color.white.opacity(0.05))
                         ProfileRow(icon: "arrow.backward.circle", title: "Sign Out", isDestructive: true) {
@@ -984,13 +1037,49 @@ struct ProfileView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+        // Edit Profile sheet — Bug #2 fix
+        .sheet(isPresented: $showEditProfile) {
+            EditProfileView()
+                .environmentObject(authViewModel)
+        }
+        // In-app browsers for legal pages
+        .sheet(isPresented: $showPrivacy) {
+            if let url = URL(string: "https://boanalyst.com/privacy") {
+                NavigationView {
+                    SafariView(url: url).ignoresSafeArea()
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Done") { showPrivacy = false }
+                                    .foregroundStyle(AppTheme.goldGradient)
+                            }
+                        }
+                }
+            }
+        }
+        .sheet(isPresented: $showTerms) {
+            if let url = URL(string: "https://boanalyst.com/terms") {
+                NavigationView {
+                    SafariView(url: url).ignoresSafeArea()
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Done") { showTerms = false }
+                                    .foregroundStyle(AppTheme.goldGradient)
+                            }
+                        }
+                }
+            }
+        }
     }
 
     // MARK: - Subscription Badge
 
     @ViewBuilder
     private var subscriptionBadge: some View {
-        if authViewModel.currentUser?.isAdmin == true {
+        // Bug #1 fix: was reading prop `isAdmin` which was never passed.
+        // Now uses the explicit `isAdmin` parameter passed from MainTabView.
+        if isAdmin || authViewModel.currentUser?.isAdmin == true {
             badgePill(label: "⚡ ADMIN", color: AppTheme.error)
         } else if isDistributor {
             badgePill(label: "🎬 DISTRIBUTOR", color: AppTheme.goldPrimary)
@@ -1015,6 +1104,159 @@ struct ProfileView: View {
             .padding(.vertical, 8)
             .background(color)
             .clipShape(Capsule())
+    }
+}
+
+// MARK: - Edit Profile View (Bug #2 fix: maps to /api/user/profile)
+
+struct EditProfileView: View {
+    @EnvironmentObject private var authViewModel: AuthViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var name: String = ""
+    @State private var email: String = ""
+    @State private var isSaving = false
+    @State private var errorMsg: String? = nil
+    @State private var successMsg: String? = nil
+
+    private let api = APIClient.shared
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                AppTheme.background.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 24) {
+
+                        // Avatar
+                        Circle()
+                            .fill(AppTheme.goldPrimary.opacity(0.15))
+                            .frame(width: 80, height: 80)
+                            .overlay(
+                                Text(String(name.prefix(1)).uppercased())
+                                    .font(.custom("Cinzel-Regular", size: 32))
+                                    .foregroundStyle(AppTheme.goldGradient)
+                            )
+                            .overlay(Circle().stroke(AppTheme.goldPrimary.opacity(0.3), lineWidth: 1))
+                            .padding(.top, 20)
+
+                        // Member since
+                        if let days = authViewModel.currentUser?.memberSinceDays {
+                            HStack(spacing: 4) {
+                                Image(systemName: "calendar.badge.checkmark")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(AppTheme.goldGradient)
+                                Text("Member for \(days) day\(days == 1 ? "" : "s")")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(AppTheme.textMuted)
+                            }
+                        }
+
+                        // Plan badge
+                        if let plan = authViewModel.currentUser?.subscriptionPlan, !plan.isEmpty {
+                            Text(plan.uppercased().replacingOccurrences(of: "-", with: " "))
+                                .font(.system(size: 10, weight: .bold))
+                                .tracking(1)
+                                .foregroundColor(.black)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 6)
+                                .background(AppTheme.goldPrimary)
+                                .clipShape(Capsule())
+                        }
+
+                        // Error / Success messages
+                        if let err = errorMsg {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(AppTheme.error)
+                                Text(err)
+                                    .font(.system(size: 13))
+                                    .foregroundColor(AppTheme.error)
+                            }
+                            .padding(12)
+                            .background(AppTheme.error.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .padding(.horizontal, 20)
+                        }
+
+                        if let ok = successMsg {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(AppTheme.success)
+                                Text(ok)
+                                    .font(.system(size: 13))
+                                    .foregroundColor(AppTheme.success)
+                            }
+                            .padding(12)
+                            .background(AppTheme.success.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .padding(.horizontal, 20)
+                        }
+
+                        // Form fields
+                        VStack(spacing: 16) {
+                            GoldTextField(placeholder: "Full Name", text: $name, icon: "person")
+                            GoldTextField(placeholder: "Email", text: $email, icon: "envelope")
+                                .keyboardType(.emailAddress)
+                                .textInputAutocapitalization(.never)
+                        }
+                        .padding(.horizontal, 20)
+
+                        // Save button
+                        GoldButton(title: "Save Changes", isLoading: isSaving) {
+                            Task { await saveProfile() }
+                        }
+                        .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || isSaving)
+                        .opacity(name.trimmingCharacters(in: .whitespaces).isEmpty ? 0.6 : 1)
+                        .padding(.horizontal, 20)
+
+                        Spacer(minLength: 40)
+                    }
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("EDIT PROFILE")
+                        .font(.custom("Cinzel-Regular", size: 13))
+                        .foregroundStyle(AppTheme.goldGradient)
+                }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+            }
+        }
+        .onAppear {
+            name  = authViewModel.currentUser?.name  ?? ""
+            email = authViewModel.currentUser?.email ?? ""
+        }
+    }
+
+    private func saveProfile() async {
+        isSaving = true
+        errorMsg = nil
+        successMsg = nil
+        do {
+            let endpoint = try APIEndpoint.updateProfile(
+                name: name.trimmingCharacters(in: .whitespaces),
+                email: email.trimmingCharacters(in: .whitespaces).isEmpty ? nil : email.trimmingCharacters(in: .whitespaces)
+            )
+            let response = try await api.requestRaw(endpoint)
+            if let ok = response["success"] as? Bool, ok {
+                // Refresh user data so the UI reflects the name change immediately
+                await authViewModel.refreshUser()
+                successMsg = "Profile updated successfully!"
+                // Auto-dismiss after 1.5s
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                dismiss()
+            } else {
+                errorMsg = (response["message"] as? String) ?? "Update failed. Please try again."
+            }
+        } catch {
+            errorMsg = "Unable to save. Please check your connection."
+        }
+        isSaving = false
     }
 }
 
