@@ -32,6 +32,11 @@ final class DistributorsViewModel: ObservableObject {
         }
         isLoading = false
     }
+    func createPost(content: String) async {
+        guard let endpoint = try? APIEndpoint.createDistributorsPost(content: content) else { return }
+        _ = try? await api.request(endpoint, responseType: MessageResponse.self)
+        await loadPosts(reset: true)
+    }
 }
 
 // MARK: - DistributorsHubView
@@ -39,7 +44,9 @@ final class DistributorsViewModel: ObservableObject {
 struct DistributorsHubView: View {
     var isUserDistributor: Bool = false
     var onSubscribeRequired: () -> Void = {}
+    @EnvironmentObject private var authViewModel: AuthViewModel
     @StateObject private var viewModel = DistributorsViewModel()
+    @State private var showCreatePost = false
 
     var body: some View {
         ZStack {
@@ -63,6 +70,27 @@ struct DistributorsHubView: View {
                     .padding(.vertical, 12)
                 }
                 .refreshable { await viewModel.loadPosts(reset: true) }
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if authViewModel.currentUser?.isAdmin == true {
+                Button {
+                    showCreatePost = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(AppTheme.background)
+                        .frame(width: 56, height: 56)
+                        .background(AppTheme.goldPrimary)
+                        .clipShape(Circle())
+                        .shadow(color: AppTheme.goldPrimary.opacity(0.4), radius: 8, x: 0, y: 4)
+                }
+                .padding()
+            }
+        }
+        .fullScreenCover(isPresented: $showCreatePost) {
+            CreatePostSheet(title: "New Distributors Hub Post") { text in
+                await viewModel.createPost(content: text)
             }
         }
         .task {
