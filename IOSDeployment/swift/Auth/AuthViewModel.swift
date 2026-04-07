@@ -132,7 +132,7 @@ final class AuthViewModel: ObservableObject {
     // MARK: - Logout
 
     func logout() async {
-        try? await api.request(.logout, responseType: MessageResponse.self)
+        _ = try? await api.request(.logout, responseType: MessageResponse.self)
         keychain.deleteToken()
         uiState = AuthUiState()
     }
