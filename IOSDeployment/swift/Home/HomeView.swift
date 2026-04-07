@@ -74,8 +74,7 @@ struct HomeView: View {
                         // ── Brand Header (matches Android NavBar + Hero style) ───────────
                         HomeHeroBanner(
                             userName: authViewModel.currentUser?.name,
-                            isPro: authViewModel.currentUser?.isPro ?? false,
-                            greeting: greetingTime
+                            isPro: authViewModel.currentUser?.isPro ?? false
                         )
 
                         // ── Live Ticker ──────────────────────────────
