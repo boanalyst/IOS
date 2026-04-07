@@ -35,7 +35,7 @@ private let plans: [Plan] = [
         description: "Full access to all premium content",
         features: [
             "Inside Talk — Exclusive industry insights",
-            "Unlimited Box Office analytics",
+            "Unlimited Film analytics",
             "Advanced collection charts & trends",
             "Early access to exclusive reports",
             "Ad-free experience",
@@ -150,7 +150,7 @@ struct SubscriptionView: View {
                 .foregroundStyle(AppTheme.goldGradient)
                 .multilineTextAlignment(.center)
 
-            Text("India's most comprehensive\nBox Office intelligence platform")
+            Text("India's most comprehensive\nFilm Analysis intelligence platform")
                 .font(.system(size: 14))
                 .foregroundColor(AppTheme.textSecondary)
                 .multilineTextAlignment(.center)
