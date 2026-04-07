@@ -113,7 +113,10 @@ struct MainTabView: View {
             
             // ── Tab 4: Distributors Hub ────────────────────────────────────
             NavigationStack {
-                DistributorsHubView(onSubscribeRequired: { showSubscription = true })
+                DistributorsHubView(
+                    isUserDistributor: isDistributor,
+                    onSubscribeRequired: { showSubscription = true }
+                )
             }
             .tabItem { Label("Hub", systemImage: "briefcase.fill") }
             .tag(3)

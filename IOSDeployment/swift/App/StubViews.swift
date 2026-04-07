@@ -822,12 +822,19 @@ struct InsideTalkCard: View {
             }
 
             // Content text (blurred when locked)
-            Text(content.content)
+            let socialEmbeds = isLocked ? [] : extractSocialEmbeds(from: content.content)
+            let cleanText = stripEmbedUrls(from: content.content, embeds: socialEmbeds)
+            Text(cleanText)
                 .font(.system(size: 13))
                 .foregroundColor(isLocked ? AppTheme.textMuted : AppTheme.textPrimary)
                 .lineLimit(isLocked ? 2 : nil)
                 .lineSpacing(3)
                 .blur(radius: isLocked ? 2.5 : 0)
+
+            // ── Social Embeds (YouTube / X / Instagram) — Pro-only ────────
+            if !socialEmbeds.isEmpty {
+                SocialEmbedsSection(embeds: socialEmbeds)
+            }
 
             if isLocked {
                 Button { onSubscribeRequired() } label: {
