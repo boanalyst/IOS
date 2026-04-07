@@ -48,11 +48,16 @@ struct DistributorsHubView: View {
     @StateObject private var viewModel = DistributorsViewModel()
     @State private var showCreatePost = false
 
+    // Admins bypass the distributor paywall, like Android
+    private var canView: Bool {
+        isUserDistributor || (authViewModel.currentUser?.isAdmin == true)
+    }
+
     var body: some View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
 
-            if !isUserDistributor {
+            if !canView {
                 // Paywall for non-distributors
                 distributorsPaywall
             } else if viewModel.isLoading && viewModel.posts.isEmpty {
@@ -94,7 +99,7 @@ struct DistributorsHubView: View {
             }
         }
         .task {
-            if isUserDistributor { await viewModel.loadPosts() }
+            if canView { await viewModel.loadPosts() }
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -229,11 +234,18 @@ struct DistributorsPostCard: View {
                 }
             }
 
-            // Content
-            Text(post.content)
+            // Content — strip embed URLs so they don't appear as raw text
+            let socialEmbeds = extractSocialEmbeds(from: post.content)
+            let cleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
+            Text(cleanContent)
                 .font(.system(size: 13))
                 .foregroundColor(AppTheme.textSecondary)
                 .lineSpacing(3)
+
+            // ── Social Embeds (YouTube / X / Instagram) ──────────────────
+            if !socialEmbeds.isEmpty {
+                SocialEmbedsSection(embeds: socialEmbeds)
+            }
 
             // Tags
             if let tags = post.tags, !tags.isEmpty {

@@ -80,23 +80,31 @@ struct FlockPostCard: View {
                     }
                 }
 
-                // Content
-                let cleanContent = post.content
+                // Content — extract social embeds first, strip their URLs from text
+                let socialEmbeds = extractSocialEmbeds(from: post.content)
+                let rawContent = post.content
                     .replacingOccurrences(of: "<br>", with: "\n")
                     .replacingOccurrences(of: "</br>", with: "\n")
+                    .replacingOccurrences(of: "<br/>", with: "\n")
                     .replacingOccurrences(of: "<b>", with: "**")
                     .replacingOccurrences(of: "</b>", with: "**")
                     .replacingOccurrences(of: "<i>", with: "_")
                     .replacingOccurrences(of: "</i>", with: "_")
                     .replacingOccurrences(of: "<u>", with: "")
                     .replacingOccurrences(of: "</u>", with: "")
+                let cleanContent = stripEmbedUrls(from: rawContent, embeds: socialEmbeds)
 
                 let attrString = (try? AttributedString(markdown: cleanContent)) ?? AttributedString(cleanContent)
                 Text(attrString)
                     .font(.system(size: 13))
                     .foregroundColor(AppTheme.textSecondary)
-                    .lineLimit(5)
+                    .lineLimit(6)
                     .lineSpacing(3)
+
+                // ── Social Embeds (YouTube / X / Instagram) ──────────────
+                if !socialEmbeds.isEmpty {
+                    SocialEmbedsSection(embeds: socialEmbeds)
+                }
 
                 // Hashtags
                 if !post.tags.isEmpty {
