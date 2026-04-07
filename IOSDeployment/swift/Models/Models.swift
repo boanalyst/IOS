@@ -691,6 +691,23 @@ struct DistributorsPost: Decodable, Identifiable {
         case createdAt = "created_at"
     }
 
+    // Memberwise copy initializer for optimistic UI mutations
+    init(from existing: DistributorsPost, likeCount: Int? = nil) {
+        self.id = existing.id
+        self.content = existing.content
+        self.authorName = existing.authorName
+        self.authorHandle = existing.authorHandle
+        self.mediaUrls = existing.mediaUrls
+        self.tags = existing.tags
+        self.postType = existing.postType
+        self.priority = existing.priority
+        self.isPinned = existing.isPinned
+        self.isFeatured = existing.isFeatured
+        self.likeCount = likeCount ?? existing.likeCount
+        self.viewCount = existing.viewCount
+        self.createdAt = existing.createdAt
+    }
+
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
