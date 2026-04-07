@@ -92,6 +92,20 @@ JSON
 echo "    ⚠️  Add your 1024×1024 AppIcon.png to:"
 echo "        $ASSETS_DIR/AppIcon.appiconset/"
 
+# Logo
+mkdir -p "$ASSETS_DIR/Logo.imageset"
+cat > "$ASSETS_DIR/Logo.imageset/Contents.json" <<'JSON'
+{
+  "images" : [
+    { "idiom" : "universal", "filename" : "Logo.png" }
+  ],
+  "info" : { "author" : "xcode", "version" : 1 }
+}
+JSON
+if [ -f "$SCRIPT_DIR/assets/Logo.png" ]; then
+    cp "$SCRIPT_DIR/assets/Logo.png" "$ASSETS_DIR/Logo.imageset/Logo.png"
+fi
+
 # AccentColor placeholder
 mkdir -p "$ASSETS_DIR/AccentColor.colorset"
 cat > "$ASSETS_DIR/AccentColor.colorset/Contents.json" <<'JSON'
