@@ -37,6 +37,21 @@ final class DistributorsViewModel: ObservableObject {
         _ = try? await api.request(endpoint, responseType: MessageResponse.self)
         await loadPosts(reset: true)
     }
+
+    func likePost(_ id: String) async {
+        guard let endpoint = try? APIEndpoint.likeDistributorsPost(id: id) else { return }
+        _ = try? await api.request(endpoint, responseType: MessageResponse.self)
+        // Optimistic refresh
+        posts = posts.map { p in
+            guard p.id == id else { return p }
+            return DistributorsPost(
+                id: p.id, content: p.content, authorName: p.authorName, authorHandle: p.authorHandle,
+                mediaUrls: p.mediaUrls, tags: p.tags, postType: p.postType, priority: p.priority,
+                isPinned: p.isPinned, isFeatured: p.isFeatured, likeCount: p.likeCount + 1,
+                viewCount: p.viewCount, createdAt: p.createdAt
+            )
+        }
+    }
 }
 
 // MARK: - DistributorsHubView
@@ -68,8 +83,10 @@ struct DistributorsHubView: View {
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(viewModel.posts) { post in
-                            DistributorsPostCard(post: post)
-                                .padding(.horizontal, 16)
+                            DistributorsPostCard(post: post, onLike: {
+                                Task { await viewModel.likePost(post.id) }
+                            })
+                            .padding(.horizontal, 16)
                         }
                     }
                     .padding(.vertical, 12)
@@ -193,6 +210,7 @@ private struct FeatureRow: View {
 
 struct DistributorsPostCard: View {
     let post: DistributorsPost
+    var onLike: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -236,23 +254,17 @@ struct DistributorsPostCard: View {
 
             // Content — strip embed URLs, then render as markdown (fixes ** bold showing raw)
             let socialEmbeds = extractSocialEmbeds(from: post.content)
-            let rawContent = post.content
-                .replacingOccurrences(of: "<br>",  with: "\n")
-                .replacingOccurrences(of: "</br>", with: "\n")
-                .replacingOccurrences(of: "<br/>", with: "\n")
-                .replacingOccurrences(of: "<b>",   with: "**")
-                .replacingOccurrences(of: "</b>",  with: "**")
-                .replacingOccurrences(of: "<i>",   with: "_")
-                .replacingOccurrences(of: "</i>",  with: "_")
-                .replacingOccurrences(of: "<u>",   with: "")
-                .replacingOccurrences(of: "</u>",  with: "")
-                .replacingOccurrences(of: "\n",    with: "  \n")
-            let cleanContent = stripEmbedUrls(from: rawContent, embeds: socialEmbeds)
-            let attrContent = (try? AttributedString(markdown: cleanContent)) ?? AttributedString(cleanContent)
+            let cleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
+            let attrContent = parseBoAnalystHTML(cleanContent)
             Text(attrContent)
                 .font(.system(size: 13))
                 .foregroundColor(AppTheme.textSecondary)
                 .lineSpacing(3)
+
+            // ── Uploaded Media ───────────────────────────────────────
+            if let urls = post.mediaUrls, !urls.isEmpty {
+                PostMediaView(urls: urls)
+            }
 
             // ── Social Embeds (YouTube / X / Instagram) ──────────────────
             if !socialEmbeds.isEmpty {
@@ -278,9 +290,11 @@ struct DistributorsPostCard: View {
 
             // Engagement
             HStack(spacing: 16) {
-                Label("\(post.likeCount)", systemImage: "heart")
-                    .font(.system(size: 12))
-                    .foregroundColor(AppTheme.textMuted)
+                Button { onLike() } label: {
+                    Label("\(post.likeCount)", systemImage: "heart")
+                        .font(.system(size: 12))
+                        .foregroundColor(AppTheme.textMuted)
+                }
                 Label("\(post.viewCount)", systemImage: "eye")
                     .font(.system(size: 12))
                     .foregroundColor(AppTheme.textMuted)

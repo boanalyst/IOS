@@ -82,25 +82,20 @@ struct FlockPostCard: View {
 
                 // Content — extract social embeds first, strip their URLs from text
                 let socialEmbeds = extractSocialEmbeds(from: post.content)
-                let rawContent = post.content
-                    .replacingOccurrences(of: "<br>", with: "\n")
-                    .replacingOccurrences(of: "</br>", with: "\n")
-                    .replacingOccurrences(of: "<br/>", with: "\n")
-                    .replacingOccurrences(of: "<b>", with: "**")
-                    .replacingOccurrences(of: "</b>", with: "**")
-                    .replacingOccurrences(of: "<i>", with: "_")
-                    .replacingOccurrences(of: "</i>", with: "_")
-                    .replacingOccurrences(of: "<u>", with: "")
-                    .replacingOccurrences(of: "</u>", with: "")
-                    .replacingOccurrences(of: "\n", with: "  \n")
-                let cleanContent = stripEmbedUrls(from: rawContent, embeds: socialEmbeds)
+                let cleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
 
-                let attrString = (try? AttributedString(markdown: cleanContent)) ?? AttributedString(cleanContent)
+                let attrString = parseBoAnalystHTML(cleanContent)
                 Text(attrString)
                     .font(.system(size: 13))
                     .foregroundColor(AppTheme.textSecondary)
                     .lineLimit(6)
                     .lineSpacing(3)
+
+                // ── Uploaded Media ───────────────────────────────────────
+                let mediaUrls = post.media.map { $0.url }
+                if !mediaUrls.isEmpty {
+                    PostMediaView(urls: mediaUrls)
+                }
 
                 // ── Social Embeds (YouTube / X / Instagram) ──────────────
                 if !socialEmbeds.isEmpty {
@@ -142,7 +137,37 @@ struct FlockPostCard: View {
     }
 }
 
-// Backward-compatibility alias so HomeView's existing FlockPostCardFull calls compile
+#Preview {
+    Text("Add preview components here")
+}
+
+// MARK: - Global Content Parser (HTML to Markdown & AttributedString)
+// Matches Android's buildHashtagAnnotatedString exact parsing tree
+
+func parseBoAnalystHTML(_ text: String) -> AttributedString {
+    var clean = text
+        .replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: .regularExpression)
+        .replacingOccurrences(of: "(?i)</?p>", with: "\n", options: .regularExpression)
+        .replacingOccurrences(of: "(?i)<li>", with: "\n• ", options: .regularExpression)
+        .replacingOccurrences(of: "(?i)<b>(.*?)</b>", with: "**$1**", options: .regularExpression)
+        .replacingOccurrences(of: "(?i)<i>(.*?)</i>", with: "_$1_", options: .regularExpression)
+        .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        .replacingOccurrences(of: "&nbsp;", with: " ")
+        .replacingOccurrences(of: "&amp;", with: "&")
+        .replacingOccurrences(of: "&lt;", with: "<")
+        .replacingOccurrences(of: "&gt;", with: ">")
+    
+    clean = clean.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
+    clean = clean.replacingOccurrences(of: "\n", with: "  \n")
+    
+    var options = AttributedString.MarkdownParsingOptions()
+    options.allowsExtendedAttributes = true
+    options.interpretedSyntax = .inlineOnlyPreservingWhitespace
+    
+    return (try? AttributedString(markdown: clean, options: options)) ?? AttributedString(clean)
+}
+
+// MARK: - Backward-compatibility alias so HomeView's existing FlockPostCardFull calls compile
 typealias FlockPostCardFull = FlockPostCard
 
 
