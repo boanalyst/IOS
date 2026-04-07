@@ -70,9 +70,12 @@ struct MainTabView: View {
     @State private var showSubscription = false
     @State private var selectedTab = 0
 
-    // Shorthand for user permission checks
+    // IMPORTANT: These are computed from the LIVE currentUser object so they
+    // update automatically after refreshUser() is called on foreground return.
+    // Bug #1 fix: was using stale closure-captured values from init time.
     private var isDistributor: Bool { authViewModel.currentUser?.isDistributor ?? false }
-    private var isPro: Bool { authViewModel.currentUser?.isPro ?? false }
+    private var isPro: Bool         { authViewModel.currentUser?.isPro ?? false }
+    private var isAdmin: Bool       { authViewModel.currentUser?.isAdmin ?? false }
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -85,37 +88,34 @@ struct MainTabView: View {
             .tabItem { Label("Home", systemImage: "house.fill") }
             .tag(0)
 
-            // ── Tab 2: Box Office ──────────────────────────────────────────
-            NavigationStack {
-                BoxOfficeView()
-            }
-            .tabItem { Label("Box Office", systemImage: "ticket.fill") }
-            .tag(1)
-
-            // ── Tab 3: Flock Feed ──────────────────────────────────────────
+            // ── Tab 2: Flock Feed ──────────────────────────────────────────
+            // Box Office tab DISABLED per product decision (bug #4).
+            // Flock is now Tab 2.
             NavigationStack {
                 FlockFeedView()
             }
             .tabItem { Label("Flock", systemImage: "bubble.left.and.bubble.right.fill") }
-            .tag(2)
+            .tag(1)
 
-            // ── Tab 4: Inside Talk ─────────────────────────────────────────
+            // ── Tab 3: Inside Talk ─────────────────────────────────────────
             NavigationStack {
                 InsideTalkView(onSubscribeRequired: { showSubscription = true })
             }
             .tabItem { Label("Inside Talk", systemImage: "eye.fill") }
-            .tag(3)
+            .tag(2)
 
-            // ── Tab 5: Profile (+ Distributors Hub access within) ──────────
+            // ── Tab 4: Profile (+ Distributors Hub access within) ──────────
+            // Bug #1 fix: pass isAdmin so admin can see admin controls in Flock/Profile
             NavigationStack {
                 ProfileView(
                     onSubscribeRequired: { showSubscription = true },
                     isDistributor: isDistributor,
-                    isPro: isPro
+                    isPro: isPro,
+                    isAdmin: isAdmin
                 )
             }
             .tabItem { Label("Profile", systemImage: "person.fill") }
-            .tag(4)
+            .tag(3)
         }
         .accentColor(AppTheme.goldPrimary)
         .environmentObject(flockVM)
