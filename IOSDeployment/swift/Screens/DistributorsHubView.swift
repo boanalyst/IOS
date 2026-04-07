@@ -39,17 +39,24 @@ final class DistributorsViewModel: ObservableObject {
     }
 
     func likePost(_ id: String) async {
-        guard let endpoint = try? APIEndpoint.likeDistributorsPost(id: id) else { return }
-        _ = try? await api.request(endpoint, responseType: MessageResponse.self)
-        // Optimistic refresh
-        posts = posts.map { p in
-            guard p.id == id else { return p }
-            return DistributorsPost(
-                id: p.id, content: p.content, authorName: p.authorName, authorHandle: p.authorHandle,
-                mediaUrls: p.mediaUrls, tags: p.tags, postType: p.postType, priority: p.priority,
-                isPinned: p.isPinned, isFeatured: p.isFeatured, likeCount: p.likeCount + 1,
-                viewCount: p.viewCount, createdAt: p.createdAt
-            )
+        guard let idx = posts.firstIndex(where: { $0.id == id }) else { return }
+        let p = posts[idx]
+        
+        // Optimistic UI toggle
+        let newCount = p.likeCount + 1
+        posts[idx] = DistributorsPost(from: p, likeCount: newCount)
+        
+        let endpoint = APIEndpoint.likeDistributorsPost(id: id)
+        
+        do {
+            _ = try await api.requestRaw(endpoint)
+        } catch {
+            // Revert on failure
+            DispatchQueue.main.async {
+                if let reverseIdx = self.posts.firstIndex(where: { $0.id == id }) {
+                    self.posts[reverseIdx] = DistributorsPost(from: p, likeCount: p.likeCount)
+                }
+            }
         }
     }
 }

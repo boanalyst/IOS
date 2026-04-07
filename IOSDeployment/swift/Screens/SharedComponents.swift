@@ -282,3 +282,40 @@ struct SkeletonCard: View {
         .cardStyle()
     }
 }
+
+// MARK: - Generic Media View Helper (Used by all feeds)
+
+struct PostMediaView: View {
+    let urls: [String]
+
+    var body: some View {
+        if !urls.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(urls, id: \.self) { urlString in
+                        if let url = URL(string: urlString.hasPrefix("http") ? urlString : "https://boanalyst.com\(urlString.hasPrefix("/") ? "" : "/")\(urlString)") {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .empty:
+                                    Rectangle().fill(AppTheme.surfaceVariant)
+                                        .overlay(ProgressView().tint(AppTheme.goldPrimary))
+                                case .success(let image):
+                                    image.resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                case .failure:
+                                    Rectangle().fill(AppTheme.surfaceVariant)
+                                        .overlay(Image(systemName: "photo").foregroundColor(AppTheme.textMuted))
+                                @unknown default:
+                                    EmptyView()
+                                }
+                            }
+                            .frame(width: 140, height: 140)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+                }
+            }
+            .padding(.top, 4)
+        }
+    }
+}
