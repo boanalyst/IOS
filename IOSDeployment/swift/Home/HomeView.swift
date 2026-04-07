@@ -486,68 +486,33 @@ struct TrendingTopicsRibbon: View {
 struct HomeHeroBanner: View {
     let userName: String?
     let isPro: Bool
-    let greeting: String
-    @Environment(\.colorScheme) var colorScheme
-
+    
+    // Instead of navigation link here, we just match Android's UI 
+    // and rely on the profile tab for access, or we can use a callback.
+    // For now we just display the header.
+    
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .center) {
-                // Brand logo
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(alignment: .lastTextBaseline, spacing: 0) {
-                        Text("Bo")
-                            .font(.custom("Cinzel-Regular", size: 28))
-                            .foregroundStyle(AppTheme.goldGradient)
-                        Text("Analyst")
-                            .font(.custom("Cinzel-Regular", size: 20))
-                            .foregroundColor(AppTheme.textSecondary)
-                    }
-                    Text("India's Box Office Analysis Platform")
-                        .font(.system(size: 10, weight: .regular))
-                        .foregroundColor(AppTheme.textMuted)
-                        .tracking(0.3)
-                }
-
-                Spacer()
-
-                // User greeting + PRO badge
-                VStack(alignment: .trailing, spacing: 3) {
-                    if let name = userName, !name.isEmpty {
-                        Text("Good \(greeting), \(name.components(separatedBy: " ").first ?? name)")
-                            .font(.system(size: 11))
-                            .foregroundColor(AppTheme.textSecondary)
-                            .lineLimit(1)
-                    }
-                    if isPro {
-                        Text("PRO")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.black)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(AppTheme.goldGradient)
-                            .clipShape(Capsule())
-                    }
-                }
+        HStack(alignment: .center) {
+            Text("BoAnalyst")
+                .font(.system(size: 22, weight: .heavy))
+                .foregroundColor(AppTheme.goldPrimary)
+                .tracking(0.5)
+            
+            Spacer()
+            
+            if isPro {
+                Text("PRO")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(AppTheme.goldGradient)
+                    .clipShape(Capsule())
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 14)
-            .background(
-                LinearGradient(
-                    colors: colorScheme == .dark ? [Color(hex: "141414"), Color(hex: "0A0A0A")] : [AppTheme.surfaceVariant, AppTheme.background],
-                    startPoint: .top, endPoint: .bottom
-                )
-            )
-            .overlay(
-                // Gold accent line at bottom
-                LinearGradient(
-                    colors: [AppTheme.goldPrimary.opacity(0.8), AppTheme.goldPrimary.opacity(0.1)],
-                    startPoint: .leading, endPoint: .trailing
-                )
-                .frame(height: 1),
-                alignment: .bottom
-            )
         }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(AppTheme.background)
     }
 }
 
