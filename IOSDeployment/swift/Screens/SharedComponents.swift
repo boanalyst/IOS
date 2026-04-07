@@ -91,7 +91,8 @@ struct FlockPostCard: View {
                     .replacingOccurrences(of: "<u>", with: "")
                     .replacingOccurrences(of: "</u>", with: "")
 
-                Text(try? AttributedString(markdown: cleanContent) ?? AttributedString(cleanContent))
+                let attrString = (try? AttributedString(markdown: cleanContent)) ?? AttributedString(cleanContent)
+                Text(attrString)
                     .font(.system(size: 13))
                     .foregroundColor(AppTheme.textSecondary)
                     .lineLimit(5)
