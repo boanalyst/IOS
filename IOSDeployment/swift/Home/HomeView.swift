@@ -93,7 +93,11 @@ struct HomeView: View {
                             if let exclusive = viewModel.exclusiveContent {
                                 ExclusiveContentCard(
                                     exclusive: exclusive,
-                                    onUnlock: onSubscribeRequired
+                                    onUnlock: {
+                                        if let url = URL(string: "https://boanalyst.com/exclusive.html") {
+                                            UIApplication.shared.open(url)
+                                        }
+                                    }
                                 )
                                 .padding(.horizontal, 20)
                             }
