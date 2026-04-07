@@ -77,11 +77,11 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
 
-            // ── Tab 1: Home ────────────────────────────────────────────────
+            // ── Tab 1: Home ────────────────────────────────────
             NavigationStack {
                 HomeView(onSubscribeRequired: { showSubscription = true })
-                    .navigationBarTitleDisplayMode(.inline)
             }
+            .navigationBarHidden(true)
             .tabItem { Label("Home", systemImage: "house.fill") }
             .tag(0)
 
