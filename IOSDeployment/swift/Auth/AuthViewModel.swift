@@ -34,16 +34,27 @@ final class AuthViewModel: ObservableObject {
             return
         }
         do {
-            let response = try await api.request(.getMe, responseType: ProfileResponse.self)
-            if let user = response.user {
-                uiState.user = user
+            let response = try await api.requestRaw(.getMe)
+            if let success = response["success"] as? Bool, success,
+               let userData = response["user"] as? [String: Any] {
+                // Try to decode user, but authenticate even if decode partially fails
+                if let userJSON = try? JSONSerialization.data(withJSONObject: userData),
+                   let user = try? JSONDecoder().decode(User.self, from: userJSON) {
+                    uiState.user = user
+                }
                 uiState.isAuthenticated = true
             } else {
+                // Token is invalid on the server
                 keychain.deleteToken()
                 uiState.isAuthenticated = false
             }
-        } catch {
+        } catch APIError.unauthorized {
+            // 401 = token expired or revoked
             keychain.deleteToken()
+            uiState.isAuthenticated = false
+        } catch {
+            // Network error — keep token, show as unauthenticated for now
+            // User can retry by opening the app again with connectivity
             uiState.isAuthenticated = false
         }
     }
@@ -55,21 +66,31 @@ final class AuthViewModel: ObservableObject {
         uiState.error = nil
         do {
             let endpoint = try APIEndpoint.login(email: email, password: password)
-            let response = try await api.request(endpoint, responseType: AuthResponse.self)
-            if response.success, let token = response.token {
+            let response = try await api.requestRaw(endpoint)
+            if let success = response["success"] as? Bool, success,
+               let token = response["token"] as? String {
                 keychain.saveToken(token)
-                uiState.user = response.user
+                // Parse user if present — ignore decode failure, still authenticate
+                if let userData = response["user"] as? [String: Any],
+                   let userJSON = try? JSONSerialization.data(withJSONObject: userData),
+                   let user = try? JSONDecoder().decode(User.self, from: userJSON) {
+                    uiState.user = user
+                }
                 uiState.isAuthenticated = true
             } else {
-                uiState.error = response.message ?? "Login failed. Please try again."
+                let message = response["message"] as? String
+                uiState.error = message ?? "Invalid email or password. Please try again."
             }
         } catch APIError.unauthorized {
-            // Token was somehow invalid at login time — clear state
-            keychain.deleteToken()
-            uiState.isAuthenticated = false
-            uiState.error = "Session expired. Please log in again."
+            uiState.error = "Invalid email or password. Please try again."
+        } catch APIError.serverError(let code, let msg) {
+            if code == 401 {
+                uiState.error = "Invalid email or password. Please try again."
+            } else {
+                uiState.error = msg?.isEmpty == false ? msg! : "Login failed. Please try again."
+            }
         } catch {
-            uiState.error = error.localizedDescription
+            uiState.error = "Unable to connect. Please check your internet and try again."
         }
         uiState.isLoading = false
     }
@@ -81,16 +102,29 @@ final class AuthViewModel: ObservableObject {
         uiState.error = nil
         do {
             let endpoint = try APIEndpoint.register(email: email, password: password, name: name)
-            let response = try await api.request(endpoint, responseType: AuthResponse.self)
-            if response.success, let token = response.token {
+            let response = try await api.requestRaw(endpoint)
+            if let success = response["success"] as? Bool, success,
+               let token = response["token"] as? String {
                 keychain.saveToken(token)
-                uiState.user = response.user
+                // Parse user if present — ignore decode failure, still authenticate
+                if let userData = response["user"] as? [String: Any],
+                   let userJSON = try? JSONSerialization.data(withJSONObject: userData),
+                   let user = try? JSONDecoder().decode(User.self, from: userJSON) {
+                    uiState.user = user
+                }
                 uiState.isAuthenticated = true
             } else {
-                uiState.error = response.message ?? "Registration failed."
+                let message = response["message"] as? String
+                uiState.error = message ?? "Registration failed. Please try again."
+            }
+        } catch APIError.serverError(let code, let msg) {
+            if code == 409 {
+                uiState.error = "An account with this email already exists. Please sign in."
+            } else {
+                uiState.error = msg?.isEmpty == false ? msg! : "Registration failed. Please try again."
             }
         } catch {
-            uiState.error = error.localizedDescription
+            uiState.error = "Unable to connect. Please check your internet and try again."
         }
         uiState.isLoading = false
     }
@@ -109,9 +143,13 @@ final class AuthViewModel: ObservableObject {
     func handleOAuthCallback(token: String) async {
         keychain.saveToken(token)
         do {
-            let response = try await api.request(.getMe, responseType: ProfileResponse.self)
-            if let user = response.user {
-                uiState.user = user
+            let response = try await api.requestRaw(.getMe)
+            if let success = response["success"] as? Bool, success,
+               let userData = response["user"] as? [String: Any] {
+                if let userJSON = try? JSONSerialization.data(withJSONObject: userData),
+                   let user = try? JSONDecoder().decode(User.self, from: userJSON) {
+                    uiState.user = user
+                }
                 uiState.isAuthenticated = true
             } else {
                 keychain.deleteToken()
@@ -130,8 +168,13 @@ final class AuthViewModel: ObservableObject {
     // If token is expired (401), auto-logout so the user gets the login screen.
     func refreshUser() async {
         do {
-            let response = try await api.request(.getMe, responseType: ProfileResponse.self)
-            uiState.user = response.user
+            let response = try await api.requestRaw(.getMe)
+            if let success = response["success"] as? Bool, success,
+               let userData = response["user"] as? [String: Any],
+               let userJSON = try? JSONSerialization.data(withJSONObject: userData),
+               let user = try? JSONDecoder().decode(User.self, from: userJSON) {
+                uiState.user = user
+            }
         } catch APIError.unauthorized {
             await logout()
         } catch {}
