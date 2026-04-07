@@ -20,18 +20,15 @@ struct SocialEmbed: Identifiable {
 
 func extractSocialEmbeds(from text: String) -> [SocialEmbed] {
     var results: [SocialEmbed] = []
-    // Rough URL finder
-    let urlPattern = try! NSRegularExpression(pattern: #"https?://\S+"#)
+    guard let urlPattern = try? NSRegularExpression(pattern: #"https?://\S+"#) else { return [] }
     let nsText = text as NSString
-    let matches = urlPattern.matches(in: text, range: NSRange(text.startIndex..., in: text))
+    let matches = urlPattern.matches(in: text, range: NSRange(location: 0, length: nsText.length))
 
     for m in matches {
         var raw = nsText.substring(with: m.range)
-        // Trim trailing punctuation like Android does
-        let trailing: Set<Character> = [".", ",", ")", "]", ">"]
-        while let last = raw.last, trailing.contains(last) { raw.removeLast() }
-
-        if let embed = parseSocialEmbed(url: raw) {
+        // Trim trailing punctuation (mirrors Android)
+        while let last = raw.last, ".,)>]".contains(last) { raw.removeLast() }
+        if !raw.isEmpty, let embed = parseSocialEmbed(url: raw) {
             results.append(embed)
         }
     }
@@ -39,34 +36,40 @@ func extractSocialEmbeds(from text: String) -> [SocialEmbed] {
 }
 
 private func parseSocialEmbed(url: String) -> SocialEmbed? {
+    let nsUrl = url as NSString
+    let fullRange = NSRange(location: 0, length: nsUrl.length)
+
     // ── Twitter / X ──────────────────────────────────────────────────────
-    let twitterPat = try! NSRegularExpression(
+    if let pat = try? NSRegularExpression(
         pattern: #"(?:https?://)?(?:www\.)?(?:twitter\.com|x\.com)/\w+/status/(\d+)"#,
         options: .caseInsensitive
-    )
-    if let m = twitterPat.firstMatch(in: url, range: NSRange(url.startIndex..., in: url)),
-       let r = Range(m.range(at: 1), in: url) {
-        return SocialEmbed(id: String(url[r]), originalUrl: url, type: .twitter)
+    ), let m = pat.firstMatch(in: url, range: fullRange) {
+        let r = m.range(at: 1)
+        if r.location != NSNotFound, let swiftRange = Range(r, in: url) {
+            return SocialEmbed(id: String(url[swiftRange]), originalUrl: url, type: .twitter)
+        }
     }
 
     // ── YouTube ──────────────────────────────────────────────────────────
-    let youtubePat = try! NSRegularExpression(
+    if let pat = try? NSRegularExpression(
         pattern: #"(?:https?://)?(?:www\.)?(?:youtube\.com/(?:watch\?(?:[^&\s]*&)*v=|shorts/|embed/)|youtu\.be/)([A-Za-z0-9_-]{11})"#,
         options: .caseInsensitive
-    )
-    if let m = youtubePat.firstMatch(in: url, range: NSRange(url.startIndex..., in: url)),
-       let r = Range(m.range(at: 1), in: url) {
-        return SocialEmbed(id: String(url[r]), originalUrl: url, type: .youtube)
+    ), let m = pat.firstMatch(in: url, range: fullRange) {
+        let r = m.range(at: 1)
+        if r.location != NSNotFound, let swiftRange = Range(r, in: url) {
+            return SocialEmbed(id: String(url[swiftRange]), originalUrl: url, type: .youtube)
+        }
     }
 
     // ── Instagram ────────────────────────────────────────────────────────
-    let igPat = try! NSRegularExpression(
+    if let pat = try? NSRegularExpression(
         pattern: #"(?:https?://)?(?:www\.)?instagram\.com/(?:reel|p|tv)/([A-Za-z0-9_-]+)/?"#,
         options: .caseInsensitive
-    )
-    if let m = igPat.firstMatch(in: url, range: NSRange(url.startIndex..., in: url)),
-       let r = Range(m.range(at: 1), in: url) {
-        return SocialEmbed(id: String(url[r]), originalUrl: url, type: .instagram)
+    ), let m = pat.firstMatch(in: url, range: fullRange) {
+        let r = m.range(at: 1)
+        if r.location != NSNotFound, let swiftRange = Range(r, in: url) {
+            return SocialEmbed(id: String(url[swiftRange]), originalUrl: url, type: .instagram)
+        }
     }
 
     return nil
@@ -79,7 +82,7 @@ func stripEmbedUrls(from text: String, embeds: [SocialEmbed]) -> String {
     for embed in embeds {
         result = result.replacingOccurrences(of: embed.originalUrl, with: "")
     }
-    // Collapse repeated newlines
+    // Collapse repeated blank lines
     while result.contains("\n\n\n") {
         result = result.replacingOccurrences(of: "\n\n\n", with: "\n\n")
     }
@@ -92,7 +95,7 @@ struct SocialEmbedsSection: View {
     let embeds: [SocialEmbed]
 
     var body: some View {
-        if embeds.isEmpty { EmptyView() } else {
+        if !embeds.isEmpty {
             VStack(spacing: 8) {
                 ForEach(embeds) { embed in
                     SocialEmbedCard(embed: embed)
@@ -103,49 +106,56 @@ struct SocialEmbedsSection: View {
 }
 
 // MARK: - Individual embed card dispatcher
+// NOTE: Must use AnyView in switch because each branch returns a distinct concrete type.
 
 private struct SocialEmbedCard: View {
     let embed: SocialEmbed
 
     var body: some View {
-        switch embed.type {
-        case .youtube:
-            YouTubeThumbnailCard(videoId: embed.id, originalUrl: embed.originalUrl)
-        case .twitter:
-            XEmbedWebView(tweetId: embed.id)
-        case .instagram:
-            InstagramEmbedWebView(postUrl: embed.originalUrl)
+        Group {
+            if embed.type == .youtube {
+                YouTubeThumbnailCard(videoId: embed.id, originalUrl: embed.originalUrl)
+            } else if embed.type == .twitter {
+                XEmbedWebView(tweetId: embed.id)
+            } else {
+                InstagramEmbedWebView(postUrl: embed.originalUrl)
+            }
         }
     }
 }
 
-// MARK: - YouTube Thumbnail Card (native — no WKWebView required)
-// Mimics Android's YouTubeThumbnailCard; tapping opens m.youtube.com
-// in SFSafariViewController for full in-app playback.
+// MARK: - YouTube Thumbnail Card (native — no WKWebView needed)
+// Tapping opens m.youtube.com inside SFSafariViewController for full playback.
 
 private struct YouTubeThumbnailCard: View {
     let videoId: String
     let originalUrl: String
     @State private var showSafari = false
 
+    private var thumbnailURL: URL? {
+        URL(string: "https://img.youtube.com/vi/\(videoId)/hqdefault.jpg")
+    }
+
+    private var playbackURL: URL? {
+        URL(string: "https://m.youtube.com/watch?v=\(videoId)")
+    }
+
     var body: some View {
-        let thumbUrl = URL(string: "https://img.youtube.com/vi/\(videoId)/hqdefault.jpg")
         ZStack {
             // Thumbnail
-            AsyncImage(url: thumbUrl) { phase in
-                switch phase {
-                case .success(let img):
-                    img.resizable().aspectRatio(16/9, contentMode: .fill)
-                default:
-                    Rectangle().fill(Color.black.opacity(0.6))
+            AsyncImage(url: thumbnailURL) { phase in
+                if case .success(let img) = phase {
+                    img.resizable().aspectRatio(16 / 9, contentMode: .fill)
+                } else {
+                    Rectangle().fill(Color.black.opacity(0.7))
                 }
             }
             .clipped()
 
-            // Dark overlay
+            // Subtle dark scrim so the play button always reads clearly
             Color.black.opacity(0.22)
 
-            // Red YouTube play circle
+            // Red YouTube play button circle
             Circle()
                 .fill(Color(red: 1, green: 0, blue: 0))
                 .frame(width: 54, height: 54)
@@ -156,28 +166,29 @@ private struct YouTubeThumbnailCard: View {
                         .offset(x: 2)
                 )
 
-            // "▶ YouTube" badge
-            VStack {
+            // "▶ YouTube" badge — bottom-right
+            VStack(spacing: 0) {
                 Spacer()
-                HStack {
+                HStack(spacing: 0) {
                     Spacer()
                     Text("▶  YouTube")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 6).padding(.vertical, 3)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
                         .background(Color.black.opacity(0.65))
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                         .padding(8)
                 }
             }
         }
-        .aspectRatio(16/9, contentMode: .fit)
+        .aspectRatio(16 / 9, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .contentShape(Rectangle())
         .onTapGesture { showSafari = true }
         .sheet(isPresented: $showSafari) {
-            if let url = URL(string: "https://m.youtube.com/watch?v=\(videoId)") {
-                SafariView(url: url)
-                    .ignoresSafeArea()
+            if let url = playbackURL {
+                SafariView(url: url).ignoresSafeArea()
             }
         }
     }
@@ -198,31 +209,6 @@ private struct XEmbedWebView: View {
 private struct TwitterWebView: UIViewRepresentable {
     let tweetId: String
 
-    private func html() -> String {
-        """
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-        <style>
-          * { margin:0; padding:0; box-sizing:border-box; }
-          body { background:transparent; font-family:sans-serif; }
-          .wrap { display:flex; justify-content:center; padding:4px 0; }
-        </style>
-        </head>
-        <body>
-        <div class="wrap">
-          <blockquote class="twitter-tweet" data-conversation="none" data-theme="dark"
-                      data-cards="visible" data-media="visible" data-dnt="true" data-width="480">
-            <a href="https://twitter.com/x/status/\(tweetId)"></a>
-          </blockquote>
-        </div>
-        <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-        </body>
-        </html>
-        """
-    }
-
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
@@ -230,11 +216,37 @@ private struct TwitterWebView: UIViewRepresentable {
         wv.isOpaque = false
         wv.backgroundColor = .clear
         wv.scrollView.isScrollEnabled = false
-        wv.loadHTMLString(html(), baseURL: URL(string: "https://twitter.com"))
+        let html = twitterHTML(tweetId: tweetId)
+        wv.loadHTMLString(html, baseURL: URL(string: "https://twitter.com"))
         return wv
     }
 
     func updateUIView(_ wv: WKWebView, context: Context) {}
+}
+
+private func twitterHTML(tweetId: String) -> String {
+    """
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+    <style>
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { background:transparent; font-family:sans-serif; }
+      .wrap { display:flex; justify-content:center; padding:4px 0; }
+    </style>
+    </head>
+    <body>
+    <div class="wrap">
+      <blockquote class="twitter-tweet" data-conversation="none" data-theme="dark"
+                  data-cards="visible" data-media="visible" data-dnt="true" data-width="480">
+        <a href="https://twitter.com/x/status/\(tweetId)"></a>
+      </blockquote>
+    </div>
+    <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+    </body>
+    </html>
+    """
 }
 
 // MARK: - Instagram Embed using WKWebView
@@ -252,35 +264,6 @@ private struct InstagramEmbedWebView: View {
 private struct InstagramWebView: UIViewRepresentable {
     let postUrl: String
 
-    private func html() -> String {
-        """
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-        <style>
-          * { margin:0; padding:0; box-sizing:border-box; }
-          body { background:transparent; font-family:sans-serif; }
-          .wrap { display:flex; justify-content:center; padding:4px 0; }
-          .instagram-media { min-width:280px !important; width:100% !important; }
-        </style>
-        </head>
-        <body>
-        <div class="wrap">
-          <blockquote class="instagram-media"
-            data-instgrm-permalink="\(postUrl)"
-            data-instgrm-version="14"
-            style="border:0;border-radius:3px;
-                   box-shadow:0 0 1px 0 rgba(0,0,0,.5),0 1px 10px 0 rgba(0,0,0,.15);
-                   margin:1px;max-width:480px;min-width:280px;padding:0;width:calc(100% - 2px);">
-          </blockquote>
-        </div>
-        <script async src="https://www.instagram.com/embed.js"></script>
-        </body>
-        </html>
-        """
-    }
-
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
@@ -288,14 +271,44 @@ private struct InstagramWebView: UIViewRepresentable {
         wv.isOpaque = false
         wv.backgroundColor = .clear
         wv.scrollView.isScrollEnabled = false
-        wv.loadHTMLString(html(), baseURL: URL(string: "https://www.instagram.com"))
+        let html = instagramHTML(postUrl: postUrl)
+        wv.loadHTMLString(html, baseURL: URL(string: "https://www.instagram.com"))
         return wv
     }
 
     func updateUIView(_ wv: WKWebView, context: Context) {}
 }
 
-// MARK: - Safari View Controller Wrapper
+private func instagramHTML(postUrl: String) -> String {
+    """
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+    <style>
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { background:transparent; font-family:sans-serif; }
+      .wrap { display:flex; justify-content:center; padding:4px 0; }
+      .instagram-media { min-width:280px !important; width:100% !important; }
+    </style>
+    </head>
+    <body>
+    <div class="wrap">
+      <blockquote class="instagram-media"
+        data-instgrm-permalink="\(postUrl)"
+        data-instgrm-version="14"
+        style="border:0;border-radius:3px;
+               box-shadow:0 0 1px 0 rgba(0,0,0,.5),0 1px 10px 0 rgba(0,0,0,.15);
+               margin:1px;max-width:480px;min-width:280px;padding:0;width:calc(100% - 2px);">
+      </blockquote>
+    </div>
+    <script async src="https://www.instagram.com/embed.js"></script>
+    </body>
+    </html>
+    """
+}
+
+// MARK: - Safari View Controller wrapper (for YouTube full-screen playback)
 
 struct SafariView: UIViewControllerRepresentable {
     let url: URL
