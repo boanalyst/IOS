@@ -797,6 +797,7 @@ struct InsideTalkCard: View {
             .replacingOccurrences(of: "</i>",  with: "_")
             .replacingOccurrences(of: "<u>",   with: "")
             .replacingOccurrences(of: "</u>",  with: "")
+            .replacingOccurrences(of: "\n",    with: "  \n")
         return (try? AttributedString(markdown: cleaned)) ?? AttributedString(cleaned)
     }
 
