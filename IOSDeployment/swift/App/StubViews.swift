@@ -298,8 +298,8 @@ final class FlockViewModel: ObservableObject {
         }
     }
 
-    func createPost(content: String) async {
-        guard let endpoint = try? APIEndpoint.createFlockPost(content: content) else { return }
+    func createPost(content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) async {
+        guard let endpoint = try? APIEndpoint.createFlockPost(content: content, mediaData: mediaData, mimeType: mimeType, fileName: fileName) else { return }
         _ = try? await api.request(endpoint, responseType: MessageResponse.self)
         await loadFeed()
     }
@@ -469,9 +469,9 @@ struct FlockFeedView: View {
             }
         }
         .fullScreenCover(isPresented: $showCreatePost) {
-            CreatePostSheet(title: "New Flock Post") { text in
-                await flockVM.createPost(content: text)
-            }
+            CreatePostSheet(title: "New Flock Post", onSubmitWithMedia: { text, mediaData, mediaType, fileName in
+                await flockVM.createPost(content: text, mediaData: mediaData, mimeType: mediaType, fileName: fileName)
+            })
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -569,8 +569,8 @@ final class InsideTalkViewModel: ObservableObject {
         }
     }
 
-    func createPost(text: String) async {
-        guard let endpoint = try? APIEndpoint.createInsideTalkPost(text: text) else { return }
+    func createPost(text: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) async {
+        guard let endpoint = try? APIEndpoint.createInsideTalkPost(text: text, mediaData: mediaData, mimeType: mimeType, fileName: fileName) else { return }
         _ = try? await api.request(endpoint, responseType: MessageResponse.self) // Optimistic, we just reload
         await loadAll() // Reload to fetch the new post
     }
@@ -728,9 +728,9 @@ struct InsideTalkView: View {
             }
         }
         .fullScreenCover(isPresented: $showCreatePost) {
-            CreatePostSheet(title: "New Inside Talk") { text in
-                await viewModel.createPost(text: text)
-            }
+            CreatePostSheet(title: "New Inside Talk", onSubmitWithMedia: { text, mediaData, mediaType, fileName in
+                await viewModel.createPost(text: text, mediaData: mediaData, mimeType: mediaType, fileName: fileName)
+            })
         }
         // ── Reply Bottom Sheet ────────────────────────────────────────────
         .sheet(item: $activeCommentTweetId) { tweetId in
@@ -782,10 +782,22 @@ struct InsideTalkCard: View {
     var onLike: () -> Void = {}
     var onComment: () -> Void = {}
 
-    // A post is considered "teaser only" when the server returns short content
-    // (< 120 chars — server truncates for non-pro). Pro users see full content.
-    private var isLocked: Bool {
-        !isUserPro && content.content.count < 120
+    // FIXED: A post is "locked" only for non-pro, non-admin users.
+    // The old check (content.count < 120) was wrong — it locked short posts for everyone.
+    private var isLocked: Bool { !isUserPro }
+
+    private func renderMarkdown(_ raw: String) -> AttributedString {
+        let cleaned = raw
+            .replacingOccurrences(of: "<br>",  with: "\n")
+            .replacingOccurrences(of: "</br>", with: "\n")
+            .replacingOccurrences(of: "<br/>", with: "\n")
+            .replacingOccurrences(of: "<b>",   with: "**")
+            .replacingOccurrences(of: "</b>",  with: "**")
+            .replacingOccurrences(of: "<i>",   with: "_")
+            .replacingOccurrences(of: "</i>",  with: "_")
+            .replacingOccurrences(of: "<u>",   with: "")
+            .replacingOccurrences(of: "</u>",  with: "")
+        return (try? AttributedString(markdown: cleaned)) ?? AttributedString(cleaned)
     }
 
     var body: some View {
@@ -821,15 +833,17 @@ struct InsideTalkCard: View {
                 }
             }
 
-            // Content text (blurred when locked)
+            // Content — extract social embeds, strip raw URLs, render markdown
             let socialEmbeds = isLocked ? [] : extractSocialEmbeds(from: content.content)
             let cleanText = stripEmbedUrls(from: content.content, embeds: socialEmbeds)
-            Text(cleanText)
+            let attrText = renderMarkdown(cleanText)
+
+            Text(attrText)
                 .font(.system(size: 13))
                 .foregroundColor(isLocked ? AppTheme.textMuted : AppTheme.textPrimary)
-                .lineLimit(isLocked ? 2 : nil)
+                .lineLimit(isLocked ? 3 : nil)
                 .lineSpacing(3)
-                .blur(radius: isLocked ? 2.5 : 0)
+                .blur(radius: isLocked ? 3.5 : 0)
 
             // ── Social Embeds (YouTube / X / Instagram) — Pro-only ────────
             if !socialEmbeds.isEmpty {
@@ -849,7 +863,7 @@ struct InsideTalkCard: View {
                     .clipShape(Capsule())
                 }
             } else {
-                // Engagement row — only for unlocked pro content
+                // Engagement row
                 HStack(spacing: 16) {
                     Button { onLike() } label: {
                         Label("\(content.likeCount)",
@@ -994,14 +1008,30 @@ struct ProfileView: View {
                         )
                         .padding(.top, 20)
 
-                    // ── Name + email + member since ───────────────────────
-                    VStack(spacing: 4) {
+                    // ── Name + email + bio + member since ───────────────────────
+                    VStack(spacing: 6) {
                         Text(authViewModel.currentUser?.name ?? "")
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(AppTheme.textPrimary)
+
+                        if let username = authViewModel.currentUser?.username, !username.isEmpty {
+                            Text("@\(username)")
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppTheme.goldGradient)
+                        }
+
                         Text(authViewModel.currentUser?.email ?? "")
                             .font(.system(size: 13))
                             .foregroundColor(AppTheme.textSecondary)
+
+                        if let bio = authViewModel.currentUser?.resolvedBio, !bio.isEmpty {
+                            Text(bio)
+                                .font(.system(size: 13))
+                                .foregroundColor(AppTheme.textPrimary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
+                                .padding(.top, 4)
+                        }
 
                         // Bug #2 fix: show membership duration
                         if let days = authViewModel.currentUser?.memberSinceDays {
@@ -1009,6 +1039,7 @@ struct ProfileView: View {
                                 Image(systemName: "calendar.badge.checkmark")
                                     .font(.system(size: 11))
                                     .foregroundStyle(AppTheme.goldGradient)
+                                    .offset(y: -1)
                                 Text("Member for \(days) day\(days == 1 ? "" : "s")")
                                     .font(.system(size: 12))
                                     .foregroundColor(AppTheme.textMuted)
@@ -1378,62 +1409,152 @@ struct ProfileRow: View {
     }
 }
 
-// MARK: - Create Post Sheet
+// MARK: - Create Post Sheet (with media upload support)
+// Supports text + image / video / audio attachments.
+// Uses iOS PhotosPicker for image/video (no extra entitlements needed).
+// Uses fileImporter for audio files.
+
+import PhotosUI
+
 struct CreatePostSheet: View {
     @Environment(\.dismiss) var dismiss
     let title: String
-    let onSubmit: (String) async -> Void
+    let onSubmitText: ((String) async -> Void)?           // plain-text only (legacy)
+    let onSubmitMedia: ((String, Data?, String?, String?) async -> Void)?  // text + media
 
-    // SECURITY: Hard cap on post length — prevents oversized payload attacks
+    init(title: String, onSubmit: @escaping (String) async -> Void) {
+        self.title = title
+        self.onSubmitText = onSubmit
+        self.onSubmitMedia = nil
+    }
+
+    init(title: String, onSubmitWithMedia: @escaping (String, Data?, String?, String?) async -> Void) {
+        self.title = title
+        self.onSubmitText = nil
+        self.onSubmitMedia = onSubmitWithMedia
+    }
+
     private let maxLength = 5000
+    private let api = APIClient.shared
 
     @State private var text = ""
     @State private var isPosting = false
+    @State private var selectedPhotoItem: PhotosPickerItem? = nil
+    @State private var selectedImageData: Data? = nil
+    @State private var selectedMediaType: String? = nil  // "image/jpeg", "video/mp4", "audio/mpeg"
+    @State private var selectedFileName: String? = nil
+    @State private var previewImage: SwiftUI.Image? = nil
+    @State private var showAudioPicker = false
 
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var isOverLimit: Bool { text.count > maxLength }
-    private var canPost: Bool { !trimmed.isEmpty && !isOverLimit && !isPosting }
+    private var canPost: Bool { (!trimmed.isEmpty || selectedImageData != nil) && !isOverLimit && !isPosting }
 
     var body: some View {
         NavigationView {
             ZStack {
                 AppTheme.background.ignoresSafeArea()
-                VStack(spacing: 0) {
-                    ZStack(alignment: .topLeading) {
-                        TextEditor(text: $text)
-                            .font(.system(size: 15))
-                            .scrollContentBackground(.hidden)
-                            .background(AppTheme.surfaceVariant.opacity(0.3))
-                            .foregroundColor(AppTheme.textPrimary)
-                            .cornerRadius(12)
-                            .padding()
-                            // SECURITY: Enforce character limit via onChange
-                            .onChange(of: text) { newValue in
-                                if newValue.count > maxLength {
-                                    text = String(newValue.prefix(maxLength))
+                ScrollView {
+                    VStack(spacing: 16) {
+                        // Text editor
+                        ZStack(alignment: .topLeading) {
+                            TextEditor(text: $text)
+                                .font(.system(size: 15))
+                                .scrollContentBackground(.hidden)
+                                .background(AppTheme.surfaceVariant.opacity(0.3))
+                                .foregroundColor(AppTheme.textPrimary)
+                                .cornerRadius(12)
+                                .frame(minHeight: 140)
+                                .padding()
+                                .onChange(of: text) { newValue in
+                                    if newValue.count > maxLength {
+                                        text = String(newValue.prefix(maxLength))
+                                    }
+                                }
+                            if text.isEmpty {
+                                Text("What's on your mind?")
+                                    .foregroundColor(AppTheme.textMuted)
+                                    .padding(.horizontal, 22)
+                                    .padding(.vertical, 24)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+
+                        // Character counter
+                        HStack {
+                            Spacer()
+                            Text("\(text.count)/\(maxLength)")
+                                .font(.system(size: 11))
+                                .foregroundColor(isOverLimit ? AppTheme.error : AppTheme.textMuted)
+                                .padding(.horizontal, 20)
+                        }
+
+                        // Media attachment area
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Attach Media")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(AppTheme.textMuted)
+                                .padding(.horizontal, 20)
+
+                            HStack(spacing: 12) {
+                                // Image / Video picker
+                                PhotosPicker(
+                                    selection: $selectedPhotoItem,
+                                    matching: .any(of: [.images, .videos]),
+                                    photoLibrary: .shared()
+                                ) {
+                                    attachmentButton(icon: "photo.on.rectangle", label: "Photo/Video")
+                                }
+                                .onChange(of: selectedPhotoItem) { item in
+                                    Task { await loadPhoto(item) }
+                                }
+
+                                // Audio / document picker
+                                Button { showAudioPicker = true } label: {
+                                    attachmentButton(icon: "waveform", label: "Audio")
+                                }
+
+                                // Clear attachment
+                                if selectedImageData != nil {
+                                    Button {
+                                        selectedPhotoItem = nil
+                                        selectedImageData = nil
+                                        selectedMediaType = nil
+                                        selectedFileName = nil
+                                        previewImage = nil
+                                    } label: {
+                                        attachmentButton(icon: "xmark.circle", label: "Remove", tint: AppTheme.error)
+                                    }
                                 }
                             }
-
-                        if text.isEmpty {
-                            Text("What's on your mind?")
-                                .foregroundColor(AppTheme.textMuted)
-                                .padding(.horizontal, 22)
-                                .padding(.vertical, 24)
-                                .allowsHitTesting(false)
-                        }
-                    }
-
-                    // Character counter
-                    HStack {
-                        Spacer()
-                        Text("\(text.count)/\(maxLength)")
-                            .font(.system(size: 11))
-                            .foregroundColor(isOverLimit ? AppTheme.error : AppTheme.textMuted)
                             .padding(.horizontal, 20)
-                            .padding(.bottom, 8)
-                    }
 
-                    Spacer()
+                            // Preview thumbnail
+                            if let img = previewImage {
+                                img
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxHeight: 200)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .padding(.horizontal, 20)
+                            } else if let name = selectedFileName {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "waveform")
+                                        .foregroundStyle(AppTheme.goldGradient)
+                                    Text(name)
+                                        .font(.system(size: 13))
+                                        .foregroundColor(AppTheme.textSecondary)
+                                        .lineLimit(1)
+                                }
+                                .padding(12)
+                                .background(AppTheme.surfaceVariant.opacity(0.5))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                .padding(.horizontal, 20)
+                            }
+                        }
+
+                        Spacer(minLength: 60)
+                    }
                 }
             }
             .navigationTitle(title)
@@ -1445,13 +1566,7 @@ struct CreatePostSheet: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Post") {
-                        Task {
-                            isPosting = true
-                            // SECURITY: Submit the trimmed value — not the raw text
-                            await onSubmit(trimmed)
-                            isPosting = false
-                            dismiss()
-                        }
+                        Task { await submitPost() }
                     }
                     .bold()
                     .foregroundColor(canPost ? AppTheme.goldPrimary : AppTheme.textMuted)
@@ -1459,5 +1574,66 @@ struct CreatePostSheet: View {
                 }
             }
         }
+        .fileImporter(
+            isPresented: $showAudioPicker,
+            allowedContentTypes: [.audio, .mp3, .mpeg4Audio],
+            allowsMultipleSelection: false
+        ) { result in
+            if let url = try? result.get().first,
+               url.startAccessingSecurityScopedResource() {
+                defer { url.stopAccessingSecurityScopedResource() }
+                if let data = try? Data(contentsOf: url) {
+                    selectedImageData = data
+                    selectedMediaType = "audio/mpeg"
+                    selectedFileName = url.lastPathComponent
+                    previewImage = nil
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func attachmentButton(icon: String, label: String, tint: Color = AppTheme.goldPrimary) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundColor(tint)
+            Text(label)
+                .font(.system(size: 10))
+                .foregroundColor(AppTheme.textMuted)
+        }
+        .frame(width: 70, height: 60)
+        .background(AppTheme.surfaceVariant.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(tint.opacity(0.3), lineWidth: 1))
+    }
+
+    private func loadPhoto(_ item: PhotosPickerItem?) async {
+        guard let item else { return }
+        if let data = try? await item.loadTransferable(type: Data.self) {
+            selectedImageData = data
+            if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) || $0.conforms(to: .video) }) {
+                selectedMediaType = "video/mp4"
+                selectedFileName = "video.mp4"
+                previewImage = nil
+            } else {
+                selectedMediaType = "image/jpeg"
+                selectedFileName = "photo.jpg"
+                if let uiImage = UIImage(data: data) {
+                    previewImage = SwiftUI.Image(uiImage: uiImage)
+                }
+            }
+        }
+    }
+
+    private func submitPost() async {
+        isPosting = true
+        if let mediaHandler = onSubmitMedia {
+            await mediaHandler(trimmed, selectedImageData, selectedMediaType, selectedFileName)
+        } else if let textHandler = onSubmitText {
+            await textHandler(trimmed)
+        }
+        isPosting = false
+        dismiss()
     }
 }
