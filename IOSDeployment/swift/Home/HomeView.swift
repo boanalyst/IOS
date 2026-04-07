@@ -285,7 +285,7 @@ struct LiveTickerBanner: View {
                 .font(.system(size: 10, weight: .bold))
                 .foregroundColor(AppTheme.success)
 
-            Text("Box Office data updating in real-time")
+            Text("Analysis data updating in real-time")
                 .font(.system(size: 12))
                 .foregroundColor(AppTheme.textSecondary)
             Spacer()
