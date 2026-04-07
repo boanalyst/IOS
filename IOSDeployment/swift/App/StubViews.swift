@@ -298,6 +298,12 @@ final class FlockViewModel: ObservableObject {
         }
     }
 
+    func createPost(content: String) async {
+        guard let endpoint = try? APIEndpoint.createFlockPost(content: content) else { return }
+        _ = try? await api.request(endpoint, responseType: MessageResponse.self)
+        await loadFeed()
+    }
+
     // MARK: Comments
 
     func loadComments(postId: String) {
@@ -386,6 +392,7 @@ struct FlockFeedView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
 
     @State private var activeCommentPostId: String? = nil
+    @State private var showCreatePost = false
 
     var body: some View {
         ZStack {
@@ -445,6 +452,27 @@ struct FlockFeedView: View {
             }
         }
         .task { if flockVM.posts.isEmpty { await flockVM.loadFeed() } }
+        .overlay(alignment: .bottomTrailing) {
+            if authViewModel.currentUser?.isAdmin == true {
+                Button {
+                    showCreatePost = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(AppTheme.background)
+                        .frame(width: 56, height: 56)
+                        .background(AppTheme.goldPrimary)
+                        .clipShape(Circle())
+                        .shadow(color: AppTheme.goldPrimary.opacity(0.4), radius: 8, x: 0, y: 4)
+                }
+                .padding()
+            }
+        }
+        .fullScreenCover(isPresented: $showCreatePost) {
+            CreatePostSheet(title: "New Flock Post") { text in
+                await flockVM.createPost(content: text)
+            }
+        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -541,6 +569,12 @@ final class InsideTalkViewModel: ObservableObject {
         }
     }
 
+    func createPost(text: String) async {
+        guard let endpoint = try? APIEndpoint.createInsideTalkPost(text: text) else { return }
+        _ = try? await api.request(endpoint, responseType: MessageResponse.self) // Optimistic, we just reload
+        await loadAll() // Reload to fetch the new post
+    }
+
     // MARK: Like (optimistic toggle, mirrors Android InsideTalkViewModel.toggleLike)
 
     func toggleLike(_ tweet: InsideTalkContent) {
@@ -623,6 +657,7 @@ struct InsideTalkView: View {
     @StateObject private var viewModel = InsideTalkViewModel()
 
     @State private var activeCommentTweetId: String? = nil
+    @State private var showCreatePost = false
 
     var body: some View {
         ZStack {
@@ -674,6 +709,27 @@ struct InsideTalkView: View {
                 Text("INSIDE TALK")
                     .font(.custom("Cinzel-Regular", size: 14))
                     .foregroundStyle(AppTheme.goldGradient)
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if authViewModel.currentUser?.isAdmin == true {
+                Button {
+                    showCreatePost = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(AppTheme.background)
+                        .frame(width: 56, height: 56)
+                        .background(AppTheme.goldPrimary)
+                        .clipShape(Circle())
+                        .shadow(color: AppTheme.goldPrimary.opacity(0.4), radius: 8, x: 0, y: 4)
+                }
+                .padding()
+            }
+        }
+        .fullScreenCover(isPresented: $showCreatePost) {
+            CreatePostSheet(title: "New Inside Talk") { text in
+                await viewModel.createPost(text: text)
             }
         }
         // ── Reply Bottom Sheet ────────────────────────────────────────────
