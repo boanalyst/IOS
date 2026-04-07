@@ -124,8 +124,9 @@ extension APIEndpoint {
         if let data = mediaData, let mime = mimeType, let name = fileName {
             var multipart = MultipartFormData()
             multipart.append(name: "text", string: text)
+            // Ensure media is received perfectly by sending as array syntax if node expects it just in case, but keep standard 'media' first. 
             multipart.append(name: "media", data: data, filename: name, mimeType: mime)
-            var endpoint = APIEndpoint(path: "/api/twitter/create-post", method: .POST)
+            var endpoint = APIEndpoint(path: "/api/twitter/create-post-with-media", method: .POST)
             endpoint.multipartData = multipart
             return endpoint
         }
