@@ -163,6 +163,11 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
         .replacingOccurrences(of: "(?i)<b>\\s*\\*\\s*(.*?)\\s*</b>", with: " • **$1** ", options: .regularExpression)
         .replacingOccurrences(of: "(?i)<b>\\s*(.*?)\\s*</b>", with: " **$1** ", options: .regularExpression)
         .replacingOccurrences(of: "(?i)<i>\\s*(.*?)\\s*</i>", with: " _$1_ ", options: .regularExpression)
+        .replacingOccurrences(of: "(?i)<u>\\s*(.*?)\\s*</u>", with: " _$1_ ", options: .regularExpression) // map underline to italic (Apple doesn't have native underline in markdown text parsing)
+        
+        // Repair legacy malformed Literal Markdown injected from old Android posts
+        .replacingOccurrences(of: "\\*\\*\\s+(.*?)\\s+\\*\\*", with: "**$1**", options: .regularExpression)
+        .replacingOccurrences(of: "_\\s+(.*?)\\s+_", with: "_$1_", options: .regularExpression)
         
         .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         .replacingOccurrences(of: "&nbsp;", with: " ")
