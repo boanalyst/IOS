@@ -38,23 +38,7 @@ struct UpdateProfileRequest: Encodable {
     let email: String?
 }
 
-// MARK: - Exclusive Content
-
-struct ExclusiveContentResponse: Decodable {
-    let success: Bool
-    let content: ExclusiveContent?
-}
-
-struct ExclusiveContent: Decodable, Identifiable {
-    let id: String
-    let title: String
-    let description: String
-    let price: Double
-    let currency: String
-    let mediaUrl: String?
-    let isActive: Bool
-    let contentType: String?
-}
+// MARK: - Message Response
 
 struct MessageResponse: Decodable {
     let success: Bool
@@ -529,19 +513,37 @@ struct ExclusiveContentResponse: Decodable {
     let content: ExclusiveContent?
 }
 
-struct ExclusiveContent: Decodable {
+struct ExclusiveContent: Decodable, Identifiable {
     let id: String
     let title: String
     let description: String
     let price: Double
     let currency: String?
-    let mediaUrls: [String]?
+    let mediaUrl: String?
+    let isActive: Bool?
+    let contentType: String?
     let createdAt: String?
+    
     enum CodingKeys: String, CodingKey {
-        case id = "_id"
-        case title, description, price, currency
-        case mediaUrls = "media_urls"
+        case id, title, description, price, currency
+        case mediaUrl, isActive, contentType
         case createdAt = "created_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Accept both "id" and "_id" to be safe
+        self.id = (try? container.decode(String.self, forKey: .id)) 
+               ?? (try? container.decode(String.self, forKey: CodingKeys(stringValue: "_id")!)) 
+               ?? UUID().uuidString
+        self.title = try container.decode(String.self, forKey: .title)
+        self.description = try container.decode(String.self, forKey: .description)
+        self.price = try container.decodeIfPresent(Double.self, forKey: .price) ?? 0.0
+        self.currency = try container.decodeIfPresent(String.self, forKey: .currency)
+        self.mediaUrl = try container.decodeIfPresent(String.self, forKey: .mediaUrl)
+        self.isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive)
+        self.contentType = try container.decodeIfPresent(String.self, forKey: .contentType)
+        self.createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
     }
 }
 
