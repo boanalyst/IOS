@@ -905,6 +905,7 @@ struct ProfileView: View {
     var isPro: Bool = false
     var isAdmin: Bool = false          // Bug #1 fix: was not passed, so admin badge never showed
     @EnvironmentObject private var authViewModel: AuthViewModel
+    @EnvironmentObject private var themeManager: ThemeManager
     @State private var showLogoutConfirm = false
     @State private var showEditProfile = false
     @State private var showPrivacy = false
@@ -997,6 +998,24 @@ struct ProfileView: View {
                                 onSubscribeRequired()
                             }
                         }
+
+                        Divider().background(Color.white.opacity(0.05))
+
+                        // Appearance Toggle
+                        Toggle(isOn: $themeManager.isDarkMode) {
+                            HStack(spacing: 14) {
+                                Image(systemName: themeManager.isDarkMode ? "moon.fill" : "sun.max.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(AppTheme.goldPrimary)
+                                    .frame(width: 24)
+                                Text("Dark Mode")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(AppTheme.textPrimary)
+                            }
+                        }
+                        .tint(AppTheme.goldPrimary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
 
                         Divider().background(Color.white.opacity(0.05))
                         ProfileRow(icon: "shield", title: "Privacy Policy") {
