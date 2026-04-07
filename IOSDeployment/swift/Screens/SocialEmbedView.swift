@@ -209,6 +209,11 @@ private struct XEmbedWebView: View {
 private struct TwitterWebView: UIViewRepresentable {
     let tweetId: String
 
+    func makeCoordinator() -> EmbedNavigationDelegate {
+        EmbedNavigationDelegate(allowedHosts: ["twitter.com", "x.com", "t.co", "twimg.com",
+                                               "platform.twitter.com", "abs.twimg.com"])
+    }
+
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
@@ -216,6 +221,8 @@ private struct TwitterWebView: UIViewRepresentable {
         wv.isOpaque = false
         wv.backgroundColor = .clear
         wv.scrollView.isScrollEnabled = false
+        // SECURITY: Delegate blocks navigation to any non-Twitter domain
+        wv.navigationDelegate = context.coordinator
         let html = twitterHTML(tweetId: tweetId)
         wv.loadHTMLString(html, baseURL: URL(string: "https://twitter.com"))
         return wv
@@ -264,6 +271,11 @@ private struct InstagramEmbedWebView: View {
 private struct InstagramWebView: UIViewRepresentable {
     let postUrl: String
 
+    func makeCoordinator() -> EmbedNavigationDelegate {
+        EmbedNavigationDelegate(allowedHosts: ["instagram.com", "cdninstagram.com",
+                                               "www.instagram.com", "graph.facebook.com"])
+    }
+
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
@@ -271,12 +283,56 @@ private struct InstagramWebView: UIViewRepresentable {
         wv.isOpaque = false
         wv.backgroundColor = .clear
         wv.scrollView.isScrollEnabled = false
+        // SECURITY: Delegate blocks navigation to any non-Instagram domain
+        wv.navigationDelegate = context.coordinator
         let html = instagramHTML(postUrl: postUrl)
         wv.loadHTMLString(html, baseURL: URL(string: "https://www.instagram.com"))
         return wv
     }
 
     func updateUIView(_ wv: WKWebView, context: Context) {}
+}
+
+// MARK: - WKNavigationDelegate: block all navigation outside allowed domains
+// SECURITY: Prevents malicious embed JS from navigating the WKWebView to arbitrary URLs.
+// Any navigation to a non-whitelisted host is cancelled. Only the initial HTML load
+// (data: scheme) is allowed unconditionally.
+
+final class EmbedNavigationDelegate: NSObject, WKNavigationDelegate {
+    private let allowedHosts: Set<String>
+
+    init(allowedHosts: Set<String>) {
+        self.allowedHosts = allowedHosts
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        guard let url = navigationAction.request.url else {
+            decisionHandler(.allow)
+            return
+        }
+        let scheme = url.scheme ?? ""
+
+        // Always allow the initial data/about/blob load
+        if scheme == "about" || scheme == "data" || scheme == "blob" {
+            decisionHandler(.allow)
+            return
+        }
+
+        // Allow HTTPS requests to whitelisted embed domains
+        if scheme == "https",
+           let host = url.host,
+           allowedHosts.contains(where: { host == $0 || host.hasSuffix("." + $0) }) {
+            decisionHandler(.allow)
+            return
+        }
+
+        // Block everything else — including link-click navigations
+        decisionHandler(.cancel)
+    }
 }
 
 private func instagramHTML(postUrl: String) -> String {
@@ -308,14 +364,5 @@ private func instagramHTML(postUrl: String) -> String {
     """
 }
 
-// MARK: - Safari View Controller wrapper (for YouTube full-screen playback)
-
-struct SafariView: UIViewControllerRepresentable {
-    let url: URL
-
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        SFSafariViewController(url: url)
-    }
-
-    func updateUIViewController(_ vc: SFSafariViewController, context: Context) {}
-}
+// NOTE: SafariView (UIViewControllerRepresentable) is defined in LoginView.swift.
+// It is shared across the module — do NOT redefine it here.
