@@ -11,6 +11,8 @@ final class HomeViewModel: ObservableObject {
     @Published var upcomingMovies: [Movie] = []
     @Published var polls: [Poll] = []
     @Published var recentFlockPosts: [FlockPost] = []
+    @Published var trendingTopics: [TrendingTrend] = []
+    @Published var exclusiveContent: ExclusiveContent? = nil
     @Published var isLoading = false
     @Published var error: String? = nil
 
@@ -25,15 +27,16 @@ final class HomeViewModel: ObservableObject {
         async let upcomingTask  = api.request(.getUpcoming, responseType: MovieResponse.self)
         async let pollsTask     = api.request(.getPolls, responseType: ApiResult<[Poll]>.self)
         async let flockTask     = api.request(.getFlockPosts(offset: 0, limit: 5), responseType: FlockFeedResponse.self)
+        async let trendingTask  = api.request(.getTrendingTopics, responseType: TrendingResponse.self)
+        async let exclusiveTask = api.request(.getExclusiveContent, responseType: ExclusiveContentResponse.self)
 
         if let movies   = try? await moviesTask   { nowPlayingMovies = movies.movies }
-        if let upcoming = try? await upcomingTask  { upcomingMovies = upcoming.movies }
-        if let polls    = try? await pollsTask     { self.polls = polls.data ?? [] }
-        if let flock    = try? await flockTask     { recentFlockPosts = flock.posts }
+        if let upcoming = try? await upcomingTask { upcomingMovies = upcoming.movies }
+        if let polls    = try? await pollsTask    { self.polls = polls.data ?? [] }
+        if let flock    = try? await flockTask    { recentFlockPosts = flock.posts }
+        if let trending = try? await trendingTask { trendingTopics = trending.trends }
+        if let excl     = try? await exclusiveTask{ exclusiveContent = excl.content }
 
-        if nowPlayingMovies.isEmpty && upcomingMovies.isEmpty {
-            error = "Unable to load content. Please check your connection."
-        }
         isLoading = false
     }
 
@@ -81,6 +84,33 @@ struct HomeView: View {
 
                         VStack(alignment: .leading, spacing: 24) {
 
+                            // ── Trending Now ────────────────────────────────
+                            if !viewModel.trendingTopics.isEmpty {
+                                SectionHeader(title: "Trending Now", icon: "flame.fill")
+                                TrendingTopicsRibbon(topics: viewModel.trendingTopics)
+                            }
+                            
+                            // ── Exclusive Content ───────────────────────────
+                            if let exclusive = viewModel.exclusiveContent {
+                                ExclusiveContentCard(
+                                    exclusive: exclusive,
+                                    onUnlock: onSubscribeRequired
+                                )
+                                .padding(.horizontal, 20)
+                            }
+                            
+                            // ── Top Topics in Trending ──────────────────────
+                            if !viewModel.recentFlockPosts.isEmpty {
+                                SectionHeader(title: "Top topics in trending sections", icon: "bubble.left.and.bubble.right")
+
+                                VStack(spacing: 12) {
+                                    ForEach(viewModel.recentFlockPosts.prefix(3)) { post in
+                                        FlockPostCard(post: post, isAdmin: false) {}
+                                            .padding(.horizontal, 20)
+                                    }
+                                }
+                            }
+
                             // ── Now Playing ────────────────────────────
                             if !viewModel.nowPlayingMovies.isEmpty {
                                 SectionHeader(title: "Now Playing", icon: "film.fill")
@@ -125,18 +155,6 @@ struct HomeView: View {
                                             }
                                         }
                                         .padding(.horizontal, 20)
-                                    }
-                                }
-                            }
-
-                            // ── Recent from Flock ──────────────────────
-                            if !viewModel.recentFlockPosts.isEmpty {
-                                SectionHeader(title: "🔥 Trending Discussions", icon: "bubble.left.and.bubble.right")
-
-                                VStack(spacing: 12) {
-                                    ForEach(viewModel.recentFlockPosts.prefix(3)) { post in
-                                        FlockPostCard(post: post, isAdmin: false) {}
-                                            .padding(.horizontal, 20)
                                     }
                                 }
                             }
@@ -355,17 +373,124 @@ struct PollCard: View {
 
 
 
+// MARK: - Exclusive Content Card
+struct ExclusiveContentCard: View {
+    let exclusive: ExclusiveContent
+    var onUnlock: () -> Void = {}
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "star.fill")
+                    .foregroundColor(AppTheme.goldPrimary)
+                Text("EXCLUSIVE")
+                    .font(.system(size: 12, weight: .bold))
+                    .tracking(1.5)
+                    .foregroundColor(AppTheme.goldPrimary)
+            }
+
+            // Simple HTML tag removal for description
+            let cleanDesc = exclusive.description
+                .replacingOccurrences(of: "<div>", with: "")
+                .replacingOccurrences(of: "</div>", with: "")
+                .replacingOccurrences(of: "<b>", with: "")
+                .replacingOccurrences(of: "</b>", with: "")
+                .replacingOccurrences(of: "&nbsp;", with: " ")
+
+            // Simple HTML tag removal for title
+            let cleanTitle = exclusive.title
+                .replacingOccurrences(of: "<div>", with: "")
+                .replacingOccurrences(of: "</div>", with: "")
+                .replacingOccurrences(of: "<b>", with: "")
+                .replacingOccurrences(of: "</b>", with: "")
+                .replacingOccurrences(of: "&nbsp;", with: " ")
+
+            Text(cleanTitle)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(AppTheme.textPrimary)
+
+            Text(cleanDesc)
+                .font(.system(size: 14))
+                .foregroundColor(AppTheme.textSecondary)
+
+            if let mediaUrlsString = exclusive.mediaUrl,
+               let data = mediaUrlsString.data(using: .utf8),
+               let urls = try? JSONDecoder().decode([String].self, from: data),
+               let firstUrlStr = urls.first,
+               let firstUrl = URL(string: "https://boanalyst.com\(firstUrlStr)") {
+                AsyncImage(url: firstUrl) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable()
+                             .aspectRatio(contentMode: .fill)
+                             .frame(height: 180)
+                             .clipShape(RoundedRectangle(cornerRadius: 8))
+                    default:
+                        EmptyView()
+                    }
+                }
+            }
+
+            Button(action: onUnlock) {
+                Text("Unlock for \(exclusive.currency) \(Int(exclusive.price))")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(AppTheme.goldGradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+        }
+        .padding(16)
+        .cardStyle()
+    }
+}
+
+// MARK: - Trending Topics Ribbon
+struct TrendingTopicsRibbon: View {
+    let topics: [TrendingTrend]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(topics) { topic in
+                    HStack {
+                        Text("#\(topic.topic)")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(AppTheme.textPrimary)
+                        if topic.count > 0 {
+                            Text("\(topic.count)")
+                                .font(.system(size: 12))
+                                .foregroundColor(AppTheme.textMuted)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(AppTheme.surfaceVariant)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(AppTheme.goldPrimary.opacity(0.3), lineWidth: 1)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+}
+
 // MARK: - Home Hero Banner (matches Android BoAnalyst branding exactly)
 
 struct HomeHeroBanner: View {
     let userName: String?
     let isPro: Bool
     let greeting: String
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .center) {
-                // Brand logo \u2014 matches Android's "BoAnalyst" title + subtitle
+                // Brand logo
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(alignment: .lastTextBaseline, spacing: 0) {
                         Text("Bo")
@@ -375,7 +500,7 @@ struct HomeHeroBanner: View {
                             .font(.custom("Cinzel-Regular", size: 20))
                             .foregroundColor(AppTheme.textSecondary)
                     }
-                    Text("India's Box Office Intelligence Platform")
+                    Text("India's Box Office Analysis Platform")
                         .font(.system(size: 10, weight: .regular))
                         .foregroundColor(AppTheme.textMuted)
                         .tracking(0.3)
@@ -407,7 +532,7 @@ struct HomeHeroBanner: View {
             .padding(.bottom, 14)
             .background(
                 LinearGradient(
-                    colors: [Color(hex: "141414"), Color(hex: "0A0A0A")],
+                    colors: colorScheme == .dark ? [Color(hex: "141414"), Color(hex: "0A0A0A")] : [AppTheme.surfaceVariant, AppTheme.background],
                     startPoint: .top, endPoint: .bottom
                 )
             )
@@ -446,3 +571,4 @@ struct LoadingView: View {
     }
     .environmentObject(AuthViewModel())
 }
+
