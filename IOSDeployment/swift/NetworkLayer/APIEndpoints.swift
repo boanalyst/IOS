@@ -33,8 +33,8 @@ extension APIEndpoint {
     static let getUserProfile = APIEndpoint(path: "/api/user/profile", method: .GET)
     static let logout = APIEndpoint(path: "/api/auth/logout", method: .POST)
 
-    static func updateProfile(name: String?, email: String?) throws -> APIEndpoint {
-        let body = try JSONEncoder().encode(UpdateProfileRequest(name: name, email: email))
+    static func updateProfile(name: String?, email: String?, username: String?, bio: String?) throws -> APIEndpoint {
+        let body = try JSONEncoder().encode(UpdateProfileRequest(name: name, email: email, username: username, bio: bio))
         return APIEndpoint(path: "/api/user/profile", method: .PUT, body: body)
     }
 
