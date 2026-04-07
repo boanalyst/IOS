@@ -639,6 +639,15 @@ final class InsideTalkViewModel: ObservableObject {
                 return InsideTalkContent(from: t, replyCount: t.replyCount + 1)
             }
         }
+        }
+    }
+
+    func deletePost(tweetId: String) {
+        tweets.removeAll { $0.id == tweetId }
+        Task {
+            let endpoint = APIEndpoint.deleteInsideTalkPost(id: tweetId)
+            _ = try? await api.request(endpoint, responseType: MessageResponse.self)
+        }
     }
 
     func deleteReply(tweetId: String, replyId: String) {
@@ -682,17 +691,17 @@ struct InsideTalkView: View {
                                 .padding(.horizontal, 16)
                         }
 
-                        let isPro = authViewModel.currentUser?.isPro ?? false
                         ForEach(viewModel.tweets) { tweet in
                             InsideTalkCard(
                                 content: tweet,
-                                isUserPro: isPro,
+                                isUserPro: authViewModel.currentUser?.isPro ?? false || authViewModel.currentUser?.isAdmin == true,
                                 onSubscribeRequired: onSubscribeRequired,
                                 onLike: { viewModel.toggleLike(tweet) },
                                 onComment: {
                                     viewModel.loadReplies(tweetId: tweet.id)
                                     activeCommentTweetId = tweet.id
-                                }
+                                },
+                                onDelete: authViewModel.currentUser?.isAdmin == true ? { viewModel.deletePost(tweetId: tweet.id) } : nil
                             )
                             .padding(.horizontal, 16)
                         }
@@ -790,6 +799,7 @@ struct InsideTalkCard: View {
     let onSubscribeRequired: () -> Void
     var onLike: () -> Void = {}
     var onComment: () -> Void = {}
+    var onDelete: (() -> Void)? = nil
 
     // FIXED: A post is "locked" only for non-pro, non-admin users.
     // The old check (content.count < 120) was wrong — it locked short posts for everyone.
@@ -824,6 +834,16 @@ struct InsideTalkCard: View {
                         .foregroundColor(AppTheme.textMuted)
                 }
                 Spacer()
+                if let onDelete = onDelete {
+                    Button(action: onDelete) {
+                        Image(systemName: "trash.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(.red.opacity(0.8))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 4)
+                }
+                
                 if content.isPinned {
                     Image(systemName: "pin.fill")
                         .font(.system(size: 11))
@@ -1488,6 +1508,31 @@ struct CreatePostSheet: View {
                                     .allowsHitTesting(false)
                             }
                         }
+
+                        // Formatting controls
+                        HStack(spacing: 12) {
+                            Button(action: { text.append(" <b></b> ") }) { 
+                                Text("B").bold().font(.system(size: 14))
+                                    .frame(width: 32, height: 32)
+                                    .background(AppTheme.surfaceVariant)
+                                    .cornerRadius(6) 
+                            }
+                            Button(action: { text.append(" <i></i> ") }) { 
+                                Text("I").italic().font(.system(size: 14))
+                                    .frame(width: 32, height: 32)
+                                    .background(AppTheme.surfaceVariant)
+                                    .cornerRadius(6) 
+                            }
+                            Button(action: { text.append(" <u></u> ") }) { 
+                                Text("U").underline().font(.system(size: 14))
+                                    .frame(width: 32, height: 32)
+                                    .background(AppTheme.surfaceVariant)
+                                    .cornerRadius(6) 
+                            }
+                            Spacer()
+                        }
+                        .foregroundColor(AppTheme.textPrimary)
+                        .padding(.horizontal, 16)
 
                         // Character counter
                         HStack {
