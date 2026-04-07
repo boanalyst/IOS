@@ -110,9 +110,16 @@ struct MainTabView: View {
             }
             .tabItem { Label("Inside Talk", systemImage: "eye.fill") }
             .tag(2)
+            
+            // ── Tab 4: Distributors Hub ────────────────────────────────────
+            NavigationStack {
+                DistributorsHubView(onSubscribeRequired: { showSubscription = true })
+            }
+            .tabItem { Label("Hub", systemImage: "briefcase.fill") }
+            .tag(3)
 
-            // ── Tab 4: Profile (+ Distributors Hub access within) ──────────
-            // Bug #1 fix: pass isAdmin so admin can see admin controls in Flock/Profile
+            // ── Tab 5: Profile ────────────────────────────────────────────
+            // Pass isAdmin so admin can see admin controls in Profile
             NavigationStack {
                 ProfileView(
                     onSubscribeRequired: { showSubscription = true },
@@ -122,7 +129,7 @@ struct MainTabView: View {
                 )
             }
             .tabItem { Label("Profile", systemImage: "person.fill") }
-            .tag(3)
+            .tag(4)
         }
         .accentColor(AppTheme.goldPrimary)
         .environmentObject(flockVM)
