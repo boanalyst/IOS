@@ -201,8 +201,9 @@ private struct XEmbedWebView: View {
 
     var body: some View {
         TwitterWebView(tweetId: tweetId)
-            .frame(height: 300)
+            .frame(maxWidth: .infinity, minHeight: 340, maxHeight: 500)
             .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
 }
 
@@ -263,8 +264,9 @@ private struct InstagramEmbedWebView: View {
 
     var body: some View {
         InstagramWebView(postUrl: postUrl)
-            .frame(height: 560)
+            .frame(maxWidth: .infinity, minHeight: 520, maxHeight: 700)
             .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
 }
 

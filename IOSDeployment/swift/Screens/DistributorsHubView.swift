@@ -32,8 +32,8 @@ final class DistributorsViewModel: ObservableObject {
         }
         isLoading = false
     }
-    func createPost(content: String) async {
-        guard let endpoint = try? APIEndpoint.createDistributorsPost(content: content) else { return }
+    func createPost(content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) async {
+        guard let endpoint = try? APIEndpoint.createDistributorsPost(content: content, mediaData: mediaData, mimeType: mimeType, fileName: fileName) else { return }
         _ = try? await api.request(endpoint, responseType: MessageResponse.self)
         await loadPosts(reset: true)
     }
@@ -94,9 +94,9 @@ struct DistributorsHubView: View {
             }
         }
         .fullScreenCover(isPresented: $showCreatePost) {
-            CreatePostSheet(title: "New Distributors Hub Post") { text in
-                await viewModel.createPost(content: text)
-            }
+            CreatePostSheet(title: "New Distributors Hub Post", onSubmitWithMedia: { text, mediaData, mediaType, fileName in
+                await viewModel.createPost(content: text, mediaData: mediaData, mimeType: mediaType, fileName: fileName)
+            })
         }
         .task {
             if canView { await viewModel.loadPosts() }
@@ -234,10 +234,21 @@ struct DistributorsPostCard: View {
                 }
             }
 
-            // Content — strip embed URLs so they don't appear as raw text
+            // Content — strip embed URLs, then render as markdown (fixes ** bold showing raw)
             let socialEmbeds = extractSocialEmbeds(from: post.content)
-            let cleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
-            Text(cleanContent)
+            let rawContent = post.content
+                .replacingOccurrences(of: "<br>",  with: "\n")
+                .replacingOccurrences(of: "</br>", with: "\n")
+                .replacingOccurrences(of: "<br/>", with: "\n")
+                .replacingOccurrences(of: "<b>",   with: "**")
+                .replacingOccurrences(of: "</b>",  with: "**")
+                .replacingOccurrences(of: "<i>",   with: "_")
+                .replacingOccurrences(of: "</i>",  with: "_")
+                .replacingOccurrences(of: "<u>",   with: "")
+                .replacingOccurrences(of: "</u>",  with: "")
+            let cleanContent = stripEmbedUrls(from: rawContent, embeds: socialEmbeds)
+            let attrContent = (try? AttributedString(markdown: cleanContent)) ?? AttributedString(cleanContent)
+            Text(attrContent)
                 .font(.system(size: 13))
                 .foregroundColor(AppTheme.textSecondary)
                 .lineSpacing(3)
