@@ -5,16 +5,23 @@
 
 import SwiftUI
 
+// MARK: - ThemeManager
+class ThemeManager: ObservableObject {
+    @AppStorage("isDarkMode") var isDarkMode: Bool = true
+}
+
 @main
 struct BoAnalystApp: App {
     @StateObject private var authViewModel = AuthViewModel()
+    @StateObject private var themeManager = ThemeManager()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(authViewModel)
-                .preferredColorScheme(.dark)  // Gold & Black theme — always dark
+                .environmentObject(themeManager)
+                .preferredColorScheme(themeManager.isDarkMode ? .dark : .light)
                 .onOpenURL { url in
                     handleDeepLink(url: url)
                 }
