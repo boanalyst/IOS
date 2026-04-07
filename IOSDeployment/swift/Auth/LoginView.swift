@@ -31,21 +31,21 @@ struct LoginView: View {
 
                     // ── Logo & Branding ────────────────────────────────────
                     VStack(spacing: 8) {
-                        Text("BO")
-                            .font(.custom("Cinzel-Regular", size: 56))
-                            .foregroundStyle(AppTheme.goldGradient)
-
-                        Text("ANALYST")
-                            .font(.system(size: 18, weight: .light, design: .serif))
-                            .tracking(8)
-                            .foregroundColor(AppTheme.textSecondary)
+                        HStack(alignment: .lastTextBaseline, spacing: 0) {
+                            Text("Bo")
+                                .font(.custom("Cinzel-Regular", size: 56))
+                                .foregroundStyle(AppTheme.goldGradient)
+                            Text("Analyst")
+                                .font(.custom("Cinzel-Regular", size: 40))
+                                .foregroundColor(AppTheme.textSecondary)
+                        }
 
                         Rectangle()
                             .fill(AppTheme.goldGradient)
                             .frame(width: 60, height: 1)
                             .padding(.top, 8)
 
-                        Text("India's Box Office Intelligence Platform")
+                        Text("India's Box Office Analysis Platform")
                             .font(.system(size: 12))
                             .foregroundColor(AppTheme.textMuted)
                             .padding(.top, 4)
