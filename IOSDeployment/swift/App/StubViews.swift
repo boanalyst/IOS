@@ -1361,3 +1361,63 @@ struct ProfileRow: View {
         }
     }
 }
+
+// MARK: - Create Post Sheet
+struct CreatePostSheet: View {
+    @Environment(\.dismiss) var dismiss
+    let title: String
+    let onSubmit: (String) async -> Void
+    
+    @State private var text = ""
+    @State private var isPosting = false
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                AppTheme.background.ignoresSafeArea()
+                VStack {
+                    ZStack(alignment: .topLeading) {
+                        TextEditor(text: $text)
+                            .font(.system(size: 15))
+                            .scrollContentBackground(.hidden)
+                            .background(AppTheme.surfaceVariant.opacity(0.3))
+                            .foregroundColor(AppTheme.textPrimary)
+                            .cornerRadius(12)
+                            .padding()
+                        
+                        if text.isEmpty {
+                            Text("What's on your mind?")
+                                .foregroundColor(AppTheme.textMuted)
+                                .padding(.horizontal, 22)
+                                .padding(.vertical, 24)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    
+                    Spacer()
+                }
+            }
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Post") {
+                        Task {
+                            isPosting = true
+                            await onSubmit(text)
+                            isPosting = false
+                            dismiss()
+                        }
+                    }
+                    .bold()
+                    .foregroundColor(text.isEmpty || isPosting ? AppTheme.textMuted : AppTheme.goldPrimary)
+                    .disabled(text.isEmpty || isPosting)
+                }
+            }
+        }
+    }
+}
