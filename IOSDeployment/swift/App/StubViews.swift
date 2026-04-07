@@ -1190,6 +1190,8 @@ struct EditProfileView: View {
 
     @State private var name: String = ""
     @State private var email: String = ""
+    @State private var username: String = ""
+    @State private var bio: String = ""
     @State private var isSaving = false
     @State private var errorMsg: String? = nil
     @State private var successMsg: String? = nil
@@ -1270,8 +1272,11 @@ struct EditProfileView: View {
 
                         // Form fields
                         VStack(spacing: 16) {
-                            GoldTextField(placeholder: "Full Name", text: $name, icon: "person")
-                            GoldTextField(placeholder: "Email", text: $email, icon: "envelope")
+                            GoldTextField(placeholder: "Display Name", text: $name, icon: "person")
+                            GoldTextField(placeholder: "Username", text: $username, icon: "at")
+                                .textInputAutocapitalization(.never)
+                            GoldTextField(placeholder: "Bio", text: $bio, icon: "text.quote")
+                            GoldTextField(placeholder: "Email (Account)", text: $email, icon: "envelope")
                                 .keyboardType(.emailAddress)
                                 .textInputAutocapitalization(.never)
                         }
@@ -1305,6 +1310,8 @@ struct EditProfileView: View {
         .onAppear {
             name  = authViewModel.currentUser?.name  ?? ""
             email = authViewModel.currentUser?.email ?? ""
+            username = authViewModel.currentUser?.username ?? ""
+            bio = authViewModel.currentUser?.resolvedBio ?? ""
         }
     }
 
@@ -1315,7 +1322,9 @@ struct EditProfileView: View {
         do {
             let endpoint = try APIEndpoint.updateProfile(
                 name: name.trimmingCharacters(in: .whitespaces),
-                email: email.trimmingCharacters(in: .whitespaces).isEmpty ? nil : email.trimmingCharacters(in: .whitespaces)
+                email: email.trimmingCharacters(in: .whitespaces).isEmpty ? nil : email.trimmingCharacters(in: .whitespaces),
+                username: username.trimmingCharacters(in: .whitespaces).isEmpty ? nil : username.trimmingCharacters(in: .whitespaces),
+                bio: bio.trimmingCharacters(in: .whitespaces).isEmpty ? nil : bio.trimmingCharacters(in: .whitespaces)
             )
             let response = try await api.requestRaw(endpoint)
             if let ok = response["success"] as? Bool, ok {
