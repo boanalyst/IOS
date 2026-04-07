@@ -38,6 +38,24 @@ struct UpdateProfileRequest: Encodable {
     let email: String?
 }
 
+// MARK: - Exclusive Content
+
+struct ExclusiveContentResponse: Decodable {
+    let success: Bool
+    let content: ExclusiveContent?
+}
+
+struct ExclusiveContent: Decodable, Identifiable {
+    let id: String
+    let title: String
+    let description: String
+    let price: Double
+    let currency: String
+    let mediaUrl: String?
+    let isActive: Bool
+    let contentType: String?
+}
+
 struct MessageResponse: Decodable {
     let success: Bool
     let message: String?
