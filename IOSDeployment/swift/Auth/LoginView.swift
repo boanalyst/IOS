@@ -12,6 +12,8 @@ struct LoginView: View {
     // SECURITY: OAuth opens in-app SFSafariViewController (like Android Chrome Custom Tab)
     // NOT external Safari — prevents redirect URL leaking to browser history
     @State private var oauthURL: URL? = nil
+    // Forgot Password: in-app browser so user stays in the app experience
+    @State private var forgotPasswordURL: URL? = nil
 
     private var isFormValid: Bool {
         !email.trimmingCharacters(in: .whitespaces).isEmpty &&
@@ -88,14 +90,11 @@ struct LoginView: View {
                         )
                         .textContentType(.password)
 
-                        // Forgot password link
+                        // Forgot password — opens in-app browser (NOT external Safari)
                         HStack {
                             Spacer()
                             Button("Forgot Password?") {
-                                // Open web forgot password page
-                                if let url = URL(string: "https://boanalyst.com/forgot-password") {
-                                    UIApplication.shared.open(url)
-                                }
+                                forgotPasswordURL = URL(string: "https://boanalyst.com/forgot-password")
                             }
                             .font(.system(size: 13))
                             .foregroundStyle(AppTheme.goldGradient)
@@ -194,6 +193,22 @@ struct LoginView: View {
         .sheet(item: $oauthURL) { url in
             SafariView(url: url)
                 .ignoresSafeArea()
+        }
+        // In-app Forgot Password browser — user can reset without leaving the app
+        .sheet(item: $forgotPasswordURL) { url in
+            NavigationView {
+                SafariView(url: url)
+                    .ignoresSafeArea()
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") {
+                                forgotPasswordURL = nil
+                            }
+                            .foregroundStyle(AppTheme.goldGradient)
+                        }
+                    }
+            }
         }
     }
 
