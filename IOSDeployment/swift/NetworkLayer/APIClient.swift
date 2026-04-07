@@ -117,6 +117,56 @@ final class APIClient {
             throw APIError.networkError(error)
         }
     }
+
+    // MARK: - Raw JSON Request (returns [String: Any] — avoids Codable decode failures)
+    // Used by auth endpoints where server may return slightly inconsistent field types.
+
+    func requestRaw(_ endpoint: APIEndpoint) async throws -> [String: Any] {
+        guard var components = URLComponents(string: APIConfig.baseURL + endpoint.path) else {
+            throw APIError.invalidURL
+        }
+        if let queryItems = endpoint.queryItems, !queryItems.isEmpty {
+            components.queryItems = queryItems
+        }
+        guard let url = components.url else { throw APIError.invalidURL }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = endpoint.method.rawValue
+        urlRequest.setValue("ios", forHTTPHeaderField: "X-App-Client")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if let token = authToken {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        if let body = endpoint.body {
+            urlRequest.httpBody = body
+        }
+
+        do {
+            let (data, response) = try await session.data(for: urlRequest)
+            guard let httpResponse = response as? HTTPURLResponse else { throw APIError.noData }
+
+            switch httpResponse.statusCode {
+            case 200...299:
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    return json
+                }
+                // Even if JSON parse fails, return empty dict with success:false
+                return ["success": false, "message": "Server response could not be parsed"]
+            case 401:
+                throw APIError.unauthorized
+            default:
+                let body = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])
+                let message = body?["message"] as? String ?? String(data: data, encoding: .utf8)
+                throw APIError.serverError(httpResponse.statusCode, message)
+            }
+        } catch let error as APIError {
+            throw error
+        } catch {
+            throw APIError.networkError(error)
+        }
+    }
 }
 
 // MARK: - HTTP Method
