@@ -36,6 +36,10 @@
   <key>UIRequiresFullScreen</key>
   <true/>
 
+  <!-- ── Media Library ─────────────────────────────────────────────────── -->
+  <key>NSPhotoLibraryUsageDescription</key>
+  <string>BoAnalyst needs access to your photo library to let you attach photos and videos to your posts.</string>
+
   <!-- ── App Transport Security ────────────────────────────────────────── -->
   <!-- Allow HTTPS for boanalyst.com + social embed widgets (Twitter/X, YouTube, Instagram) -->
   <key>NSAppTransportSecurity</key>
