@@ -433,6 +433,19 @@ struct InsideTalkResponse: Decodable {
     let success: Bool
     let tweets: [InsideTalkContent]
     let pagination: InsideTalkPagination?
+
+    enum CodingKeys: String, CodingKey {
+        case success, tweets, data, pagination
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.success = (try? container.decode(Bool.self, forKey: .success)) ?? false
+        self.tweets = (try? container.decode([InsideTalkContent].self, forKey: .tweets)) 
+                   ?? (try? container.decode([InsideTalkContent].self, forKey: .data)) 
+                   ?? []
+        self.pagination = try? container.decode(InsideTalkPagination.self, forKey: .pagination)
+    }
 }
 
 struct InsideTalkPagination: Decodable {
@@ -440,9 +453,26 @@ struct InsideTalkPagination: Decodable {
     let limit: Int
     let total: Int
     let hasMore: Bool
+
     enum CodingKeys: String, CodingKey {
         case page, limit, total
         case hasMore = "has_more"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        page = (try? c.decode(Int.self, forKey: .page)) ?? 1
+        limit = (try? c.decode(Int.self, forKey: .limit)) ?? 20
+        total = (try? c.decode(Int.self, forKey: .total)) ?? 0
+        if let b = try? c.decode(Bool.self, forKey: .hasMore) {
+            hasMore = b
+        } else if let i = try? c.decode(Int.self, forKey: .hasMore) {
+            hasMore = (i != 0)
+        } else if let s = try? c.decode(String.self, forKey: .hasMore) {
+            hasMore = (s == "true" || s == "1")
+        } else {
+            hasMore = false
+        }
     }
 }
 
