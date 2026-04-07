@@ -75,13 +75,37 @@ struct User: Decodable, Identifiable {
         isAdmin || subscriptionPlan == "distributors-hub"
     }
 
+    // memberSinceDate: derived from createdAt ISO string
+    var memberSinceDays: Int? {
+        guard let raw = createdAt else { return nil }
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let date = fmt.date(from: raw) ?? ISO8601DateFormatter().date(from: raw)
+        guard let joined = date else { return nil }
+        return Calendar.current.dateComponents([.day], from: joined, to: Date()).day
+    }
+
     enum CodingKeys: String, CodingKey {
         case id = "_id"
+        case id2 = "id"           // some endpoints return "id" instead of "_id"
         case name, email, role
         case subscriptionPlan = "subscriptionPlan"
         case _isAdmin = "isAdmin"
         case avatarUrl = "avatar_url"
         case createdAt = "createdAt"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        // Accept both "_id" and "id" (different endpoints use different keys)
+        id = (try? c.decode(String.self, forKey: .id)) ?? (try? c.decode(String.self, forKey: .id2)) ?? UUID().uuidString
+        name  = (try? c.decode(String.self, forKey: .name))  ?? ""
+        email = (try? c.decode(String.self, forKey: .email)) ?? ""
+        role  = (try? c.decode(String.self, forKey: .role))  ?? "member"
+        subscriptionPlan = try? c.decode(String.self, forKey: .subscriptionPlan)
+        _isAdmin  = try? c.decode(Bool.self, forKey: ._isAdmin)
+        avatarUrl = try? c.decode(String.self, forKey: .avatarUrl)
+        createdAt = try? c.decode(String.self, forKey: .createdAt)
     }
 }
 
@@ -106,6 +130,7 @@ struct FlockFeedResponse: Decodable {
 
 // Matches the FLAT server schema — Android is authoritative.
 // The server does NOT nest author fields; they are top-level strings.
+// NOTE: Server returns "id" (not "_id") for flock posts — handle both.
 struct FlockPost: Decodable, Identifiable {
     let id: String
     let content: String
@@ -121,7 +146,8 @@ struct FlockPost: Decodable, Identifiable {
     let createdAt: String
 
     enum CodingKeys: String, CodingKey {
-        case id = "_id"
+        case id                 // server returns "id" (NOT "_id") for flock posts
+        case idMongo = "_id"   // fallback if server ever switches to MongoDB _id
         case content
         case authorName = "author_name"
         case authorHandle = "author_handle"
@@ -135,22 +161,25 @@ struct FlockPost: Decodable, Identifiable {
         case createdAt = "created_at"
     }
 
-    // Custom decoder to handle MySQL TINYINT(1) for isPinned + userLiked
+    // Custom decoder: handles both "id" and "_id", plus TINYINT booleans
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(String.self, forKey: .id)
-        content = try c.decode(String.self, forKey: .content)
+        // Accept both "id" (MySQL) and "_id" (MongoDB)
+        id = (try? c.decode(String.self, forKey: .id))
+          ?? (try? c.decode(String.self, forKey: .idMongo))
+          ?? UUID().uuidString
+        content    = (try? c.decode(String.self, forKey: .content)) ?? ""
         authorName = (try? c.decode(String.self, forKey: .authorName)) ?? ""
         authorHandle = try? c.decode(String.self, forKey: .authorHandle)
-        authorId = try? c.decode(String.self, forKey: .authorId)
-        tags = (try? c.decode([String].self, forKey: .tags)) ?? []
+        authorId     = try? c.decode(String.self, forKey: .authorId)
+        tags  = (try? c.decode([String].self, forKey: .tags)) ?? []
         media = (try? c.decode([FlockMedia].self, forKey: .media)) ?? []
-        likeCount = (try? c.decode(Int.self, forKey: .likeCount)) ?? 0
+        likeCount  = (try? c.decode(Int.self, forKey: .likeCount))  ?? 0
         replyCount = (try? c.decode(Int.self, forKey: .replyCount)) ?? 0
-        createdAt = (try? c.decode(String.self, forKey: .createdAt)) ?? ""
+        createdAt  = (try? c.decode(String.self, forKey: .createdAt)) ?? ""
         func decodeBool(_ key: CodingKeys) -> Bool {
             if let b = try? c.decode(Bool.self, forKey: key) { return b }
-            if let i = try? c.decode(Int.self, forKey: key) { return i != 0 }
+            if let i = try? c.decode(Int.self,  forKey: key) { return i != 0 }
             return false
         }
         isPinned  = decodeBool(.isPinned)
@@ -159,18 +188,18 @@ struct FlockPost: Decodable, Identifiable {
 
     // Memberwise copy initializer for optimistic UI mutations
     init(from existing: FlockPost, likeCount: Int? = nil, replyCount: Int? = nil, userLiked: Bool? = nil) {
-        self.id          = existing.id
-        self.content     = existing.content
-        self.authorName  = existing.authorName
+        self.id           = existing.id
+        self.content      = existing.content
+        self.authorName   = existing.authorName
         self.authorHandle = existing.authorHandle
-        self.authorId    = existing.authorId
-        self.tags        = existing.tags
-        self.media       = existing.media
-        self.likeCount   = likeCount  ?? existing.likeCount
-        self.replyCount  = replyCount ?? existing.replyCount
-        self.isPinned    = existing.isPinned
-        self.userLiked   = userLiked  ?? existing.userLiked
-        self.createdAt   = existing.createdAt
+        self.authorId     = existing.authorId
+        self.tags         = existing.tags
+        self.media        = existing.media
+        self.likeCount    = likeCount  ?? existing.likeCount
+        self.replyCount   = replyCount ?? existing.replyCount
+        self.isPinned     = existing.isPinned
+        self.userLiked    = userLiked  ?? existing.userLiked
+        self.createdAt    = existing.createdAt
     }
 }
 
@@ -264,19 +293,34 @@ struct MovieResponse: Decodable {
     let movies: [Movie]
 }
 
+// NOTE: Server returns movies with NO id field.
+// posterPath is already a fully-qualified https:// URL — do NOT prepend base URL.
 struct Movie: Decodable, Identifiable {
-    let id: String
+    let id: String          // synthesized from title+releaseDate — server sends no id
     let title: String
-    let posterPath: String?
+    let posterPath: String? // FULL URL e.g. https://media.themoviedb.org/...
     let releaseDate: String?
     let overview: String?
+    let link: String?
+    let rating: Double?
 
     enum CodingKeys: String, CodingKey {
-        case id = "_id"
         case title
-        case posterPath = "poster_path"
-        case releaseDate = "release_date"
-        case overview
+        case posterPath  = "posterPath"   // server uses camelCase
+        case releaseDate = "releaseDate"
+        case overview, link, rating
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        title       = (try? c.decode(String.self, forKey: .title)) ?? ""
+        posterPath  = try? c.decode(String.self, forKey: .posterPath)
+        releaseDate = try? c.decode(String.self, forKey: .releaseDate)
+        overview    = try? c.decode(String.self, forKey: .overview)
+        link        = try? c.decode(String.self, forKey: .link)
+        rating      = try? c.decode(Double.self, forKey: .rating)
+        // Synthesise a stable id from title + releaseDate
+        id = "\(title)-\(releaseDate ?? "")"
     }
 }
 
