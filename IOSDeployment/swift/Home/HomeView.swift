@@ -200,26 +200,54 @@ struct SectionHeader: View {
 }
 
 // MARK: - Movie Card
+// NOTE: posterPath from server is already a full https:// URL. Use as-is.
 
 struct MovieCard: View {
     let movie: Movie
-    private let posterBase = "https://image.tmdb.org/t/p/w342"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            AsyncImage(url: URL(string: posterBase + (movie.posterPath ?? ""))) { image in
-                image.resizable().aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Rectangle().fill(AppTheme.surfaceVariant)
+            if let posterURL = movie.posterPath.flatMap({ URL(string: $0) }) {
+                AsyncImage(url: posterURL) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    case .failure:
+                        moviePlaceholder
+                    default:
+                        moviePlaceholder
+                    }
+                }
+                .frame(width: 130, height: 190)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            } else {
+                moviePlaceholder
+                    .frame(width: 130, height: 190)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .frame(width: 130, height: 190)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            Text(movie.title)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(AppTheme.textPrimary)
-                .lineLimit(2)
-                .frame(width: 130, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(movie.title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(AppTheme.textPrimary)
+                    .lineLimit(2)
+                    .frame(width: 130, alignment: .leading)
+                if let date = movie.releaseDate {
+                    Text(date)
+                        .font(.system(size: 10))
+                        .foregroundColor(AppTheme.textMuted)
+                        .frame(width: 130, alignment: .leading)
+                }
+            }
+        }
+    }
+
+    private var moviePlaceholder: some View {
+        ZStack {
+            Rectangle().fill(AppTheme.surfaceVariant)
+            Image(systemName: "film")
+                .font(.system(size: 24))
+                .foregroundStyle(AppTheme.goldGradient)
         }
     }
 }
