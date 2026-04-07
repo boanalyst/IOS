@@ -442,7 +442,8 @@ struct InsideTalkContent: Decodable, Identifiable {
     let createdAt: String
 
     enum CodingKeys: String, CodingKey {
-        case id = "_id"
+        case id = "id"
+        case mongoId = "_id"
         case content
         case authorName = "author_name"
         case media
@@ -457,7 +458,9 @@ struct InsideTalkContent: Decodable, Identifiable {
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(String.self, forKey: .id)
+        self.id = (try? c.decode(String.self, forKey: .id)) 
+               ?? (try? c.decode(String.self, forKey: .mongoId)) 
+               ?? UUID().uuidString
         content = (try? c.decode(String.self, forKey: .content)) ?? ""
         authorName = (try? c.decode(String.self, forKey: .authorName)) ?? "BoAnalyst"
         media = (try? c.decode([InsideTalkMedia].self, forKey: .media)) ?? []
