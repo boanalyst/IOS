@@ -105,7 +105,7 @@ struct HomeView: View {
 
                                 VStack(spacing: 12) {
                                     ForEach(viewModel.recentFlockPosts.prefix(3)) { post in
-                                        FlockPostCard(post: post, isAdmin: false) {}
+                                        FlockPostCard(post: post, isAdmin: false)
                                             .padding(.horizontal, 20)
                                     }
                                 }
@@ -432,7 +432,9 @@ struct ExclusiveContentCard: View {
             }
 
             Button(action: onUnlock) {
-                Text("Unlock for \(exclusive.currency) \(Int(exclusive.price))")
+                let currency = exclusive.currency ?? "₹"
+                let price = Int(exclusive.price)
+                Text("Unlock for \(currency) \(price)")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
