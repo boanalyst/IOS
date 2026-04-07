@@ -19,17 +19,19 @@ final class HomeViewModel: ObservableObject {
     func loadHomeData() async {
         isLoading = true
         error = nil
-        // Fire all three requests in parallel, but handle each independently
+        // Fire all requests in parallel; handle each independently
         // so a failure in polls/flock doesn't discard the movie results.
-        async let moviesTask = api.request(.getNowPlaying, responseType: MovieResponse.self)
-        async let pollsTask  = api.request(.getPolls, responseType: ApiResult<[Poll]>.self)
-        async let flockTask  = api.request(.getFlockPosts(offset: 0, limit: 5), responseType: FlockFeedResponse.self)
+        async let moviesTask    = api.request(.getNowPlaying, responseType: MovieResponse.self)
+        async let upcomingTask  = api.request(.getUpcoming, responseType: MovieResponse.self)
+        async let pollsTask     = api.request(.getPolls, responseType: ApiResult<[Poll]>.self)
+        async let flockTask     = api.request(.getFlockPosts(offset: 0, limit: 5), responseType: FlockFeedResponse.self)
 
-        if let movies = try? await moviesTask { nowPlayingMovies = movies.movies }
-        if let polls  = try? await pollsTask  { self.polls = polls.data ?? [] }
-        if let flock  = try? await flockTask  { recentFlockPosts = flock.posts }
+        if let movies   = try? await moviesTask   { nowPlayingMovies = movies.movies }
+        if let upcoming = try? await upcomingTask  { upcomingMovies = upcoming.movies }
+        if let polls    = try? await pollsTask     { self.polls = polls.data ?? [] }
+        if let flock    = try? await flockTask     { recentFlockPosts = flock.posts }
 
-        if nowPlayingMovies.isEmpty {
+        if nowPlayingMovies.isEmpty && upcomingMovies.isEmpty {
             error = "Unable to load content. Please check your connection."
         }
         isLoading = false
@@ -64,83 +66,97 @@ struct HomeView: View {
                 LoadingView()
             } else {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 0) {
 
-                        // ── Hero Header ────────────────────────────────────
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Good \(greetingTime)")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(AppTheme.textSecondary)
-                                Text(authViewModel.currentUser?.name ?? "Film Buff")
-                                    .font(.system(size: 22, weight: .semibold))
-                                    .foregroundColor(AppTheme.textPrimary)
-                            }
-                            Spacer()
-                            // Pro Badge
-                            if authViewModel.currentUser?.isPro == true {
-                                Text("PRO")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(.black)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 4)
-                                    .background(AppTheme.goldGradient)
-                                    .clipShape(Capsule())
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 16)
+                        // ── Brand Header (matches Android NavBar + Hero style) ───────────
+                        HomeHeroBanner(
+                            userName: authViewModel.currentUser?.name,
+                            isPro: authViewModel.currentUser?.isPro ?? false,
+                            greeting: greetingTime
+                        )
 
-                        // ── Live Ticker ────────────────────────────────────
+                        // ── Live Ticker ──────────────────────────────
                         LiveTickerBanner()
+                            .padding(.top, 8)
 
-                        // ── Now Playing ───────────────────────────────────
-                        if !viewModel.nowPlayingMovies.isEmpty {
-                            SectionHeader(title: "Now Playing", icon: "film.fill")
+                        VStack(alignment: .leading, spacing: 24) {
 
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 14) {
-                                    ForEach(viewModel.nowPlayingMovies) { movie in
-                                        MovieCard(movie: movie)
-                                    }
-                                }
-                                .padding(.horizontal, 20)
-                            }
-                        }
+                            // ── Now Playing ────────────────────────────
+                            if !viewModel.nowPlayingMovies.isEmpty {
+                                SectionHeader(title: "Now Playing", icon: "film.fill")
 
-                        // ── Community Polls ───────────────────────────────
-                        if !viewModel.polls.isEmpty {
-                            SectionHeader(title: "Community Polls", icon: "chart.bar.fill")
-
-                            VStack(spacing: 12) {
-                                ForEach(viewModel.polls.prefix(2)) { poll in
-                                    PollCard(
-                                        poll: poll,
-                                        isUserPro: authViewModel.currentUser?.isPro ?? false,
-                                        onSubscribeRequired: onSubscribeRequired
-                                    ) { optionId in
-                                        Task {
-                                            await viewModel.votePoll(pollId: poll.id, optionId: optionId)
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 14) {
+                                        ForEach(viewModel.nowPlayingMovies) { movie in
+                                            MovieCard(movie: movie)
                                         }
                                     }
                                     .padding(.horizontal, 20)
                                 }
                             }
-                        }
 
-                        // ── Recent from Flock ──────────────────────────────
-                        if !viewModel.recentFlockPosts.isEmpty {
-                            SectionHeader(title: "From The Flock", icon: "bubble.left.and.bubble.right")
+                            // ── Upcoming Movies ─────────────────────────
+                            if !viewModel.upcomingMovies.isEmpty {
+                                SectionHeader(title: "Upcoming", icon: "calendar")
 
-                            VStack(spacing: 12) {
-                                ForEach(viewModel.recentFlockPosts.prefix(3)) { post in
-                                    FlockPostCard(post: post, isAdmin: false) {}
-                                        .padding(.horizontal, 20)
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 14) {
+                                        ForEach(viewModel.upcomingMovies) { movie in
+                                            MovieCard(movie: movie)
+                                        }
+                                    }
+                                    .padding(.horizontal, 20)
                                 }
                             }
-                        }
 
-                        Spacer(minLength: 32)
+                            // ── Community Polls ────────────────────────
+                            if !viewModel.polls.isEmpty {
+                                SectionHeader(title: "Live Polls", icon: "chart.bar.fill")
+
+                                VStack(spacing: 12) {
+                                    ForEach(viewModel.polls.prefix(2)) { poll in
+                                        PollCard(
+                                            poll: poll,
+                                            isUserPro: authViewModel.currentUser?.isPro ?? false,
+                                            onSubscribeRequired: onSubscribeRequired
+                                        ) { optionId in
+                                            Task {
+                                                await viewModel.votePoll(pollId: poll.id, optionId: optionId)
+                                            }
+                                        }
+                                        .padding(.horizontal, 20)
+                                    }
+                                }
+                            }
+
+                            // ── Recent from Flock ──────────────────────
+                            if !viewModel.recentFlockPosts.isEmpty {
+                                SectionHeader(title: "🔥 Trending Discussions", icon: "bubble.left.and.bubble.right")
+
+                                VStack(spacing: 12) {
+                                    ForEach(viewModel.recentFlockPosts.prefix(3)) { post in
+                                        FlockPostCard(post: post, isAdmin: false) {}
+                                            .padding(.horizontal, 20)
+                                    }
+                                }
+                            }
+
+                            // Error state
+                            if let error = viewModel.error {
+                                HStack {
+                                    Image(systemName: "exclamationmark.triangle")
+                                        .foregroundColor(AppTheme.warning)
+                                    Text(error)
+                                        .font(.system(size: 13))
+                                        .foregroundColor(AppTheme.textSecondary)
+                                }
+                                .padding(16)
+                                .padding(.horizontal, 20)
+                            }
+
+                            Spacer(minLength: 32)
+                        }
+                        .padding(.top, 16)
                     }
                 }
                 .refreshable {
@@ -151,18 +167,7 @@ struct HomeView: View {
         .task {
             await viewModel.loadHomeData()
         }
-        .navigationTitle("BoAnalyst")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("BOANALYST")
-                    .font(.custom("Cinzel-Regular", size: 16))
-                    .foregroundStyle(AppTheme.goldGradient)
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                GoldIconButton(icon: "bell") {}
-            }
-        }
+        .navigationBarHidden(true)
     }
 
     private var greetingTime: String {
@@ -321,6 +326,75 @@ struct PollCard: View {
 
 
 
+
+// MARK: - Home Hero Banner (matches Android BoAnalyst branding exactly)
+
+struct HomeHeroBanner: View {
+    let userName: String?
+    let isPro: Bool
+    let greeting: String
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .center) {
+                // Brand logo \u2014 matches Android's "BoAnalyst" title + subtitle
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .lastTextBaseline, spacing: 0) {
+                        Text("Bo")
+                            .font(.custom("Cinzel-Regular", size: 28))
+                            .foregroundStyle(AppTheme.goldGradient)
+                        Text("Analyst")
+                            .font(.custom("Cinzel-Regular", size: 20))
+                            .foregroundColor(AppTheme.textSecondary)
+                    }
+                    Text("India's Box Office Intelligence Platform")
+                        .font(.system(size: 10, weight: .regular))
+                        .foregroundColor(AppTheme.textMuted)
+                        .tracking(0.3)
+                }
+
+                Spacer()
+
+                // User greeting + PRO badge
+                VStack(alignment: .trailing, spacing: 3) {
+                    if let name = userName, !name.isEmpty {
+                        Text("Good \(greeting), \(name.components(separatedBy: " ").first ?? name)")
+                            .font(.system(size: 11))
+                            .foregroundColor(AppTheme.textSecondary)
+                            .lineLimit(1)
+                    }
+                    if isPro {
+                        Text("PRO")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(AppTheme.goldGradient)
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 14)
+            .background(
+                LinearGradient(
+                    colors: [Color(hex: "141414"), Color(hex: "0A0A0A")],
+                    startPoint: .top, endPoint: .bottom
+                )
+            )
+            .overlay(
+                // Gold accent line at bottom
+                LinearGradient(
+                    colors: [AppTheme.goldPrimary.opacity(0.8), AppTheme.goldPrimary.opacity(0.1)],
+                    startPoint: .leading, endPoint: .trailing
+                )
+                .frame(height: 1),
+                alignment: .bottom
+            )
+        }
+    }
+}
 
 // MARK: - Loading View
 
