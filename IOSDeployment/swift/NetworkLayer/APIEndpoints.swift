@@ -49,7 +49,15 @@ extension APIEndpoint {
 
     static let getTrendingTopics = APIEndpoint(path: "/api/flock/trending", method: .GET)
 
-    static func createFlockPost(content: String) throws -> APIEndpoint {
+    static func createFlockPost(content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) throws -> APIEndpoint {
+        if let data = mediaData, let mime = mimeType, let name = fileName {
+            var multipart = MultipartFormData()
+            multipart.append(name: "content", string: content)
+            multipart.append(name: "media", data: data, filename: name, mimeType: mime)
+            var endpoint = APIEndpoint(path: "/api/flock/posts", method: .POST)
+            endpoint.multipartData = multipart
+            return endpoint
+        }
         let body = try JSONSerialization.data(withJSONObject: ["content": content])
         return APIEndpoint(path: "/api/flock/posts", method: .POST, body: body)
     }
@@ -112,7 +120,15 @@ extension APIEndpoint {
     static let getInsideTalkCount = APIEndpoint(path: "/api/twitter/inside-talk/count", method: .GET)
     static let getExclusiveContent = APIEndpoint(path: "/api/exclusive/content", method: .GET)
 
-    static func createInsideTalkPost(text: String) throws -> APIEndpoint {
+    static func createInsideTalkPost(text: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) throws -> APIEndpoint {
+        if let data = mediaData, let mime = mimeType, let name = fileName {
+            var multipart = MultipartFormData()
+            multipart.append(name: "text", string: text)
+            multipart.append(name: "media", data: data, filename: name, mimeType: mime)
+            var endpoint = APIEndpoint(path: "/api/twitter/create-post", method: .POST)
+            endpoint.multipartData = multipart
+            return endpoint
+        }
         let body = try JSONSerialization.data(withJSONObject: ["text": text])
         return APIEndpoint(path: "/api/twitter/create-post", method: .POST, body: body)
     }
@@ -160,7 +176,15 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/distributors/posts", method: .GET, queryItems: items)
     }
 
-    static func createDistributorsPost(content: String) throws -> APIEndpoint {
+    static func createDistributorsPost(content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) throws -> APIEndpoint {
+        if let data = mediaData, let mime = mimeType, let name = fileName {
+            var multipart = MultipartFormData()
+            multipart.append(name: "content", string: content)
+            multipart.append(name: "media", data: data, filename: name, mimeType: mime)
+            var endpoint = APIEndpoint(path: "/api/distributors/posts", method: .POST)
+            endpoint.multipartData = multipart
+            return endpoint
+        }
         let body = try JSONSerialization.data(withJSONObject: ["content": content])
         return APIEndpoint(path: "/api/distributors/posts", method: .POST, body: body)
     }
