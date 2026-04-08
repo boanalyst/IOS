@@ -117,7 +117,8 @@ struct CommentBottomSheet: View {
     @ViewBuilder
     private func commentRow(_ c: AppComment) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            if c.authorName.lowercased() == "boanalyst" {
+            let authorStr = c.authorName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            if authorStr.contains("boanalyst") || authorStr.contains("admin") {
                 Image("Logo")
                     .resizable()
                     .scaledToFill()
@@ -809,22 +810,13 @@ struct InsideTalkCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Author header
             HStack(spacing: 8) {
-                if content.authorName.lowercased() == "boanalyst" {
-                    Image("Logo")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 32, height: 32)
-                        .clipShape(Circle())
-                } else {
-                    Circle()
-                        .fill(AppTheme.goldPrimary.opacity(0.15))
-                        .frame(width: 32, height: 32)
-                        .overlay(
-                            Text(String(content.authorName.prefix(1)).uppercased())
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(AppTheme.goldGradient)
-                        )
-                }
+                // Inside Talk posts are always from the BoAnalyst Admin
+                Image("Logo")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 32, height: 32)
+                    .clipShape(Circle())
+                
                 VStack(alignment: .leading, spacing: 1) {
                     Text(content.authorName)
                         .font(.system(size: 12, weight: .semibold))
