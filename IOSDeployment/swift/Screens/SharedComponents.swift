@@ -165,12 +165,29 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
         .replacingOccurrences(of: "&lt;", with: "<")
         .replacingOccurrences(of: "&gt;", with: ">")
     
-    // Completely wipe out literal ** injections since they break markdown parsing heavily
-    clean = clean.replacingOccurrences(of: "\\*\\*", with: "", options: .regularExpression)
-    
     // Replace standalone literal '* ' asterisks at start of lines with real bullets '• '
     // so they are not confused for markdown emphasis.
     clean = clean.replacingOccurrences(of: "(?m)^\\s*\\*\\s+", with: "• ", options: .regularExpression)
+    
+    // Auto-fix user typos where they put spaces inside bold markers: ** text ** -> **text**
+    clean = clean.replacingOccurrences(of: "\\*\\*\\s+(.*?)\\s+\\*\\*", with: "**$1**", options: .regularExpression)
+
+    // Handle multiline ** bold blocks (which Android allows but Apple CommonMark definitively breaks on)
+    let parts = clean.components(separatedBy: "**")
+    if parts.count > 1 && parts.count % 2 == 1 {
+        clean = parts.enumerated().map { index, part in
+            if index % 2 == 1 {
+                // We are inside a ** block - per Apple Spec, wrap each non-empty line individually 
+                // in bold without leading/trailing whitespace which breaks CommonMark.
+                return part.components(separatedBy: "\n").map { line in
+                    let trimmed = line.trimmingCharacters(in: .whitespaces)
+                    return trimmed.isEmpty ? line : "**\(trimmed)**"
+                }.joined(separator: "\n")
+            } else {
+                return part
+            }
+        }.joined()
+    }
     
     // Double spaces at end of each trailing newline forces Apple Text to observe the soft line break!
     clean = clean.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
@@ -306,32 +323,57 @@ struct PostMediaView: View {
 
     var body: some View {
         if !urls.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(urls, id: \.self) { urlString in
-                        if let url = URL(string: urlString.hasPrefix("http") ? urlString : "https://boanalyst.com\(urlString.hasPrefix("/") ? "" : "/")\(urlString)") {
-                            AsyncImage(url: url) { phase in
-                                switch phase {
-                                case .empty:
-                                    Rectangle().fill(AppTheme.surfaceVariant)
-                                        .overlay(ProgressView().tint(AppTheme.goldPrimary))
-                                case .success(let image):
-                                    image.resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                case .failure:
-                                    Rectangle().fill(AppTheme.surfaceVariant)
-                                        .overlay(Image(systemName: "photo").foregroundColor(AppTheme.textMuted))
-                                @unknown default:
-                                    EmptyView()
+            if urls.count == 1 {
+                // Single large full-width image
+                if let urlString = urls.first, let url = URL(string: urlString.hasPrefix("http") ? urlString : "https://boanalyst.com/\(urlString.hasPrefix("/") ? String(urlString.dropFirst()) : urlString)") {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty:
+                            Rectangle().fill(AppTheme.surfaceVariant)
+                                .overlay(ProgressView().tint(AppTheme.goldPrimary))
+                        case .success(let image):
+                            image.resizable()
+                                .scaledToFit()
+                        case .failure:
+                            Rectangle().fill(AppTheme.surfaceVariant)
+                                .overlay(Image(systemName: "photo").foregroundColor(AppTheme.textMuted))
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: 500)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.top, 4)
+                }
+            } else {
+                // Grid of multiple images
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(urls, id: \.self) { urlString in
+                            if let url = URL(string: urlString.hasPrefix("http") ? urlString : "https://boanalyst.com/\(urlString.hasPrefix("/") ? String(urlString.dropFirst()) : urlString)") {
+                                AsyncImage(url: url) { phase in
+                                    switch phase {
+                                    case .empty:
+                                        Rectangle().fill(AppTheme.surfaceVariant)
+                                            .overlay(ProgressView().tint(AppTheme.goldPrimary))
+                                    case .success(let image):
+                                        image.resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                    case .failure:
+                                        Rectangle().fill(AppTheme.surfaceVariant)
+                                            .overlay(Image(systemName: "photo").foregroundColor(AppTheme.textMuted))
+                                    @unknown default:
+                                        EmptyView()
+                                    }
                                 }
+                                .frame(width: 220, height: 280)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
                             }
-                            .frame(width: 140, height: 140)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                     }
                 }
+                .padding(.top, 4)
             }
-            .padding(.top, 4)
         }
     }
 }
