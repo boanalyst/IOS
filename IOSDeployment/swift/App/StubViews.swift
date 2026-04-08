@@ -676,6 +676,15 @@ final class InsideTalkViewModel: ObservableObject {
             }
         }
     }
+
+    func togglePin(_ tweet: InsideTalkContent) {
+        Task {
+            if let endpoint = try? APIEndpoint.pinInsideTalkPost(id: tweet.id, isPinned: !tweet.isPinned) {
+                _ = try? await api.requestRaw(endpoint)
+                await loadAll()
+            }
+        }
+    }
 }
 
 // MARK: - InsideTalkView (full feature implementation)
@@ -703,16 +712,18 @@ struct InsideTalkView: View {
                         }
 
                         ForEach(viewModel.tweets) { tweet in
+                            let isAdmin = authViewModel.currentUser?.isAdmin == true
                             InsideTalkCard(
                                 content: tweet,
-                                isUserPro: authViewModel.currentUser?.isPro ?? false || authViewModel.currentUser?.isAdmin == true,
+                                isUserPro: authViewModel.currentUser?.isPro ?? false || isAdmin,
                                 onSubscribeRequired: onSubscribeRequired,
                                 onLike: { viewModel.toggleLike(tweet) },
                                 onComment: {
                                     viewModel.loadReplies(tweetId: tweet.id)
                                     activeCommentTweetId = tweet.id
                                 },
-                                onDelete: authViewModel.currentUser?.isAdmin == true ? { viewModel.deletePost(tweetId: tweet.id) } : nil
+                                onDelete: isAdmin ? { viewModel.deletePost(tweetId: tweet.id) } : nil,
+                                onPin: isAdmin ? { viewModel.togglePin(tweet) } : nil
                             )
                             .padding(.horizontal, 16)
                         }
@@ -811,6 +822,7 @@ struct InsideTalkCard: View {
     var onLike: () -> Void = {}
     var onComment: () -> Void = {}
     var onDelete: (() -> Void)? = nil
+    var onPin: (() -> Void)? = nil
 
     // FIXED: A post is "locked" only for non-pro, non-admin users.
     // The old check (content.count < 120) was wrong — it locked short posts for everyone.
@@ -842,25 +854,39 @@ struct InsideTalkCard: View {
                         .foregroundColor(AppTheme.textMuted)
                 }
                 Spacer()
-                if let onDelete = onDelete {
-                    Button(action: onDelete) {
-                        Image(systemName: "trash.fill")
+                HStack(spacing: 8) {
+                    if content.isPinned {
+                        Image(systemName: "pin.fill")
                             .font(.system(size: 11))
-                            .foregroundColor(.red.opacity(0.8))
+                            .foregroundStyle(AppTheme.goldGradient)
                     }
-                    .buttonStyle(.plain)
-                    .padding(.trailing, 4)
-                }
-                
-                if content.isPinned {
-                    Image(systemName: "pin.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(AppTheme.goldGradient)
-                }
-                if isLocked {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 11))
-                        .foregroundColor(AppTheme.goldPrimary.opacity(0.6))
+                    if onDelete != nil || onPin != nil {
+                        Menu {
+                            if let del = onDelete {
+                                Button(role: .destructive, action: del) {
+                                    Label("Delete Post", systemImage: "trash")
+                                }
+                            }
+                            if let pin = onPin {
+                                Button(action: pin) {
+                                    Label(content.isPinned ? "Unpin Post" : "Pin Post",
+                                          systemImage: content.isPinned ? "pin.slash" : "pin")
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(AppTheme.textMuted)
+                                .padding(8)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    if isLocked {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(AppTheme.goldPrimary.opacity(0.6))
+                    }
                 }
             }
 
