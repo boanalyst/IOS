@@ -29,12 +29,14 @@ struct FlockPostCard: View {
                     if authorStr.contains("boanalyst") || authorStr.contains("admin") || post.isPinned {
                         AsyncImage(url: URL(string: "https://boanalyst.com/Logo/download.jpeg")) { phase in
                             if let image = phase.image {
-                                image.resizable().scaledToFill()
+                                image.resizable()
+                                     .scaledToFit()
+                                     .background(Color.black)
                             } else {
                                 Circle().fill(AppTheme.goldPrimary.opacity(0.15))
                             }
                         }
-                        .frame(width: 36, height: 36)
+                        .frame(width: 40, height: 40)
                         .clipShape(Circle())
                     } else {
                         Circle()
@@ -157,40 +159,18 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
         .replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: .regularExpression)
         .replacingOccurrences(of: "(?i)</?o?p>", with: "\n", options: .regularExpression)
         .replacingOccurrences(of: "(?i)<li>", with: "\n• ", options: .regularExpression)
-        
-        // Map HTML bold/italic/underline to strict markdown equivalents
-        .replacingOccurrences(of: "(?i)<b>\\s*", with: "**", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)\\s*</b>", with: "**", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)<i>\\s*", with: "_", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)\\s*</i>", with: "_", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)<u>\\s*", with: "_", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)\\s*</u>", with: "_", options: .regularExpression)
-        
         .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         .replacingOccurrences(of: "&nbsp;", with: " ")
         .replacingOccurrences(of: "&amp;", with: "&")
         .replacingOccurrences(of: "&lt;", with: "<")
         .replacingOccurrences(of: "&gt;", with: ">")
     
+    // Completely wipe out literal ** injections since they break markdown parsing heavily
+    clean = clean.replacingOccurrences(of: "\\*\\*", with: "", options: .regularExpression)
+    
     // Replace standalone literal '* ' asterisks at start of lines with real bullets '• '
-    // so they are not confused for markdown emphasis when next to bold tags.
+    // so they are not confused for markdown emphasis.
     clean = clean.replacingOccurrences(of: "(?m)^\\s*\\*\\s+", with: "• ", options: .regularExpression)
-
-    // Handle multiline ** bold blocks (which Android allows but Apple CommonMark breaks on)
-    let parts = clean.components(separatedBy: "**")
-    if parts.count > 1 {
-        clean = parts.enumerated().map { index, part in
-            if index % 2 == 1 {
-                // We are inside a ** block - per Apple Spec, wrap each line individually
-                return part.components(separatedBy: "\n").map { line in
-                    let trimmed = line.trimmingCharacters(in: .whitespaces)
-                    return trimmed.isEmpty ? line : "**\(trimmed)**"
-                }.joined(separator: "\n")
-            } else {
-                return part
-            }
-        }.joined()
-    }
     
     // Double spaces at end of each trailing newline forces Apple Text to observe the soft line break!
     clean = clean.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)

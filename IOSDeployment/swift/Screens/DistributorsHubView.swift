@@ -227,7 +227,9 @@ struct DistributorsPostCard: View {
                 if authorStr.contains("boanalyst") || authorStr.contains("admin") || post.isPinned {
                     AsyncImage(url: URL(string: "https://boanalyst.com/Logo/download.jpeg")) { phase in
                         if let image = phase.image {
-                            image.resizable().scaledToFill()
+                            image.resizable()
+                                 .scaledToFit()
+                                 .background(Color.black)
                         } else {
                             Circle().fill(AppTheme.goldPrimary.opacity(0.15))
                         }
