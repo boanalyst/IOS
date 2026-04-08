@@ -225,11 +225,15 @@ struct DistributorsPostCard: View {
             HStack(spacing: 10) {
                 let authorStr = post.authorName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
                 if authorStr.contains("boanalyst") || authorStr.contains("admin") || post.isPinned {
-                    Image("Logo")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
+                    AsyncImage(url: URL(string: "https://boanalyst.com/Logo/download.jpeg")) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            Circle().fill(AppTheme.goldPrimary.opacity(0.15))
+                        }
+                    }
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
                 } else {
                     Circle()
                         .fill(AppTheme.goldPrimary.opacity(0.15))

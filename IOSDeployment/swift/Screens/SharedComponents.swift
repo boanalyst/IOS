@@ -27,11 +27,15 @@ struct FlockPostCard: View {
                 HStack(spacing: 10) {
                     let authorStr = post.authorName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
                     if authorStr.contains("boanalyst") || authorStr.contains("admin") || post.isPinned {
-                        Image("Logo")
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 36, height: 36)
-                            .clipShape(Circle())
+                        AsyncImage(url: URL(string: "https://boanalyst.com/Logo/download.jpeg")) { phase in
+                            if let image = phase.image {
+                                image.resizable().scaledToFill()
+                            } else {
+                                Circle().fill(AppTheme.goldPrimary.opacity(0.15))
+                            }
+                        }
+                        .frame(width: 36, height: 36)
+                        .clipShape(Circle())
                     } else {
                         Circle()
                             .fill(AppTheme.goldPrimary.opacity(0.15))
@@ -48,11 +52,6 @@ struct FlockPostCard: View {
                             Text(post.authorName)
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundColor(AppTheme.textPrimary)
-                            if let handle = post.authorHandle, !handle.isEmpty {
-                                Text("@\(handle)")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(AppTheme.textMuted)
-                            }
                         }
                         Text(post.createdAt.prefix(10).description)
                             .font(.system(size: 11))
@@ -156,19 +155,16 @@ struct FlockPostCard: View {
 func parseBoAnalystHTML(_ text: String) -> AttributedString {
     var clean = text
         .replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)</?p>", with: "\n", options: .regularExpression)
+        .replacingOccurrences(of: "(?i)</?o?p>", with: "\n", options: .regularExpression)
         .replacingOccurrences(of: "(?i)<li>", with: "\n• ", options: .regularExpression)
         
-        // Match Android behavior while generating completely clean commonmark syntax spacing
-        .replacingOccurrences(of: "(?i)<b>\\s*\\*\\s*(.*?)\\s*</b>", with: " • **$1** ", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)<b>\\s*(.*?)\\s*</b>", with: " **$1** ", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)<i>\\s*(.*?)\\s*</i>", with: " _$1_ ", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)<u>\\s*(.*?)\\s*</u>", with: " _$1_ ", options: .regularExpression) // map underline to italic (Apple doesn't have native underline in markdown text parsing)
-        
-        // Repair legacy malformed Literal Markdown injected from old Android posts
-        .replacingOccurrences(of: "\\*\\*\\s+(.*?)\\s+\\*\\*", with: "**$1**", options: .regularExpression)
-        .replacingOccurrences(of: "_\\s+(.*?)\\s+_", with: "_$1_", options: .regularExpression)
+        // Map HTML bold/italic/underline to strict markdown equivalents
+        .replacingOccurrences(of: "(?i)<b>\\s*", with: "**", options: .regularExpression)
+        .replacingOccurrences(of: "(?i)\\s*</b>", with: "**", options: .regularExpression)
+        .replacingOccurrences(of: "(?i)<i>\\s*", with: "_", options: .regularExpression)
+        .replacingOccurrences(of: "(?i)\\s*</i>", with: "_", options: .regularExpression)
+        .replacingOccurrences(of: "(?i)<u>\\s*", with: "_", options: .regularExpression)
+        .replacingOccurrences(of: "(?i)\\s*</u>", with: "_", options: .regularExpression)
         
         .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         .replacingOccurrences(of: "&nbsp;", with: " ")
@@ -176,12 +172,33 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
         .replacingOccurrences(of: "&lt;", with: "<")
         .replacingOccurrences(of: "&gt;", with: ">")
     
-    clean = clean.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
+    // Replace standalone literal '* ' asterisks at start of lines with real bullets '• '
+    // so they are not confused for markdown emphasis when next to bold tags.
+    clean = clean.replacingOccurrences(of: "(?m)^\\s*\\*\\s+", with: "• ", options: .regularExpression)
+
+    // Handle multiline ** bold blocks (which Android allows but Apple CommonMark breaks on)
+    let parts = clean.components(separatedBy: "**")
+    if parts.count > 1 {
+        clean = parts.enumerated().map { index, part in
+            if index % 2 == 1 {
+                // We are inside a ** block - per Apple Spec, wrap each line individually
+                return part.components(separatedBy: "\n").map { line in
+                    let trimmed = line.trimmingCharacters(in: .whitespaces)
+                    return trimmed.isEmpty ? line : "**\(trimmed)**"
+                }.joined(separator: "\n")
+            } else {
+                return part
+            }
+        }.joined()
+    }
+    
+    // Double spaces at end of each trailing newline forces Apple Text to observe the soft line break!
+    clean = clean.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
+                 .trimmingCharacters(in: .whitespacesAndNewlines)
     clean = clean.replacingOccurrences(of: "\n", with: "  \n")
     
     var options = AttributedString.MarkdownParsingOptions()
     options.allowsExtendedAttributes = true
-    options.interpretedSyntax = .inlineOnlyPreservingWhitespace
     
     return (try? AttributedString(markdown: clean, options: options)) ?? AttributedString(clean)
 }
