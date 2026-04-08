@@ -110,7 +110,7 @@ struct DistributorsHubView: View {
                 emptyState
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: 16) { // Bug #2 fix: increased from 12 to 16
                         ForEach(viewModel.posts) { post in
                             let isAdmin = authViewModel.currentUser?.isAdmin == true
                             DistributorsPostCard(
