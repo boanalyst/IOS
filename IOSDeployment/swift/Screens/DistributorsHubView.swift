@@ -223,7 +223,8 @@ struct DistributorsPostCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header
             HStack(spacing: 10) {
-                if post.authorName.lowercased() == "boanalyst" {
+                let authorStr = post.authorName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                if authorStr.contains("boanalyst") || authorStr.contains("admin") || post.isPinned {
                     Image("Logo")
                         .resizable()
                         .scaledToFill()
