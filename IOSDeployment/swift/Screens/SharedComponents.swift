@@ -160,7 +160,7 @@ struct FlockPostCard: View {
 func parseBoAnalystHTML(_ text: String) -> AttributedString {
     var clean = text
         .replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)</?o?p>", with: "\n", options: .regularExpression)
+        .replacingOccurrences(of: "(?i)</?o?p>", with: "\n\n", options: .regularExpression)
         .replacingOccurrences(of: "(?i)<li>", with: "\n• ", options: .regularExpression)
         .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         .replacingOccurrences(of: "&nbsp;", with: " ")
