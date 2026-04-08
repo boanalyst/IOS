@@ -228,8 +228,9 @@ struct MovieCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            let urlStr = movie.posterPath ?? ""
-            if let posterURL = URL(string: urlStr.hasPrefix("http") ? urlStr : "https://boanalyst.com/\(urlStr.hasPrefix("/") ? String(urlStr.dropFirst()) : urlStr)"), !urlStr.isEmpty {
+            // posterPath is a full TMDB URL e.g. https://media.themoviedb.org/...
+            // Do NOT prepend any domain — use as-is
+            if let urlStr = movie.posterPath, !urlStr.isEmpty, let posterURL = URL(string: urlStr) {
                 AsyncImage(url: posterURL) { phase in
                     switch phase {
                     case .success(let image):
@@ -244,7 +245,7 @@ struct MovieCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
                 moviePlaceholder
-                    .frame(width: 130, height: 190)
+                    .frame(width: 140, height: 200)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
 
