@@ -322,9 +322,7 @@ struct DistributorsPostCard: View {
                         .buttonStyle(.plain)
                     }
                 }
-            }
-
-            // Content — strip embed URLs, then render as markdown (fixes ** bold showing raw)
+            }            // Content — strip embed URLs, then render as markdown (fixes ** bold showing raw)
             let socialEmbeds = extractSocialEmbeds(from: post.content)
             let cleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
             let attrContent = parseBoAnalystHTML(cleanContent)
@@ -333,18 +331,22 @@ struct DistributorsPostCard: View {
                 .font(.system(size: 14))
                 .foregroundColor(AppTheme.textSecondary)
                 .lineLimit(nil)
-                .lineSpacing(6)
-                .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(8)                              // Bug #3 fix: was 6, increased for readability
+                .fixedSize(horizontal: false, vertical: true) // Bug #3 fix: force proper multiline expansion
+                .frame(maxWidth: .infinity, alignment: .leading) // Bug #3 fix: prevent centered layout
                 .padding(.top, 4)
+                .padding(.bottom, 8)                         // Bug #3 fix: breathing room below text
 
-            // ── Uploaded Media ───────────────────────────────────────
+            // ── Uploaded Media ────────────────────────────────────────
             if let urls = post.mediaUrls, !urls.isEmpty {
                 PostMediaView(urls: urls)
+                    .padding(.bottom, 8)
             }
 
-            // ── Social Embeds (YouTube / X / Instagram) ──────────────────
+            // ── Social Embeds (YouTube / X / Instagram) ───────────────────
             if !socialEmbeds.isEmpty {
                 SocialEmbedsSection(embeds: socialEmbeds)
+                    .padding(.bottom, 8)
             }
 
             // Tags
@@ -362,6 +364,7 @@ struct DistributorsPostCard: View {
                         }
                     }
                 }
+                .padding(.bottom, 4)
             }
 
             // Engagement
@@ -374,6 +377,12 @@ struct DistributorsPostCard: View {
                 Label("\(post.viewCount)", systemImage: "eye")
                     .font(.system(size: 12))
                     .foregroundColor(AppTheme.textMuted)
+            }
+        }
+        .padding(16)
+        .cardStyle()
+    }
+}                .foregroundColor(AppTheme.textMuted)
             }
         }
         .padding(16)
