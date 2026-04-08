@@ -279,9 +279,11 @@ struct DistributorsPostCard: View {
             let cleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
             let attrContent = parseBoAnalystHTML(cleanContent)
             Text(attrContent)
-                .font(.system(size: 13))
+                .tint(AppTheme.goldPrimary)
+                .font(.system(size: 14))
                 .foregroundColor(AppTheme.textSecondary)
-                .lineSpacing(3)
+                .lineSpacing(6)
+                .padding(.top, 4)
 
             // ── Uploaded Media ───────────────────────────────────────
             if let urls = post.mediaUrls, !urls.isEmpty {

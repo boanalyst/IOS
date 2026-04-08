@@ -96,10 +96,12 @@ struct FlockPostCard: View {
 
                 let attrString = parseBoAnalystHTML(cleanContent)
                 Text(attrString)
-                    .font(.system(size: 13))
+                    .tint(AppTheme.goldPrimary)
+                    .font(.system(size: 14))
                     .foregroundColor(AppTheme.textSecondary)
                     .lineLimit(6)
-                    .lineSpacing(3)
+                    .lineSpacing(6)
+                    .padding(.top, 4)
 
                 // ── Uploaded Media ───────────────────────────────────────
                 let mediaUrls = post.media.map { $0.url }
@@ -162,12 +164,15 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
         .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         .replacingOccurrences(of: "&nbsp;", with: " ")
         .replacingOccurrences(of: "&amp;", with: "&")
-        .replacingOccurrences(of: "&lt;", with: "<")
-        .replacingOccurrences(of: "&gt;", with: ">")
+    // Completely wipe out literal ** injections since they break markdown parsing heavily
+    clean = clean.replacingOccurrences(of: "\\*\\*", with: "", options: .regularExpression)
     
     // Replace standalone literal '* ' asterisks at start of lines with real bullets '• '
     // so they are not confused for markdown emphasis.
     clean = clean.replacingOccurrences(of: "(?m)^\\s*\\*\\s+", with: "• ", options: .regularExpression)
+    
+    // Convert hashtags to Markdown links so iOS highlights them automatically
+    clean = clean.replacingOccurrences(of: "(#[\\p{L}\\p{N}_]+)", with: "[$1](boanalyst://hashtag)", options: .regularExpression)
     
     // Auto-fix user typos where they put spaces inside bold markers: ** text ** -> **text**
     clean = clean.replacingOccurrences(of: "\\*\\*\\s+(.*?)\\s+\\*\\*", with: "**$1**", options: .regularExpression)
