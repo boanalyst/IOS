@@ -214,7 +214,7 @@ struct FlockPost: Decodable, Identifiable {
     }
 
     // Memberwise copy initializer for optimistic UI mutations
-    init(from existing: FlockPost, likeCount: Int? = nil, replyCount: Int? = nil, userLiked: Bool? = nil) {
+    init(from existing: FlockPost, likeCount: Int? = nil, replyCount: Int? = nil, userLiked: Bool? = nil, isPinned: Bool? = nil) {
         self.id           = existing.id
         self.content      = existing.content
         self.authorName   = existing.authorName
@@ -224,7 +224,7 @@ struct FlockPost: Decodable, Identifiable {
         self.media        = existing.media
         self.likeCount    = likeCount  ?? existing.likeCount
         self.replyCount   = replyCount ?? existing.replyCount
-        self.isPinned     = existing.isPinned
+        self.isPinned     = isPinned   ?? existing.isPinned
         self.userLiked    = userLiked  ?? existing.userLiked
         self.createdAt    = existing.createdAt
     }
@@ -538,7 +538,8 @@ struct InsideTalkContent: Decodable, Identifiable {
     init(from existing: InsideTalkContent,
          userLiked: Bool? = nil,
          likeCount: Int? = nil,
-         replyCount: Int? = nil) {
+         replyCount: Int? = nil,
+         isPinned: Bool? = nil) {
         self.id          = existing.id
         self.content     = existing.content
         self.authorName  = existing.authorName
@@ -546,7 +547,7 @@ struct InsideTalkContent: Decodable, Identifiable {
         self.likeCount   = likeCount   ?? existing.likeCount
         self.dislikeCount = existing.dislikeCount
         self.replyCount  = replyCount  ?? existing.replyCount
-        self.isPinned    = existing.isPinned
+        self.isPinned    = isPinned    ?? existing.isPinned
         self.userLiked   = userLiked   ?? existing.userLiked
         self.userDisliked = existing.userDisliked
         self.createdAt   = existing.createdAt
@@ -692,7 +693,7 @@ struct DistributorsPost: Decodable, Identifiable {
     }
 
     // Memberwise copy initializer for optimistic UI mutations
-    init(from existing: DistributorsPost, likeCount: Int? = nil) {
+    init(from existing: DistributorsPost, likeCount: Int? = nil, isPinned: Bool? = nil) {
         self.id = existing.id
         self.content = existing.content
         self.authorName = existing.authorName
@@ -701,7 +702,7 @@ struct DistributorsPost: Decodable, Identifiable {
         self.tags = existing.tags
         self.postType = existing.postType
         self.priority = existing.priority
-        self.isPinned = existing.isPinned
+        self.isPinned = isPinned ?? existing.isPinned
         self.isFeatured = existing.isFeatured
         self.likeCount = likeCount ?? existing.likeCount
         self.viewCount = existing.viewCount
