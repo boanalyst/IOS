@@ -121,7 +121,9 @@ struct CommentBottomSheet: View {
             if authorStr.contains("boanalyst") || authorStr.contains("admin") {
                 AsyncImage(url: URL(string: "https://boanalyst.com/Logo/download.jpeg")) { phase in
                     if let image = phase.image {
-                        image.resizable().scaledToFill()
+                        image.resizable()
+                             .scaledToFit()
+                             .background(Color.black)
                     } else {
                         Circle().fill(AppTheme.goldPrimary.opacity(0.15))
                     }
@@ -816,7 +818,9 @@ struct InsideTalkCard: View {
                 // Inside Talk posts are always from the BoAnalyst Admin
                 AsyncImage(url: URL(string: "https://boanalyst.com/Logo/download.jpeg")) { phase in
                     if let image = phase.image {
-                        image.resizable().scaledToFill()
+                        image.resizable()
+                             .scaledToFit()
+                             .background(Color.black)
                     } else {
                         Circle().fill(AppTheme.goldPrimary.opacity(0.15))
                     }
