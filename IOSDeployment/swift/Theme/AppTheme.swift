@@ -14,15 +14,15 @@ enum AppTheme {
     static let goldMuted      = Color(hex: "9A7D0A")  // Muted Gold
 
     // ── Background Palette ────────────────────────────────────────────────────
-    static let background     = Color(lightHex: "F5F6FA", darkHex: "000000")  // LightBackground / DeepNavy
-    static let surface        = Color(lightHex: "FFFFFF", darkHex: "050505")  // LightSurface / NavyDark
-    static let surfaceVariant = Color(lightHex: "E8E9F2", darkHex: "101010")  // LightElevated / NavyElevated
-    static let card           = Color(lightHex: "EEEFF5", darkHex: "0D0D0D")  // LightSurfaceVar / NavyCard
+    static let background     = Color(lightHex: "F5F6FA", darkHex: "0A101C")  // True Deep Navy Blue
+    static let surface        = Color(lightHex: "FFFFFF", darkHex: "12182B")  // Slightly elevated Navy
+    static let surfaceVariant = Color(lightHex: "E8E9F2", darkHex: "181F38")  
+    static let card           = Color(lightHex: "EEEFF5", darkHex: "1A223D")  
 
     // ── Text Colors ───────────────────────────────────────────────────────────
-    static let textPrimary    = Color(lightHex: "0D0D1A", darkHex: "FFFFFF")
-    static let textSecondary  = Color(lightHex: "3A3A55", darkHex: "CCCCCC")
-    static let textMuted      = Color(lightHex: "7070A0", darkHex: "888898")
+    static let textPrimary    = Color(lightHex: "0D0D1A", darkHex: "F8F9FA")
+    static let textSecondary  = Color(lightHex: "3A3A55", darkHex: "D1D5DB")
+    static let textMuted      = Color(lightHex: "7070A0", darkHex: "9CA3AF")
 
     // ── Status Colors ─────────────────────────────────────────────────────────
     static let success        = Color(hex: "22C55E")
