@@ -480,7 +480,7 @@ struct FlockFeedView: View {
                 LoadingView()
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) {   // Bug #2 fix: was 0, cards were visually congested
+                    LazyVStack(spacing: 16) {   // Bug #2 fix: increased from 12 to 16 for better spacing
                         // ── Trending strip ──────────────────────────────
                         if !flockVM.trendingTopics.isEmpty {
                             TrendingStrip(trends: flockVM.trendingTopics)
@@ -568,7 +568,7 @@ struct FlockFeedView: View {
                 onDismiss: { activeCommentPostId = nil }
             )
             .presentationDetents([.medium, .large])
-            .presentationBackground(AppTheme.card)
+            .modifier(SheetBackgroundModifier())
         }
     }
 
@@ -758,7 +758,7 @@ struct InsideTalkView: View {
                 LoadingView()
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: 16) { // Bug #2 fix: increased from 12 to 16
                         // Non-pro upgrade banner (scrollable, mirrors Android)
                         if !(authViewModel.currentUser?.isPro ?? false) {
                             proUpgradeBanner
@@ -837,7 +837,7 @@ struct InsideTalkView: View {
                 onDismiss: { activeCommentTweetId = nil }
             )
             .presentationDetents([.medium, .large])
-            .presentationBackground(AppTheme.card)
+            .modifier(SheetBackgroundModifier())
         }
     }
 
@@ -1778,5 +1778,17 @@ struct CreatePostSheet: View {
         }
         isPosting = false
         dismiss()
+    }
+}
+
+// MARK: - Compatibility Modifiers
+
+struct SheetBackgroundModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.4, *) {
+            content.presentationBackground(AppTheme.card)
+        } else {
+            content.background(AppTheme.card)
+        }
     }
 }
