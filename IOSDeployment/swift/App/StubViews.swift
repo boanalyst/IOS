@@ -15,11 +15,14 @@ struct AppComment: Identifiable {
 }
 
 // MARK: - Comment Bottom Sheet
+// Bug #4 fix: CommentBottomSheet now gets comments via @Binding so the sheet
+// updates live when the async loadComments() / loadReplies() response arrives.
+// The caller must pass a Binding to a mutable array that the viewModel populates.
 
 struct CommentBottomSheet: View {
     let postId: String
-    let comments: [AppComment]
-    let isLoading: Bool
+    let comments: [AppComment]   // read from live viewModel state in the wrapper view
+    let isLoading: Bool          // read from live viewModel state in the wrapper view
     let currentUserId: String
     let isAdmin: Bool
     var onDismiss: () -> Void
@@ -38,10 +41,13 @@ struct CommentBottomSheet: View {
 
             // Header
             HStack {
-                Text("Comments")
+                Text("Comments (\(comments.count))")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(AppTheme.textPrimary)
                 Spacer()
+                if isLoading {
+                    ProgressView().tint(AppTheme.goldPrimary).scaleEffect(0.8)
+                }
                 Button(action: onDismiss) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 20))
@@ -53,7 +59,7 @@ struct CommentBottomSheet: View {
 
             Divider().background(Color.white.opacity(0.08))
 
-            if isLoading {
+            if isLoading && comments.isEmpty {
                 ProgressView().tint(AppTheme.goldPrimary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(40)
@@ -65,6 +71,9 @@ struct CommentBottomSheet: View {
                     Text("No comments yet")
                         .font(.system(size: 14))
                         .foregroundColor(AppTheme.textMuted)
+                    Text("Be the first to comment!")
+                        .font(.system(size: 12))
+                        .foregroundColor(AppTheme.textMuted.opacity(0.7))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(40)
@@ -80,7 +89,7 @@ struct CommentBottomSheet: View {
                 }
             }
 
-            Spacer()
+            Spacer(minLength: 0)
 
             // Composer
             HStack(spacing: 10) {
@@ -170,6 +179,7 @@ struct CommentBottomSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .padding(.vertical, 4)
     }
 }
 
@@ -406,6 +416,53 @@ final class FlockViewModel: ObservableObject {
     }
 }
 
+// MARK: - Reactive Comment Sheet Container (Bug #4 fix)
+// SwiftUI's .sheet(item:) closure captures state at creation time.
+// By wrapping CommentBottomSheet in an @ObservedObject container, the sheet
+// re-renders whenever commentsState/commentsLoadingSet changes after async load.
+
+struct FlockCommentSheetContainer: View {
+    @ObservedObject var flockVM: FlockViewModel
+    let postId: String
+    let currentUserId: String
+    let isAdmin: Bool
+    var onDismiss: () -> Void
+
+    var body: some View {
+        CommentBottomSheet(
+            postId: postId,
+            comments: flockVM.commentsState[postId] ?? [],
+            isLoading: flockVM.commentsLoadingSet.contains(postId),
+            currentUserId: currentUserId,
+            isAdmin: isAdmin,
+            onDismiss: onDismiss,
+            onSubmit: { text in flockVM.addComment(postId: postId, text: text) },
+            onDelete: { commentId in flockVM.deleteComment(postId: postId, commentId: commentId) }
+        )
+    }
+}
+
+struct InsideTalkCommentSheetContainer: View {
+    @ObservedObject var viewModel: InsideTalkViewModel
+    let tweetId: String
+    let currentUserId: String
+    let isAdmin: Bool
+    var onDismiss: () -> Void
+
+    var body: some View {
+        CommentBottomSheet(
+            postId: tweetId,
+            comments: viewModel.repliesState[tweetId] ?? [],
+            isLoading: viewModel.repliesLoadingSet.contains(tweetId),
+            currentUserId: currentUserId,
+            isAdmin: isAdmin,
+            onDismiss: onDismiss,
+            onSubmit: { text in viewModel.addReply(tweetId: tweetId, text: text) },
+            onDelete: { replyId in viewModel.deleteReply(tweetId: tweetId, replyId: replyId) }
+        )
+    }
+}
+
 // MARK: - FlockFeedView (full feature implementation)
 
 struct FlockFeedView: View {
@@ -423,7 +480,7 @@ struct FlockFeedView: View {
                 LoadingView()
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 0) {
+                    LazyVStack(spacing: 12) {   // Bug #2 fix: was 0, cards were visually congested
                         // ── Trending strip ──────────────────────────────
                         if !flockVM.trendingTopics.isEmpty {
                             TrendingStrip(trends: flockVM.trendingTopics)
@@ -450,7 +507,6 @@ struct FlockFeedView: View {
                                     onPin: { flockVM.togglePin(post) }
                                 )
                                 .padding(.horizontal, 16)
-                                .padding(.vertical, 6)
                             }
 
                             // Load more footer
@@ -502,19 +558,17 @@ struct FlockFeedView: View {
                     .foregroundStyle(AppTheme.goldGradient)
             }
         }
-        // ── Comment Bottom Sheet ──────────────────────────────────────────
+        // ── Comment Bottom Sheet (Bug #4 fix: uses FlockCommentSheetContainer for live updates) ──
         .sheet(item: $activeCommentPostId) { postId in
-            CommentBottomSheet(
+            FlockCommentSheetContainer(
+                flockVM: flockVM,
                 postId: postId,
-                comments: flockVM.commentsState[postId] ?? [],
-                isLoading: flockVM.commentsLoadingSet.contains(postId),
                 currentUserId: authViewModel.currentUser?.id ?? "",
                 isAdmin: authViewModel.currentUser?.isAdmin == true,
-                onDismiss: { activeCommentPostId = nil },
-                onSubmit: { text in flockVM.addComment(postId: postId, text: text) },
-                onDelete: { commentId in flockVM.deleteComment(postId: postId, commentId: commentId) }
+                onDismiss: { activeCommentPostId = nil }
             )
             .presentationDetents([.medium, .large])
+            .presentationBackground(AppTheme.card)
         }
     }
 
@@ -773,18 +827,17 @@ struct InsideTalkView: View {
             })
         }
         // ── Reply Bottom Sheet ────────────────────────────────────────────
+        // ── Reply Bottom Sheet (Bug #4 fix: uses InsideTalkCommentSheetContainer for live updates) ──
         .sheet(item: $activeCommentTweetId) { tweetId in
-            CommentBottomSheet(
-                postId: tweetId,
-                comments: viewModel.repliesState[tweetId] ?? [],
-                isLoading: viewModel.repliesLoadingSet.contains(tweetId),
+            InsideTalkCommentSheetContainer(
+                viewModel: viewModel,
+                tweetId: tweetId,
                 currentUserId: authViewModel.currentUser?.id ?? "",
                 isAdmin: authViewModel.currentUser?.isAdmin == true,
-                onDismiss: { activeCommentTweetId = nil },
-                onSubmit: { text in viewModel.addReply(tweetId: tweetId, text: text) },
-                onDelete: { replyId in viewModel.deleteReply(tweetId: tweetId, replyId: replyId) }
+                onDismiss: { activeCommentTweetId = nil }
             )
             .presentationDetents([.medium, .large])
+            .presentationBackground(AppTheme.card)
         }
     }
 
