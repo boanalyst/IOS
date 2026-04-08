@@ -322,20 +322,23 @@ struct DistributorsPostCard: View {
                         .buttonStyle(.plain)
                     }
                 }
-            }            // Content — strip embed URLs, then render as markdown (fixes ** bold showing raw)
+            }
+
+            // Content — strip embed URLs, then render as markdown
             let socialEmbeds = extractSocialEmbeds(from: post.content)
             let cleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
             let attrContent = parseBoAnalystHTML(cleanContent)
+            
             Text(attrContent)
                 .tint(AppTheme.goldPrimary)
                 .font(.system(size: 14))
                 .foregroundColor(AppTheme.textSecondary)
                 .lineLimit(nil)
-                .lineSpacing(8)                              // Bug #3 fix: was 6, increased for readability
-                .fixedSize(horizontal: false, vertical: true) // Bug #3 fix: force proper multiline expansion
-                .frame(maxWidth: .infinity, alignment: .leading) // Bug #3 fix: prevent centered layout
+                .lineSpacing(8)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 4)
-                .padding(.bottom, 8)                         // Bug #3 fix: breathing room below text
+                .padding(.bottom, 8)
 
             // ── Uploaded Media ────────────────────────────────────────
             if let urls = post.mediaUrls, !urls.isEmpty {
