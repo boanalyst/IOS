@@ -41,14 +41,31 @@
   <string>BoAnalyst needs access to your photo library to let you attach photos and videos to your posts.</string>
 
   <!-- ── App Transport Security ────────────────────────────────────────── -->
-  <!-- Allow HTTPS for boanalyst.com + social embed widgets (Twitter/X, YouTube, Instagram) -->
+  <!-- Allow HTTPS for boanalyst.com + TMDB + social embed widgets (Twitter/X, YouTube, Instagram) -->
   <key>NSAppTransportSecurity</key>
   <dict>
     <key>NSAllowsArbitraryLoads</key>
     <false/>
-    <!-- Twitter / X embed widget -->
     <key>NSExceptionDomains</key>
     <dict>
+      <!-- BoAnalyst backend + CDN -->
+      <key>boanalyst.com</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
+        <key>NSIncludesSubdomains</key><true/>
+      </dict>
+      <!-- TMDB movie poster images (Bug #1 fix: was missing, blocked all movie posters) -->
+      <key>themoviedb.org</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
+        <key>NSIncludesSubdomains</key><true/>
+      </dict>
+      <key>image.tmdb.org</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
+        <key>NSIncludesSubdomains</key><true/>
+      </dict>
+      <!-- Twitter / X embed widget -->
       <key>twitter.com</key>
       <dict>
         <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
