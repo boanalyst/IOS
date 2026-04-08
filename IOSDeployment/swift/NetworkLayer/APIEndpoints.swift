@@ -203,6 +203,11 @@ extension APIEndpoint {
         APIEndpoint(path: "/api/distributors/posts/\(id)/like", method: .POST)
     }
 
+    static func pinDistributorsPost(id: String, isPinned: Bool) throws -> APIEndpoint {
+        let body = try JSONSerialization.data(withJSONObject: ["is_pinned": isPinned ? 1 : 0])
+        return APIEndpoint(path: "/api/distributors/posts/\(id)/pin", method: .PUT, body: body)
+    }
+
     // ── Subscription / Razorpay ───────────────────────────────────────────────
     // SECURITY NOTE: iOS uses the Netflix/Reader strategy — subscriptions are
     // purchased on boanalyst.com via Safari, NOT via Apple IAP / StoreKit.
