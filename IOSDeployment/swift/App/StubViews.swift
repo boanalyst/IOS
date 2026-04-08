@@ -158,10 +158,15 @@ struct CommentBottomSheet: View {
                         }
                     }
                 }
-                let attrComment = parseBoAnalystHTML(c.content)
-                Text(attrComment)
-                    .font(.system(size: 13))
+                let cleanContent = stripEmbedUrls(from: c.content, embeds: [])
+                let attrString = parseBoAnalystHTML(cleanContent)
+                Text(attrString)
+                    .tint(AppTheme.goldPrimary)
+                    .font(.system(size: 14))
                     .foregroundColor(AppTheme.textSecondary)
+                    .lineLimit(nil)
+                    .lineSpacing(6)
+                    .padding(.top, 4)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -865,10 +870,12 @@ struct InsideTalkCard: View {
             let attrText = parseBoAnalystHTML(cleanText)
 
             Text(attrText)
-                .font(.system(size: 13))
+                .tint(AppTheme.goldPrimary)
+                .font(.system(size: 14))
                 .foregroundColor(isLocked ? AppTheme.textMuted : AppTheme.textPrimary)
                 .lineLimit(isLocked ? 3 : nil)
-                .lineSpacing(3)
+                .lineSpacing(6)
+                .padding(.top, 4)
                 .blur(radius: isLocked ? 3.5 : 0)
 
             // ── Uploaded Media ───────────────────────────────────────
