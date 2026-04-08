@@ -250,8 +250,9 @@ struct LikeResponse: Decodable {
 
 struct CommentResponse: Decodable {
     let success: Bool
-    let comments: [Comment]
-    var resolvedComments: [Comment] { comments }
+    let comments: [Comment]?
+    let data: [Comment]?
+    var resolvedComments: [Comment] { comments ?? data ?? [] }
 }
 
 struct Comment: Decodable, Identifiable {
@@ -636,8 +637,9 @@ struct InsideTalkReply: Decodable, Identifiable {
 
 struct InsideTalkRepliesResponse: Decodable {
     let success: Bool
-    let replies: [InsideTalkReply]
-    var resolvedReplies: [InsideTalkReply] { replies }
+    let replies: [InsideTalkReply]?
+    let data: [InsideTalkReply]?
+    var resolvedReplies: [InsideTalkReply] { replies ?? data ?? [] }
 }
 
 struct InsideTalkReplyResponse: Decodable {
