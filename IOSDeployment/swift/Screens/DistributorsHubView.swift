@@ -59,6 +59,28 @@ final class DistributorsViewModel: ObservableObject {
             }
         }
     }
+
+    func deletePost(_ id: String) {
+        posts.removeAll { $0.id == id }
+        Task {
+            let endpoint = APIEndpoint.deleteDistributorsPost(id: id)
+            _ = try? await api.requestRaw(endpoint)
+        }
+    }
+
+    func pinPost(_ post: DistributorsPost) {
+        Task {
+            // Optimistically toggle pin state locally
+            if let idx = posts.firstIndex(where: { $0.id == post.id }) {
+                posts[idx] = DistributorsPost(from: posts[idx], isPinned: !post.isPinned)
+            }
+            // Call pin endpoint if it exists
+            if let endpoint = try? APIEndpoint.pinDistributorsPost(id: post.id, isPinned: !post.isPinned) {
+                _ = try? await api.requestRaw(endpoint)
+            }
+            await loadPosts(reset: true)
+        }
+    }
 }
 
 // MARK: - DistributorsHubView
@@ -90,9 +112,14 @@ struct DistributorsHubView: View {
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(viewModel.posts) { post in
-                            DistributorsPostCard(post: post, onLike: {
-                                Task { await viewModel.likePost(post.id) }
-                            })
+                            let isAdmin = authViewModel.currentUser?.isAdmin == true
+                            DistributorsPostCard(
+                                post: post,
+                                isAdmin: isAdmin,
+                                onLike: { Task { await viewModel.likePost(post.id) } },
+                                onDelete: { viewModel.deletePost(post.id) },
+                                onPin: { viewModel.pinPost(post) }
+                            )
                             .padding(.horizontal, 16)
                         }
                     }
@@ -217,7 +244,10 @@ private struct FeatureRow: View {
 
 struct DistributorsPostCard: View {
     let post: DistributorsPost
+    var isAdmin: Bool = false
     var onLike: () -> Void = {}
+    var onDelete: () -> Void = {}
+    var onPin: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -267,10 +297,30 @@ struct DistributorsPostCard: View {
                         .foregroundColor(AppTheme.textMuted)
                 }
                 Spacer()
-                if post.isPinned {
-                    Image(systemName: "pin.fill")
-                        .font(.system(size: 12))
-                        .foregroundStyle(AppTheme.goldGradient)
+                HStack(spacing: 8) {
+                    if post.isPinned {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(AppTheme.goldGradient)
+                    }
+                    if isAdmin {
+                        Menu {
+                            Button(role: .destructive) { onDelete() } label: {
+                                Label("Delete Post", systemImage: "trash")
+                            }
+                            Button { onPin() } label: {
+                                Label(post.isPinned ? "Unpin Post" : "Pin Post",
+                                      systemImage: post.isPinned ? "pin.slash" : "pin")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(AppTheme.textMuted)
+                                .padding(8)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
 
@@ -282,7 +332,9 @@ struct DistributorsPostCard: View {
                 .tint(AppTheme.goldPrimary)
                 .font(.system(size: 14))
                 .foregroundColor(AppTheme.textSecondary)
+                .lineLimit(nil)
                 .lineSpacing(6)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 4)
 
             // ── Uploaded Media ───────────────────────────────────────

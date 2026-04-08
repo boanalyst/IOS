@@ -99,8 +99,9 @@ struct FlockPostCard: View {
                     .tint(AppTheme.goldPrimary)
                     .font(.system(size: 14))
                     .foregroundColor(AppTheme.textSecondary)
-                    .lineLimit(6)
+                    .lineLimit(nil)
                     .lineSpacing(6)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
 
                 // ── Uploaded Media ───────────────────────────────────────
