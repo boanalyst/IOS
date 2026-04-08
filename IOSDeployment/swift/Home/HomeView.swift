@@ -228,10 +228,12 @@ struct MovieCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // posterPath is a full TMDB URL e.g. https://media.themoviedb.org/...
-            // Do NOT prepend any domain — use as-is
-            if let urlStr = movie.posterPath, !urlStr.isEmpty, let posterURL = URL(string: urlStr) {
-                AsyncImage(url: posterURL) { phase in
+            // posterPath is usually a TMDB relative path or a full URL.
+            // Ensure it has a valid prefix if it's relative.
+            if let path = movie.posterPath, !path.isEmpty {
+                let urlStr = path.hasPrefix("http") ? path : "https://image.tmdb.org/t/p/w500\(path)"
+                if let posterURL = URL(string: urlStr) {
+                    AsyncImage(url: posterURL) { phase in
                     switch phase {
                     case .empty:
                         // Show a shimmer/spinner while loading (not a placeholder)
