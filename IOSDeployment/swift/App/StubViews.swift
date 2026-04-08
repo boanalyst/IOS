@@ -640,7 +640,6 @@ final class InsideTalkViewModel: ObservableObject {
                 return InsideTalkContent(from: t, replyCount: t.replyCount + 1)
             }
         }
-        }
     }
 
     func deletePost(tweetId: String) {
