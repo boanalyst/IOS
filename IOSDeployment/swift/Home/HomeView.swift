@@ -233,11 +233,18 @@ struct MovieCard: View {
             if let urlStr = movie.posterPath, !urlStr.isEmpty, let posterURL = URL(string: urlStr) {
                 AsyncImage(url: posterURL) { phase in
                     switch phase {
+                    case .empty:
+                        // Show a shimmer/spinner while loading (not a placeholder)
+                        ZStack {
+                            Rectangle().fill(AppTheme.surfaceVariant)
+                            ProgressView()
+                                .tint(AppTheme.goldPrimary)
+                        }
                     case .success(let image):
                         image.resizable().aspectRatio(contentMode: .fill)
                     case .failure:
                         moviePlaceholder
-                    default:
+                    @unknown default:
                         moviePlaceholder
                     }
                 }
@@ -268,9 +275,14 @@ struct MovieCard: View {
     private var moviePlaceholder: some View {
         ZStack {
             Rectangle().fill(AppTheme.surfaceVariant)
-            Image(systemName: "film")
-                .font(.system(size: 24))
-                .foregroundStyle(AppTheme.goldGradient)
+            VStack(spacing: 6) {
+                Image(systemName: "film")
+                    .font(.system(size: 28))
+                    .foregroundStyle(AppTheme.goldGradient)
+                Text("No Image")
+                    .font(.system(size: 9))
+                    .foregroundColor(AppTheme.textMuted)
+            }
         }
     }
 }
