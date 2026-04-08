@@ -234,24 +234,28 @@ struct MovieCard: View {
                 let urlStr = path.hasPrefix("http") ? path : "https://image.tmdb.org/t/p/w500\(path)"
                 if let posterURL = URL(string: urlStr) {
                     AsyncImage(url: posterURL) { phase in
-                    switch phase {
-                    case .empty:
-                        // Show a shimmer/spinner while loading (not a placeholder)
-                        ZStack {
-                            Rectangle().fill(AppTheme.surfaceVariant)
-                            ProgressView()
-                                .tint(AppTheme.goldPrimary)
+                        switch phase {
+                        case .empty:
+                            ZStack {
+                                Rectangle().fill(AppTheme.surfaceVariant)
+                                ProgressView()
+                                    .tint(AppTheme.goldPrimary)
+                            }
+                        case .success(let image):
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        case .failure:
+                            moviePlaceholder
+                        @unknown default:
+                            moviePlaceholder
                         }
-                    case .success(let image):
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    case .failure:
-                        moviePlaceholder
-                    @unknown default:
-                        moviePlaceholder
                     }
+                    .frame(width: 140, height: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                } else {
+                    moviePlaceholder
+                        .frame(width: 140, height: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                .frame(width: 140, height: 200)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
                 moviePlaceholder
                     .frame(width: 140, height: 200)
