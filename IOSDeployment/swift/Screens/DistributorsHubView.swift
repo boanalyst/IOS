@@ -382,10 +382,4 @@ struct DistributorsPostCard: View {
         .padding(16)
         .cardStyle()
     }
-}                .foregroundColor(AppTheme.textMuted)
-            }
-        }
-        .padding(16)
-        .cardStyle()
-    }
 }
