@@ -201,7 +201,8 @@ private struct XEmbedWebView: View {
 
     var body: some View {
         TwitterWebView(tweetId: tweetId)
-            .frame(maxWidth: .infinity, minHeight: 340, maxHeight: 500)
+            // Removed tight maxHeight limits, increased minHeight to accommodate media
+            .frame(maxWidth: .infinity, minHeight: 480)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
@@ -221,8 +222,11 @@ private struct TwitterWebView: UIViewRepresentable {
         let wv = WKWebView(frame: .zero, configuration: config)
         wv.isOpaque = false
         wv.backgroundColor = .clear
-        wv.scrollView.isScrollEnabled = false
-        // SECURITY: Delegate blocks navigation to any non-Twitter domain
+        
+        // ALLOW SCROLLING so user can pan if tweet is very long
+        wv.scrollView.isScrollEnabled = true
+        wv.scrollView.bounces = false
+        
         wv.navigationDelegate = context.coordinator
         let html = twitterHTML(tweetId: tweetId)
         wv.loadHTMLString(html, baseURL: URL(string: "https://twitter.com"))
@@ -264,7 +268,7 @@ private struct InstagramEmbedWebView: View {
 
     var body: some View {
         InstagramWebView(postUrl: postUrl)
-            .frame(maxWidth: .infinity, minHeight: 520, maxHeight: 700)
+            .frame(maxWidth: .infinity, minHeight: 640)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
@@ -284,8 +288,11 @@ private struct InstagramWebView: UIViewRepresentable {
         let wv = WKWebView(frame: .zero, configuration: config)
         wv.isOpaque = false
         wv.backgroundColor = .clear
-        wv.scrollView.isScrollEnabled = false
-        // SECURITY: Delegate blocks navigation to any non-Instagram domain
+        
+        // ALLOW SCROLLING for vertical expansion of long captions
+        wv.scrollView.isScrollEnabled = true
+        wv.scrollView.bounces = false
+        
         wv.navigationDelegate = context.coordinator
         let html = instagramHTML(postUrl: postUrl)
         wv.loadHTMLString(html, baseURL: URL(string: "https://www.instagram.com"))
