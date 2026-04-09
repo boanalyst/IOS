@@ -230,10 +230,12 @@ struct MovieCard: View {
         VStack(alignment: .leading, spacing: 8) {
             // posterPath is usually a TMDB relative path or a full URL.
             // Ensure we enforce HTTPS mapping and properly encode query spaces.
-            if let path = movie.posterPath, !path.isEmpty {
+            if let path = movie.posterPath?.trimmingCharacters(in: .whitespacesAndNewlines), !path.isEmpty {
                 let rawUrl = path.hasPrefix("http") ? path : "https://image.tmdb.org/t/p/w500\(path)"
                 let urlStr = rawUrl.replacingOccurrences(of: "http://", with: "https://")
                 
+                // .addingPercentEncoding would encode invalid trailing whitespaces into '%20', resulting in 404s.
+                // Now that the path is cleanly trimmed, we execute the fetch natively.
                 if let encodedUrlStr = urlStr.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
                    let posterURL = URL(string: encodedUrlStr) {
                     AsyncImage(url: posterURL) { phase in
