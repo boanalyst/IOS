@@ -229,10 +229,13 @@ struct MovieCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // posterPath is usually a TMDB relative path or a full URL.
-            // Ensure it has a valid prefix if it's relative.
+            // Ensure we enforce HTTPS mapping and properly encode query spaces.
             if let path = movie.posterPath, !path.isEmpty {
-                let urlStr = path.hasPrefix("http") ? path : "https://image.tmdb.org/t/p/w500\(path)"
-                if let posterURL = URL(string: urlStr) {
+                var urlStr = path.hasPrefix("http") ? path : "https://image.tmdb.org/t/p/w500\(path)"
+                urlStr = urlStr.replacingOccurrences(of: "http://", with: "https://")
+                
+                if let encodedUrlStr = urlStr.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                   let posterURL = URL(string: encodedUrlStr) {
                     AsyncImage(url: posterURL) { phase in
                         switch phase {
                         case .empty:
