@@ -954,6 +954,8 @@ struct InsideTalkCard: View {
                 .foregroundColor(isLocked ? AppTheme.textMuted : AppTheme.textPrimary)
                 .lineLimit(isLocked ? 3 : nil)
                 .lineSpacing(6)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 4)
                 .blur(radius: isLocked ? 3.5 : 0)
 
@@ -1598,25 +1600,53 @@ struct CreatePostSheet: View {
                             }
                         }
 
-                        // Formatting controls
-                        HStack(spacing: 12) {
-                            Button(action: { text.append(" <b></b> ") }) { 
-                                Text("B").bold().font(.system(size: 14))
-                                    .frame(width: 32, height: 32)
-                                    .background(AppTheme.surfaceVariant)
-                                    .cornerRadius(6) 
+                        // Formatting controls — ** bold (same as Android/web markdown)
+                        HStack(spacing: 10) {
+                            // Bold: inserts **bold text** markers — type between them
+                            Button(action: {
+                                let insertion = "**bold text**"
+                                if text.isEmpty || text.last == "\n" {
+                                    text += insertion
+                                } else {
+                                    text += " " + insertion
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Text("B").bold().font(.system(size: 14))
+                                    Text("**").font(.system(size: 10)).opacity(0.6)
+                                }
+                                .frame(height: 32)
+                                .padding(.horizontal, 10)
+                                .background(AppTheme.surfaceVariant)
+                                .cornerRadius(6)
                             }
-                            Button(action: { text.append(" <i></i> ") }) { 
-                                Text("I").italic().font(.system(size: 14))
-                                    .frame(width: 32, height: 32)
-                                    .background(AppTheme.surfaceVariant)
-                                    .cornerRadius(6) 
+                            // Italic: inserts _italic text_
+                            Button(action: {
+                                let insertion = "_italic text_"
+                                text += text.isEmpty ? insertion : " " + insertion
+                            }) {
+                                HStack(spacing: 4) {
+                                    Text("I").italic().font(.system(size: 14))
+                                    Text("_").font(.system(size: 10)).opacity(0.6)
+                                }
+                                .frame(height: 32)
+                                .padding(.horizontal, 10)
+                                .background(AppTheme.surfaceVariant)
+                                .cornerRadius(6)
                             }
-                            Button(action: { text.append(" <u></u> ") }) { 
-                                Text("U").underline().font(.system(size: 14))
-                                    .frame(width: 32, height: 32)
-                                    .background(AppTheme.surfaceVariant)
-                                    .cornerRadius(6) 
+                            // Underline marker (displayed as ~~ in text, stripped by parser)
+                            Button(action: {
+                                let insertion = "__underlined text__"
+                                text += text.isEmpty ? insertion : " " + insertion
+                            }) {
+                                HStack(spacing: 4) {
+                                    Text("U").underline().font(.system(size: 14))
+                                    Text("__").font(.system(size: 10)).opacity(0.6)
+                                }
+                                .frame(height: 32)
+                                .padding(.horizontal, 10)
+                                .background(AppTheme.surfaceVariant)
+                                .cornerRadius(6)
                             }
                             Spacer()
                         }
