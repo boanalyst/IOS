@@ -232,12 +232,12 @@ struct MovieCard: View {
             // Ensure we enforce HTTPS mapping and properly encode query spaces.
             if let path = movie.posterPath?.trimmingCharacters(in: .whitespacesAndNewlines), !path.isEmpty {
                 let rawUrl = path.hasPrefix("http") ? path : "https://image.tmdb.org/t/p/w500\(path)"
-                let urlStr = rawUrl.replacingOccurrences(of: "http://", with: "https://")
+                let urlStr = rawUrl
+                    .replacingOccurrences(of: "http://", with: "https://")
+                    .replacingOccurrences(of: "media.themoviedb.org", with: "image.tmdb.org")
                 
-                // .addingPercentEncoding would encode invalid trailing whitespaces into '%20', resulting in 404s.
-                // Now that the path is cleanly trimmed, we execute the fetch natively.
-                if let encodedUrlStr = urlStr.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-                   let posterURL = URL(string: encodedUrlStr) {
+                // Now that the path is cleanly trimmed and normalised, we execute the fetch natively.
+                if let posterURL = URL(string: urlStr) {
                     AsyncImage(url: posterURL) { phase in
                         switch phase {
                         case .empty:
