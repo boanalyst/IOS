@@ -231,8 +231,8 @@ struct MovieCard: View {
             // posterPath is usually a TMDB relative path or a full URL.
             // Ensure we enforce HTTPS mapping and properly encode query spaces.
             if let path = movie.posterPath, !path.isEmpty {
-                var urlStr = path.hasPrefix("http") ? path : "https://image.tmdb.org/t/p/w500\(path)"
-                urlStr = urlStr.replacingOccurrences(of: "http://", with: "https://")
+                let rawUrl = path.hasPrefix("http") ? path : "https://image.tmdb.org/t/p/w500\(path)"
+                let urlStr = rawUrl.replacingOccurrences(of: "http://", with: "https://")
                 
                 if let encodedUrlStr = urlStr.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
                    let posterURL = URL(string: encodedUrlStr) {
