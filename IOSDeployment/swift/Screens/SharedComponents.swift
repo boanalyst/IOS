@@ -249,11 +249,6 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
         }
     }
 
-    // ── Step 11: Cleanup consecutive newlines to mimic Android screen flow ──
-    if let plain = try? NSAttributedString(attrResult, format: .markdown) {
-        // Just cleaning trailing whitespaces globally using trim
-    }
-    
     return attrResult
 }
 
