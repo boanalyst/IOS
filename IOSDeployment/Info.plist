@@ -54,13 +54,19 @@
         <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
         <key>NSIncludesSubdomains</key><true/>
       </dict>
-      <!-- TMDB movie poster images (Bug #1 fix: was missing, blocked all movie posters) -->
+      <!-- TMDB movie poster images — support all TMDB domains/CDNs -->
       <key>themoviedb.org</key>
       <dict>
         <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
         <key>NSIncludesSubdomains</key><true/>
       </dict>
       <key>image.tmdb.org</key>
+      <dict>
+        <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
+        <key>NSIncludesSubdomains</key><true/>
+      </dict>
+      <!-- TMDB newer CDN domain used by updated scraper -->
+      <key>media.themoviedb.org</key>
       <dict>
         <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
         <key>NSIncludesSubdomains</key><true/>
