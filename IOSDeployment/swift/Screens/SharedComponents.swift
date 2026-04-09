@@ -253,11 +253,12 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
     clean = clean.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
                  .trimmingCharacters(in: .whitespacesAndNewlines)
 
-    // ── Step 10: Soft line-break trick for SwiftUI Text (two trailing spaces before \n) ──
-    clean = clean.replacingOccurrences(of: "\n", with: "  \n")
+    // Native whitespace preservation overrides the need for Markdown soft line-break tricks
 
     var options = AttributedString.MarkdownParsingOptions()
     options.allowsExtendedAttributes = true
+    // This forcibly prevents Apple from collapsing `\n` into single spaces, ensuring line breaks work perfectly.
+    options.interpretedSyntax = .inlineOnlyPreservingWhitespace
 
     var attrResult = (try? AttributedString(markdown: clean, options: options)) ?? AttributedString(clean)
     
