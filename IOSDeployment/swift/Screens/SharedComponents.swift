@@ -217,13 +217,8 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
         with: "• ",
         options: .regularExpression
     )
-
-    // ── Step 6: Hashtags → Markdown links ──
-    clean = clean.replacingOccurrences(
-        of: "(#[\\p{L}\\p{N}_]+)",
-        with: "[$1](boanalyst://hashtag)",
-        options: .regularExpression
-    )
+    // ── Step 6: (Removed) Hashtags are now handled natively after markdown parsing
+    // to prevent markdown syntax bracket collisions with Apple's parser.
 
     // ── Step 7: Fix malformed bold markers (spaces inside: ** text ** → **text**) ──
     clean = clean.replacingOccurrences(
@@ -232,7 +227,7 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
         options: .regularExpression
     )
 
-    // ── Step 8: Multi-line ** bold blocks — wrap each line individually ──
+    // ── Step 7: Multi-line ** bold blocks — wrap each line individually ──
     // Apple CommonMark breaks on ** spanning newlines; wrap each non-empty line separately.
     let parts = clean.components(separatedBy: "**")
     if parts.count > 1 && parts.count % 2 == 1 {
@@ -240,7 +235,13 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
             if index % 2 == 1 {
                 return part.components(separatedBy: "\n").map { line in
                     let trimmed = line.trimmingCharacters(in: .whitespaces)
-                    return trimmed.isEmpty ? line : "**\(trimmed)**"
+                    if trimmed.isEmpty { return line }
+                    // Put ** AFTER the bullet to ensure Markdown parses it correctly
+                    if trimmed.hasPrefix("• ") {
+                        let inner = trimmed.dropFirst(2)
+                        return "• **\(inner)**"
+                    }
+                    return "**\(trimmed)**"
                 }.joined(separator: "\n")
             } else {
                 return part
@@ -258,7 +259,28 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
     var options = AttributedString.MarkdownParsingOptions()
     options.allowsExtendedAttributes = true
 
-    return (try? AttributedString(markdown: clean, options: options)) ?? AttributedString(clean)
+    var attrResult = (try? AttributedString(markdown: clean, options: options)) ?? AttributedString(clean)
+    
+    // ── Step 10: Apply HashTag Links Natively ──
+    // Using Regex directly on the final AttributedString bypasses Markdown flanking bugs
+    let plainText = String(attrResult.characters)
+    if let regex = try? NSRegularExpression(pattern: "(#[\\p{L}\\p{N}_]+)") {
+        let matches = regex.matches(in: plainText, range: NSRange(location: 0, length: plainText.utf16.count))
+        for match in matches {
+            if let strRange = Range(match.range, in: plainText) {
+                // Safely translate String UTF-index offsets to AttributedString character offsets
+                let lowerOffset = plainText.distance(from: plainText.startIndex, to: strRange.lowerBound)
+                let lengthOffset = plainText.distance(from: strRange.lowerBound, to: strRange.upperBound)
+                
+                let startIdx = attrResult.index(attrResult.startIndex, offsetByCharacters: lowerOffset)
+                let endIdx = attrResult.index(startIdx, offsetByCharacters: lengthOffset)
+                
+                attrResult[startIdx..<endIdx].link = URL(string: "boanalyst://hashtag")
+            }
+        }
+    }
+
+    return attrResult
 }
 
 // MARK: - Backward-compatibility alias so HomeView's existing FlockPostCardFull calls compile
