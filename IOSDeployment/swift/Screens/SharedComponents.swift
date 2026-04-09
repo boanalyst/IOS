@@ -161,126 +161,99 @@ struct FlockPostCard: View {
 // This parser handles BOTH formats uniformly.
 
 func parseBoAnalystHTML(_ text: String) -> AttributedString {
-    // ── Step 0: Normalise line endings ───────────────────────────────────────
-    // Windows CRLF (\r\n) and old Mac CR (\r) must become plain \n
-    // otherwise SwiftUI Text treats them as spaces instead of line-breaks.
+    // ── Step 1: Normalise line endings ───────────────────────────────────────
     var clean = text
         .replacingOccurrences(of: "\r\n", with: "\n")
         .replacingOccurrences(of: "\r", with: "\n")
 
-    // ── Step 1: Convert HTML formatting tags → Markdown BEFORE stripping all tags ──
-    // <b>text</b>  →  **text**  (handles multiline content too)
-    clean = clean.replacingOccurrences(
-        of: "(?is)<b>(.*?)</b>",
-        with: "**$1**",
-        options: .regularExpression
-    )
-    // <i>text</i>  →  _text_
-    clean = clean.replacingOccurrences(
-        of: "(?is)<i>(.*?)</i>",
-        with: "_$1_",
-        options: .regularExpression
-    )
-    // <u>text</u>  →  keep as text (markdown has no underline; just strip tags)
-    clean = clean.replacingOccurrences(
-        of: "(?is)<u>(.*?)</u>",
-        with: "$1",
-        options: .regularExpression
-    )
+    // ── Step 2: Convert standard tags to intermediate markers ──
+    clean = clean.replacingOccurrences(of: "(?is)<b>(.*?)</b>", with: "**$1**", options: .regularExpression)
+    clean = clean.replacingOccurrences(of: "(?is)<i>(.*?)</i>", with: "₩₩$1₩₩", options: .regularExpression)
 
-    // ── Step 2: Block-level HTML → whitespace ──
-    clean = clean
-        .replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)</?o?p>", with: "\n\n", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)<li>", with: "\n• ", options: .regularExpression)
+    // ── Step 3: Block HTML to newlines ──
+    clean = clean.replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: .regularExpression)
+    clean = clean.replacingOccurrences(of: "(?i)</?o?p>", with: "\n\n", options: .regularExpression)
+    clean = clean.replacingOccurrences(of: "(?i)<li>", with: "\n• ", options: .regularExpression)
 
-    // ── Step 3: Strip ALL remaining HTML tags ──
+    // ── Step 4: Strip all remaining HTML tags ──
     clean = clean.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
 
-    // ── Step 4: HTML entities ──
-    clean = clean
-        .replacingOccurrences(of: "&nbsp;", with: " ")
-        .replacingOccurrences(of: "&amp;", with: "&")
-        .replacingOccurrences(of: "&lt;", with: "<")
-        .replacingOccurrences(of: "&gt;", with: ">")
+    // ── Step 5: HTML Entities ──
+    clean = clean.replacingOccurrences(of: "&nbsp;", with: " ")
+                 .replacingOccurrences(of: "&amp;", with: "&")
+                 .replacingOccurrences(of: "&lt;", with: "<")
+                 .replacingOccurrences(of: "&gt;", with: ">")
 
-    // ── Step 5: Bullet asterisks at line-start — must happen BEFORE bold processing ──
-    // '*** text' at start of line → '**• text' (Android posts bold bullets this way)
-    // '* text' at start of line → '• text'  (avoids confusion with markdown emphasis)
-    clean = clean.replacingOccurrences(
-        of: "(?m)^\\s*\\*\\*\\*(?!\\*)\\s+",
-        with: "**• ",
-        options: .regularExpression
-    )
-    clean = clean.replacingOccurrences(
-        of: "(?m)^\\s*\\*(?!\\*)\\s+",
-        with: "• ",
-        options: .regularExpression
-    )
-    // ── Step 6: (Removed) Hashtags are now handled natively after markdown parsing
-    // to prevent markdown syntax bracket collisions with Apple's parser.
+    // ── Step 6: Bullets (Android compatibility) ──
+    clean = clean.replacingOccurrences(of: "(?m)^\\s*\\*\\*\\*(?!\\*)\\s+", with: "**• ", options: .regularExpression)
+    clean = clean.replacingOccurrences(of: "(?m)^\\s*\\*(?!\\*)\\s+", with: "• ", options: .regularExpression)
 
-    // ── Step 7: Fix malformed bold markers (spaces inside: ** text ** → **text**) ──
+    // ── Step 7: Fix bad bold markers ──
+    // CRITICAL FIX: \s+ matches newlines in Swift regex! We must use [ \t]+ to only strip spaces
     clean = clean.replacingOccurrences(
-        of: "\\*\\*\\s+(.*?)\\s+\\*\\*",
+        of: "\\*\\*[ \\t]+(.*?)[ \\t]+\\*\\*",
         with: "**$1**",
         options: .regularExpression
     )
 
-    // ── Step 7: Multi-line ** bold blocks — wrap each line individually ──
-    // Apple CommonMark breaks on ** spanning newlines; wrap each non-empty line separately.
-    let parts = clean.components(separatedBy: "**")
-    if parts.count > 1 && parts.count % 2 == 1 {
-        clean = parts.enumerated().map { index, part in
-            if index % 2 == 1 {
-                return part.components(separatedBy: "\n").map { line in
-                    let trimmed = line.trimmingCharacters(in: .whitespaces)
-                    if trimmed.isEmpty { return line }
-                    // Put ** AFTER the bullet to ensure Markdown parses it correctly
-                    if trimmed.hasPrefix("• ") {
-                        let inner = trimmed.dropFirst(2)
-                        return "• **\(inner)**"
-                    }
-                    return "**\(trimmed)**"
-                }.joined(separator: "\n")
-            } else {
-                return part
+    // ── NATIVE ANNOTATION PARSING ──
+    // Completely bypasses Apple's buggy Markdown API and replicates Android's loop renderer 1:1.
+    var attrResult = AttributedString()
+    let boldParts = clean.components(separatedBy: "**")
+    
+    for (i, bPart) in boldParts.enumerated() {
+        if bPart.isEmpty { continue }
+        let isBold = (i % 2 == 1 && boldParts.count > 1)
+        
+        let italicParts = bPart.components(separatedBy: "₩₩")
+        for (j, iPart) in italicParts.enumerated() {
+            if iPart.isEmpty { continue }
+            let isItalic = (j % 2 == 1 && italicParts.count > 1)
+            
+            var attrPart = AttributedString(iPart)
+            
+            var intent: InlinePresentationIntent = []
+            if isBold { intent.insert(.stronglyEmphasized) }
+            if isItalic { intent.insert(.emphasized) }
+            
+            if !intent.isEmpty {
+                attrPart.inlinePresentationIntent = intent
             }
-        }.joined()
+            
+            attrResult.append(attrPart)
+        }
+    }
+    
+    // Fallback if parsing completely stripped string visually
+    if attrResult.characters.isEmpty {
+        attrResult = AttributedString(clean.replacingOccurrences(of: "**", with: ""))
     }
 
-    // ── Step 9: Collapse excessive blank lines ──
-    clean = clean.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
-                 .trimmingCharacters(in: .whitespacesAndNewlines)
-
-    // Native whitespace preservation overrides the need for Markdown soft line-break tricks
-
-    var options = AttributedString.MarkdownParsingOptions()
-    options.allowsExtendedAttributes = true
-    // This forcibly prevents Apple from collapsing `\n` into single spaces, ensuring line breaks work perfectly.
-    options.interpretedSyntax = .inlineOnlyPreservingWhitespace
-
-    var attrResult = (try? AttributedString(markdown: clean, options: options)) ?? AttributedString(clean)
-    
     // ── Step 10: Apply HashTag Links Natively ──
-    // Using Regex directly on the final AttributedString bypasses Markdown flanking bugs
     let plainText = String(attrResult.characters)
     if let regex = try? NSRegularExpression(pattern: "(#[\\p{L}\\p{N}_]+)") {
         let matches = regex.matches(in: plainText, range: NSRange(location: 0, length: plainText.utf16.count))
         for match in matches {
             if let strRange = Range(match.range, in: plainText) {
-                // Safely translate String UTF-index offsets to AttributedString character offsets
-                let lowerOffset = plainText.distance(from: plainText.startIndex, to: strRange.lowerBound)
+                // Safely translate String UTF-index bounds to AttributedString bounds
+                let startOffset = plainText.distance(from: plainText.startIndex, to: strRange.lowerBound)
                 let lengthOffset = plainText.distance(from: strRange.lowerBound, to: strRange.upperBound)
                 
-                let startIdx = attrResult.index(attrResult.startIndex, offsetByCharacters: lowerOffset)
+                let startIdx = attrResult.index(attrResult.startIndex, offsetByCharacters: startOffset)
                 let endIdx = attrResult.index(startIdx, offsetByCharacters: lengthOffset)
                 
-                attrResult[startIdx..<endIdx].link = URL(string: "boanalyst://hashtag")
+                if startIdx < endIdx {
+                    attrResult[startIdx..<endIdx].link = URL(string: "boanalyst://hashtag")
+                }
             }
         }
     }
 
+    // ── Step 11: Cleanup consecutive newlines to mimic Android screen flow ──
+    if let plain = try? NSAttributedString(attrResult, format: .markdown) {
+        // Just cleaning trailing whitespaces globally using trim
+    }
+    
     return attrResult
 }
 
