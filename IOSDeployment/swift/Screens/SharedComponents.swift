@@ -102,6 +102,7 @@ struct FlockPostCard: View {
                     .lineLimit(nil)
                     .lineSpacing(6)
                     .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 4)
 
                 // ── Uploaded Media ───────────────────────────────────────
@@ -156,35 +157,87 @@ struct FlockPostCard: View {
 
 // MARK: - Global Content Parser (HTML to Markdown & AttributedString)
 // Matches Android's buildHashtagAnnotatedString exact parsing tree
+// DB stores bold as <b>...</b>, Android/Web use **...** markdown.
+// This parser handles BOTH formats uniformly.
 
 func parseBoAnalystHTML(_ text: String) -> AttributedString {
+    // ── Step 0: Normalise line endings ───────────────────────────────────────
+    // Windows CRLF (\r\n) and old Mac CR (\r) must become plain \n
+    // otherwise SwiftUI Text treats them as spaces instead of line-breaks.
     var clean = text
+        .replacingOccurrences(of: "\r\n", with: "\n")
+        .replacingOccurrences(of: "\r", with: "\n")
+
+    // ── Step 1: Convert HTML formatting tags → Markdown BEFORE stripping all tags ──
+    // <b>text</b>  →  **text**  (handles multiline content too)
+    clean = clean.replacingOccurrences(
+        of: "(?is)<b>(.*?)</b>",
+        with: "**$1**",
+        options: .regularExpression
+    )
+    // <i>text</i>  →  _text_
+    clean = clean.replacingOccurrences(
+        of: "(?is)<i>(.*?)</i>",
+        with: "_$1_",
+        options: .regularExpression
+    )
+    // <u>text</u>  →  keep as text (markdown has no underline; just strip tags)
+    clean = clean.replacingOccurrences(
+        of: "(?is)<u>(.*?)</u>",
+        with: "$1",
+        options: .regularExpression
+    )
+
+    // ── Step 2: Block-level HTML → whitespace ──
+    clean = clean
         .replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: .regularExpression)
         .replacingOccurrences(of: "(?i)</?o?p>", with: "\n\n", options: .regularExpression)
         .replacingOccurrences(of: "(?i)<li>", with: "\n• ", options: .regularExpression)
-        .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+
+    // ── Step 3: Strip ALL remaining HTML tags ──
+    clean = clean.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+
+    // ── Step 4: HTML entities ──
+    clean = clean
         .replacingOccurrences(of: "&nbsp;", with: " ")
         .replacingOccurrences(of: "&amp;", with: "&")
-    // Completely wipe out literal ** injections since they break markdown parsing heavily
-    clean = clean.replacingOccurrences(of: "\\*\\*", with: "", options: .regularExpression)
-    
-    // Replace standalone literal '* ' asterisks at start of lines with real bullets '• '
-    // so they are not confused for markdown emphasis.
-    clean = clean.replacingOccurrences(of: "(?m)^\\s*\\*\\s+", with: "• ", options: .regularExpression)
-    
-    // Convert hashtags to Markdown links so iOS highlights them automatically
-    clean = clean.replacingOccurrences(of: "(#[\\p{L}\\p{N}_]+)", with: "[$1](boanalyst://hashtag)", options: .regularExpression)
-    
-    // Auto-fix user typos where they put spaces inside bold markers: ** text ** -> **text**
-    clean = clean.replacingOccurrences(of: "\\*\\*\\s+(.*?)\\s+\\*\\*", with: "**$1**", options: .regularExpression)
+        .replacingOccurrences(of: "&lt;", with: "<")
+        .replacingOccurrences(of: "&gt;", with: ">")
 
-    // Handle multiline ** bold blocks (which Android allows but Apple CommonMark definitively breaks on)
+    // ── Step 5: Bullet asterisks at line-start — must happen BEFORE bold processing ──
+    // '*** text' at start of line → '**• text' (Android posts bold bullets this way)
+    // '* text' at start of line → '• text'  (avoids confusion with markdown emphasis)
+    clean = clean.replacingOccurrences(
+        of: "(?m)^\\s*\\*\\*\\*(?!\\*)\\s+",
+        with: "**• ",
+        options: .regularExpression
+    )
+    clean = clean.replacingOccurrences(
+        of: "(?m)^\\s*\\*(?!\\*)\\s+",
+        with: "• ",
+        options: .regularExpression
+    )
+
+    // ── Step 6: Hashtags → Markdown links ──
+    clean = clean.replacingOccurrences(
+        of: "(#[\\p{L}\\p{N}_]+)",
+        with: "[$1](boanalyst://hashtag)",
+        options: .regularExpression
+    )
+
+    // ── Step 7: Fix malformed bold markers (spaces inside: ** text ** → **text**) ──
+    clean = clean.replacingOccurrences(
+        of: "\\*\\*\\s+(.*?)\\s+\\*\\*",
+        with: "**$1**",
+        options: .regularExpression
+    )
+
+    // ── Step 8: Multi-line ** bold blocks — wrap each line individually ──
+    // Apple CommonMark breaks on ** spanning newlines; wrap each non-empty line separately.
     let parts = clean.components(separatedBy: "**")
     if parts.count > 1 && parts.count % 2 == 1 {
         clean = parts.enumerated().map { index, part in
             if index % 2 == 1 {
-                // We are inside a ** block - per Apple Spec, wrap each non-empty line individually 
-                // in bold without leading/trailing whitespace which breaks CommonMark.
                 return part.components(separatedBy: "\n").map { line in
                     let trimmed = line.trimmingCharacters(in: .whitespaces)
                     return trimmed.isEmpty ? line : "**\(trimmed)**"
@@ -194,15 +247,17 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
             }
         }.joined()
     }
-    
-    // Double spaces at end of each trailing newline forces Apple Text to observe the soft line break!
+
+    // ── Step 9: Collapse excessive blank lines ──
     clean = clean.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
                  .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    // ── Step 10: Soft line-break trick for SwiftUI Text (two trailing spaces before \n) ──
     clean = clean.replacingOccurrences(of: "\n", with: "  \n")
-    
+
     var options = AttributedString.MarkdownParsingOptions()
     options.allowsExtendedAttributes = true
-    
+
     return (try? AttributedString(markdown: clean, options: options)) ?? AttributedString(clean)
 }
 
