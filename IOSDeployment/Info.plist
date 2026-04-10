@@ -148,6 +148,12 @@
   <key>NSUserNotificationsUsageDescription</key>
   <string>BoAnalyst sends notifications about new posts, box office updates, and replies.</string>
 
+  <!-- Guideline 5.1.2(i) — ATT: required if app privacy labels include tracking data.
+       BoAnalyst collects email/name for account purposes only (not cross-app tracking).
+       This key is included for completeness; the ATT prompt is shown if needed. -->
+  <key>NSUserTrackingUsageDescription</key>
+  <string>BoAnalyst uses your account information (name and email) solely to create and manage your account. We do not share your data with advertisers or data brokers.</string>
+
   <!-- ── Custom Fonts ───────────────────────────────────────────────────── -->
   <!-- Add Cinzel-Regular.ttf and Cinzel-Bold.ttf to the Xcode project     -->
   <key>UIAppFonts</key>

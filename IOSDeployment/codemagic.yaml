@@ -109,6 +109,20 @@ workflows:
           </plist>
           EXPORT_EOF
 
+          echo "▶ Generating Entitlements file for Sign in with Apple..."
+          cat > BoAnalystXcode/BoAnalyst/BoAnalyst.entitlements << ENTITLE_EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>com.apple.developer.applesignin</key>
+            <array>
+              <string>Default</string>
+            </array>
+          </dict>
+          </plist>
+          ENTITLE_EOF
+
           echo "▶ Generating project.yml for XcodeGen..."
           # Collect font file names for plist injection
           FONT_FILES=$(find BoAnalystXcode/BoAnalyst -name "*.ttf" -exec basename {} \; 2>/dev/null | sort | uniq)
@@ -150,6 +164,8 @@ workflows:
                 base:
                   INFOPLIST_FILE: BoAnalyst/Info.plist
                   PRODUCT_NAME: BoAnalyst
+              entitlements:
+                path: BoAnalyst/BoAnalyst.entitlements
           PROJECT_EOF
 
           echo "▶ Running XcodeGen..."
