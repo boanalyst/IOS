@@ -124,8 +124,6 @@ workflows:
           ENTITLE_EOF
 
           echo "▶ Generating project.yml for XcodeGen..."
-          # Collect font file names for plist injection
-          FONT_FILES=$(find BoAnalystXcode/BoAnalyst -name "*.ttf" -exec basename {} \; 2>/dev/null | sort | uniq)
 
           cat > BoAnalystXcode/project.yml << PROJECT_EOF
           name: BoAnalyst
@@ -164,8 +162,7 @@ workflows:
                 base:
                   INFOPLIST_FILE: BoAnalyst/Info.plist
                   PRODUCT_NAME: BoAnalyst
-              entitlements:
-                path: BoAnalyst/BoAnalyst.entitlements
+                  CODE_SIGN_ENTITLEMENTS: BoAnalyst/BoAnalyst.entitlements
           PROJECT_EOF
 
           echo "▶ Running XcodeGen..."
