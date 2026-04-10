@@ -1,0 +1,253 @@
+workflows:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # BoAnalyst iOS — App Store & TestFlight
+  # This file must be at the ROOT of your github.com/boanalyst/IOS repository.
+  #
+  # REQUIRED secrets — add in Codemagic UI → Environment Variables (mark encrypted):
+  #   APP_STORE_CONNECT_ISSUER_ID       ← App Store Connect > Users > Integrations > Keys
+  #   APP_STORE_CONNECT_KEY_IDENTIFIER  ← Key ID (10 chars)
+  #   APP_STORE_CONNECT_PRIVATE_KEY     ← Full text of your .p8 file (paste as-is)
+  #   APPLE_TEAM_ID                     ← Your 10-char Team ID (e.g. AB12CD34EF)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  ios-release:
+    name: BoAnalyst — TestFlight & App Store
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    environment:
+      groups:
+        - env_codemagic
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.boanalyst.app
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: "com.boanalyst.app"
+        XCODE_SCHEME: "BoAnalyst"
+        XCODE_WORKSPACE: "BoAnalystXcode/BoAnalyst.xcworkspace"
+        BUILD_DIR: "BoAnalystXcode/build"
+
+    scripts:
+
+      # ── Step 1: Install build tools ────────────────────────────────────
+      - name: Install XcodeGen & xcpretty
+        script: |
+          brew install xcodegen
+          gem install xcpretty --no-document
+
+      # ── Step 2: Scaffold Xcode project from Swift source files ─────────
+      - name: Scaffold Xcode Project
+        script: |
+          set -euo pipefail
+          cd IOSDeployment
+
+          mkdir -p BoAnalystXcode/BoAnalyst
+
+          echo "▶ Copying Swift source files..."
+          find swift -name "*.swift" -exec cp {} BoAnalystXcode/BoAnalyst/ \;
+
+          echo "▶ Copying Info.plist..."
+          cp Info.plist BoAnalystXcode/BoAnalyst/Info.plist
+
+          echo "▶ Copying Podfile..."
+          cp Podfile BoAnalystXcode/Podfile
+
+          echo "▶ Building Assets.xcassets..."
+          ASSETS="BoAnalystXcode/BoAnalyst/Assets.xcassets"
+          mkdir -p "$ASSETS/AppIcon.appiconset"
+          mkdir -p "$ASSETS/AccentColor.colorset"
+
+          python3 -c "import json; open('$ASSETS/Contents.json','w').write(json.dumps({'info':{'author':'xcode','version':1}}))"
+
+          python3 -c "
+import json
+data = {'colors':[{'color':{'color-space':'srgb','components':{'alpha':'1.000','blue':'0.000','green':'0.843','red':'1.000'}},'idiom':'universal'}],'info':{'author':'xcode','version':1}}
+open('$ASSETS/AccentColor.colorset/Contents.json','w').write(json.dumps(data,indent=2))
+"
+
+          if [ -f "assets/AppIcon-1024.png" ]; then
+            SRC="assets/AppIcon-1024.png"
+            ICONSET="$ASSETS/AppIcon.appiconset"
+
+            echo "▶ Generating all required icon sizes via sips..."
+            sips -z 20   20   "$SRC" --out "$ICONSET/AppIcon-20.png"   > /dev/null
+            sips -z 29   29   "$SRC" --out "$ICONSET/AppIcon-29.png"   > /dev/null
+            sips -z 40   40   "$SRC" --out "$ICONSET/AppIcon-40.png"   > /dev/null
+            sips -z 58   58   "$SRC" --out "$ICONSET/AppIcon-58.png"   > /dev/null
+            sips -z 60   60   "$SRC" --out "$ICONSET/AppIcon-60.png"   > /dev/null
+            sips -z 76   76   "$SRC" --out "$ICONSET/AppIcon-76.png"   > /dev/null
+            sips -z 80   80   "$SRC" --out "$ICONSET/AppIcon-80.png"   > /dev/null
+            sips -z 87   87   "$SRC" --out "$ICONSET/AppIcon-87.png"   > /dev/null
+            sips -z 120  120  "$SRC" --out "$ICONSET/AppIcon-120.png"  > /dev/null
+            sips -z 152  152  "$SRC" --out "$ICONSET/AppIcon-152.png"  > /dev/null
+            sips -z 167  167  "$SRC" --out "$ICONSET/AppIcon-167.png"  > /dev/null
+            sips -z 180  180  "$SRC" --out "$ICONSET/AppIcon-180.png"  > /dev/null
+            sips -z 1024 1024 "$SRC" --out "$ICONSET/AppIcon-1024.png" > /dev/null
+            echo "✅ All icon sizes generated."
+
+            python3 -c "
+import json
+data = {
+  'images': [
+    {'filename':'AppIcon-20.png',   'idiom':'iphone','scale':'1x','size':'20x20'},
+    {'filename':'AppIcon-40.png',   'idiom':'iphone','scale':'2x','size':'20x20'},
+    {'filename':'AppIcon-60.png',   'idiom':'iphone','scale':'3x','size':'20x20'},
+    {'filename':'AppIcon-29.png',   'idiom':'iphone','scale':'1x','size':'29x29'},
+    {'filename':'AppIcon-58.png',   'idiom':'iphone','scale':'2x','size':'29x29'},
+    {'filename':'AppIcon-87.png',   'idiom':'iphone','scale':'3x','size':'29x29'},
+    {'filename':'AppIcon-80.png',   'idiom':'iphone','scale':'2x','size':'40x40'},
+    {'filename':'AppIcon-120.png',  'idiom':'iphone','scale':'3x','size':'40x40'},
+    {'filename':'AppIcon-120.png',  'idiom':'iphone','scale':'2x','size':'60x60'},
+    {'filename':'AppIcon-180.png',  'idiom':'iphone','scale':'3x','size':'60x60'},
+    {'filename':'AppIcon-20.png',   'idiom':'ipad',  'scale':'1x','size':'20x20'},
+    {'filename':'AppIcon-40.png',   'idiom':'ipad',  'scale':'2x','size':'20x20'},
+    {'filename':'AppIcon-29.png',   'idiom':'ipad',  'scale':'1x','size':'29x29'},
+    {'filename':'AppIcon-58.png',   'idiom':'ipad',  'scale':'2x','size':'29x29'},
+    {'filename':'AppIcon-40.png',   'idiom':'ipad',  'scale':'1x','size':'40x40'},
+    {'filename':'AppIcon-80.png',   'idiom':'ipad',  'scale':'2x','size':'40x40'},
+    {'filename':'AppIcon-76.png',   'idiom':'ipad',  'scale':'1x','size':'76x76'},
+    {'filename':'AppIcon-152.png',  'idiom':'ipad',  'scale':'2x','size':'76x76'},
+    {'filename':'AppIcon-167.png',  'idiom':'ipad',  'scale':'2x','size':'83.5x83.5'},
+    {'filename':'AppIcon-1024.png', 'idiom':'ios-marketing','scale':'1x','size':'1024x1024'}
+  ],
+  'info':{'author':'xcode','version':1}
+}
+open('$ICONSET/Contents.json','w').write(json.dumps(data,indent=2))
+"
+            echo "✅ AppIcon Contents.json written."
+          else
+            echo "⚠️  WARNING: assets/AppIcon-1024.png missing — App Store will reject without it."
+          fi
+
+          echo "▶ Copying fonts..."
+          for font in "Cinzel-Regular.ttf" "Cinzel-Bold.ttf" "Cinzel-Black.ttf"; do
+            if [ -f "assets/$font" ]; then
+              cp "assets/$font" BoAnalystXcode/BoAnalyst/
+              echo "✅ $font copied."
+            fi
+          done
+
+          echo "▶ Writing ExportOptions-AppStore.plist..."
+          python3 -c "
+content = '''<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<plist version=\"1.0\">
+<dict>
+  <key>method</key><string>app-store</string>
+  <key>teamID</key><string>$APPLE_TEAM_ID</string>
+  <key>uploadBitcode</key><false/>
+  <key>uploadSymbols</key><true/>
+  <key>signingStyle</key><string>manual</string>
+</dict>
+</plist>'''
+open('BoAnalystXcode/ExportOptions-AppStore.plist','w').write(content)
+"
+
+          echo "▶ Generating Entitlements file for Sign in with Apple..."
+          python3 -c "
+content = '''<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<plist version=\"1.0\">
+<dict>
+  <key>com.apple.developer.applesignin</key>
+  <array>
+    <string>Default</string>
+  </array>
+</dict>
+</plist>'''
+open('BoAnalystXcode/BoAnalyst/BoAnalyst.entitlements','w').write(content)
+"
+
+          echo "▶ Generating project.yml for XcodeGen..."
+          python3 -c "
+import os
+content = '''name: BoAnalyst
+options:
+  bundleIdPrefix: com.boanalyst
+  deploymentTarget:
+    iOS: \"16.0\"
+  createIntermediateGroups: true
+settings:
+  base:
+    PRODUCT_BUNDLE_IDENTIFIER: {bundle_id}
+    MARKETING_VERSION: \"1.0.0\"
+    CURRENT_PROJECT_VERSION: \"{build_number}\"
+    SWIFT_VERSION: \"5.10\"
+    IPHONEOS_DEPLOYMENT_TARGET: \"16.0\"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: {team_id}
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+    SUPPORTS_MACCATALYST: \"NO\"
+    TARGETED_DEVICE_FAMILY: \"1,2\"
+targets:
+  BoAnalyst:
+    type: application
+    platform: iOS
+    sources:
+      - path: BoAnalyst
+        excludes:
+          - \"**/*.md\"
+          - \"**/*.plist\"
+          - \"**/*.xcassets\"
+    resources:
+      - path: BoAnalyst/Assets.xcassets
+      - \"BoAnalyst/*.ttf\"
+    settings:
+      base:
+        INFOPLIST_FILE: BoAnalyst/Info.plist
+        PRODUCT_NAME: BoAnalyst
+        CODE_SIGN_ENTITLEMENTS: BoAnalyst/BoAnalyst.entitlements
+'''.format(
+  bundle_id=os.environ.get('BUNDLE_ID','com.boanalyst.app'),
+  build_number=os.environ.get('BUILD_NUMBER','1'),
+  team_id=os.environ.get('APPLE_TEAM_ID','')
+)
+open('BoAnalystXcode/project.yml','w').write(content)
+"
+
+          echo "▶ Running XcodeGen..."
+          cd BoAnalystXcode
+          xcodegen generate
+          echo "✅ BoAnalyst.xcodeproj generated."
+
+      # ── Step 3: Install CocoaPods ───────────────────────────────────────
+      - name: Install Pods
+        script: |
+          set -euo pipefail
+          cd IOSDeployment/BoAnalystXcode
+          pod install --repo-update
+          echo "✅ Pods installed."
+
+      # ── Step 4: Code Signing (using manually uploaded keys) ─────────────
+      - name: Set Up Code Signing
+        script: |
+          xcode-project use-profiles
+          echo "✅ Code signing configured from uploaded identities."
+
+      # ── Step 5: Build & Archive ─────────────────────────────────────────
+      - name: Build & Archive
+        script: |
+          set -euo pipefail
+          cd IOSDeployment
+          mkdir -p "$BUILD_DIR/Export"
+
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME" \
+            --ipa-directory "$BUILD_DIR/Export"
+
+          echo "✅ Archive & IPA export complete."
+
+    artifacts:
+      - IOSDeployment/BoAnalystXcode/build/Export/*.ipa
+
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
