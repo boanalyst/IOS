@@ -65,13 +65,6 @@ workflows:
           {"info":{"author":"xcode","version":1}}
           EOF
 
-          cat > "$ASSETS/AppIcon.appiconset/Contents.json" << 'EOF'
-          {
-            "images":[{"filename":"AppIcon-1024.png","idiom":"universal","platform":"ios","size":"1024x1024"}],
-            "info":{"author":"xcode","version":1}
-          }
-          EOF
-
           cat > "$ASSETS/AccentColor.colorset/Contents.json" << 'EOF'
           {
             "colors":[{"color":{"color-space":"srgb","components":{"alpha":"1.000","blue":"0.000","green":"0.843","red":"1.000"}},"idiom":"universal"}],
@@ -80,8 +73,53 @@ workflows:
           EOF
 
           if [ -f "assets/AppIcon-1024.png" ]; then
-            cp assets/AppIcon-1024.png "$ASSETS/AppIcon.appiconset/AppIcon-1024.png"
-            echo "✅ AppIcon copied."
+            SRC="assets/AppIcon-1024.png"
+            ICONSET="$ASSETS/AppIcon.appiconset"
+
+            echo "▶ Generating all required icon sizes via sips..."
+            sips -z 20   20   "$SRC" --out "$ICONSET/AppIcon-20.png"   > /dev/null
+            sips -z 29   29   "$SRC" --out "$ICONSET/AppIcon-29.png"   > /dev/null
+            sips -z 40   40   "$SRC" --out "$ICONSET/AppIcon-40.png"   > /dev/null
+            sips -z 58   58   "$SRC" --out "$ICONSET/AppIcon-58.png"   > /dev/null
+            sips -z 60   60   "$SRC" --out "$ICONSET/AppIcon-60.png"   > /dev/null
+            sips -z 76   76   "$SRC" --out "$ICONSET/AppIcon-76.png"   > /dev/null
+            sips -z 80   80   "$SRC" --out "$ICONSET/AppIcon-80.png"   > /dev/null
+            sips -z 87   87   "$SRC" --out "$ICONSET/AppIcon-87.png"   > /dev/null
+            sips -z 120  120  "$SRC" --out "$ICONSET/AppIcon-120.png"  > /dev/null
+            sips -z 152  152  "$SRC" --out "$ICONSET/AppIcon-152.png"  > /dev/null
+            sips -z 167  167  "$SRC" --out "$ICONSET/AppIcon-167.png"  > /dev/null
+            sips -z 180  180  "$SRC" --out "$ICONSET/AppIcon-180.png"  > /dev/null
+            sips -z 1024 1024 "$SRC" --out "$ICONSET/AppIcon-1024.png" > /dev/null
+            echo "✅ All icon sizes generated."
+
+            cat > "$ICONSET/Contents.json" << 'ICONEOF'
+            {
+              "images": [
+                {"filename":"AppIcon-20.png",   "idiom":"iphone", "scale":"1x", "size":"20x20"},
+                {"filename":"AppIcon-40.png",   "idiom":"iphone", "scale":"2x", "size":"20x20"},
+                {"filename":"AppIcon-60.png",   "idiom":"iphone", "scale":"3x", "size":"20x20"},
+                {"filename":"AppIcon-29.png",   "idiom":"iphone", "scale":"1x", "size":"29x29"},
+                {"filename":"AppIcon-58.png",   "idiom":"iphone", "scale":"2x", "size":"29x29"},
+                {"filename":"AppIcon-87.png",   "idiom":"iphone", "scale":"3x", "size":"29x29"},
+                {"filename":"AppIcon-80.png",   "idiom":"iphone", "scale":"2x", "size":"40x40"},
+                {"filename":"AppIcon-120.png",  "idiom":"iphone", "scale":"3x", "size":"40x40"},
+                {"filename":"AppIcon-120.png",  "idiom":"iphone", "scale":"2x", "size":"60x60"},
+                {"filename":"AppIcon-180.png",  "idiom":"iphone", "scale":"3x", "size":"60x60"},
+                {"filename":"AppIcon-20.png",   "idiom":"ipad",   "scale":"1x", "size":"20x20"},
+                {"filename":"AppIcon-40.png",   "idiom":"ipad",   "scale":"2x", "size":"20x20"},
+                {"filename":"AppIcon-29.png",   "idiom":"ipad",   "scale":"1x", "size":"29x29"},
+                {"filename":"AppIcon-58.png",   "idiom":"ipad",   "scale":"2x", "size":"29x29"},
+                {"filename":"AppIcon-40.png",   "idiom":"ipad",   "scale":"1x", "size":"40x40"},
+                {"filename":"AppIcon-80.png",   "idiom":"ipad",   "scale":"2x", "size":"40x40"},
+                {"filename":"AppIcon-76.png",   "idiom":"ipad",   "scale":"1x", "size":"76x76"},
+                {"filename":"AppIcon-152.png",  "idiom":"ipad",   "scale":"2x", "size":"76x76"},
+                {"filename":"AppIcon-167.png",  "idiom":"ipad",   "scale":"2x", "size":"83.5x83.5"},
+                {"filename":"AppIcon-1024.png", "idiom":"ios-marketing", "scale":"1x", "size":"1024x1024"}
+              ],
+              "info":{"author":"xcode","version":1}
+            }
+            ICONEOF
+            echo "✅ AppIcon Contents.json written."
           else
             echo "⚠️  WARNING: assets/AppIcon-1024.png missing — App Store will reject without it."
           fi
@@ -124,7 +162,6 @@ workflows:
           ENTITLE_EOF
 
           echo "▶ Generating project.yml for XcodeGen..."
-
           cat > BoAnalystXcode/project.yml << PROJECT_EOF
           name: BoAnalyst
           options:
