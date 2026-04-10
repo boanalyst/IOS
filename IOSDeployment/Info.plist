@@ -4,7 +4,6 @@
 <plist version="1.0">
 <dict>
 
-  <!-- ── App Identity ─────────────────────────────────────────────────── -->
   <key>CFBundleName</key>
   <string>BoAnalyst</string>
   <key>CFBundleDisplayName</key>
@@ -26,7 +25,6 @@
   <key>CFBundleIconName</key>
   <string>AppIcon</string>
 
-  <!-- ── Supported OS / Orientations ──────────────────────────────────── -->
   <key>LSRequiresIPhoneOS</key>
   <true/>
   <key>UILaunchScreen</key>
@@ -38,20 +36,17 @@
   <key>UIRequiresFullScreen</key>
   <true/>
 
-  <!-- ── App Transport Security ────────────────────────────────────────── -->
   <key>NSAppTransportSecurity</key>
   <dict>
     <key>NSAllowsArbitraryLoads</key>
     <false/>
     <key>NSExceptionDomains</key>
     <dict>
-      <!-- BoAnalyst backend + CDN -->
       <key>boanalyst.com</key>
       <dict>
         <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
         <key>NSIncludesSubdomains</key><true/>
       </dict>
-      <!-- TMDB movie poster images -->
       <key>themoviedb.org</key>
       <dict>
         <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
@@ -67,7 +62,6 @@
         <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
         <key>NSIncludesSubdomains</key><true/>
       </dict>
-      <!-- Twitter / X embed widget -->
       <key>twitter.com</key>
       <dict>
         <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
@@ -83,7 +77,6 @@
         <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
         <key>NSIncludesSubdomains</key><true/>
       </dict>
-      <!-- Instagram embed -->
       <key>instagram.com</key>
       <dict>
         <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
@@ -94,7 +87,6 @@
         <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
         <key>NSIncludesSubdomains</key><true/>
       </dict>
-      <!-- YouTube thumbnails + mobile player -->
       <key>youtube.com</key>
       <dict>
         <key>NSExceptionAllowsInsecureHTTPLoads</key><false/>
@@ -113,7 +105,6 @@
     </dict>
   </dict>
 
-  <!-- ── URL Scheme (OAuth deep-link: boanalyst://auth?token=...) ──────── -->
   <key>CFBundleURLTypes</key>
   <array>
     <dict>
@@ -126,23 +117,17 @@
     </dict>
   </array>
 
-  <!-- ── Privacy Usage Descriptions (Apple required) ──────────────────── -->
   <key>NSPhotoLibraryUsageDescription</key>
   <string>BoAnalyst needs access to your photo library to attach images to posts.</string>
-
   <key>NSCameraUsageDescription</key>
   <string>BoAnalyst needs camera access to take photos for your posts.</string>
-
   <key>NSFaceIDUsageDescription</key>
   <string>BoAnalyst uses Face ID to securely authenticate your account.</string>
-
   <key>NSUserNotificationsUsageDescription</key>
   <string>BoAnalyst sends notifications about new posts, box office updates, and replies.</string>
-
   <key>NSUserTrackingUsageDescription</key>
-  <string>BoAnalyst uses your account information (name and email) solely to create and manage your account. We do not share your data with advertisers or data brokers.</string>
+  <string>BoAnalyst uses your account information solely to create and manage your account. We do not share your data with advertisers or data brokers.</string>
 
-  <!-- ── Custom Fonts ───────────────────────────────────────────────────── -->
   <key>UIAppFonts</key>
   <array>
     <string>Cinzel-Regular.ttf</string>
@@ -150,14 +135,12 @@
     <string>Cinzel-Black.ttf</string>
   </array>
 
-  <!-- ── Scene Manifest (SwiftUI lifecycle) ───────────────────────────── -->
   <key>UIApplicationSceneManifest</key>
   <dict>
     <key>UIApplicationSupportsMultipleScenes</key>
     <false/>
   </dict>
 
-  <!-- ── Apple Export Compliance ──────────────────────────────────────── -->
   <key>ITSAppUsesNonExemptEncryption</key>
   <false/>
 
