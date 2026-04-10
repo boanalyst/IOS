@@ -1,7 +1,7 @@
 workflows:
 
   # ─────────────────────────────────────────────────────────────────────────
-  # BoAnalyst iOS — App Store & TestFlight Workflow (Master v2)
+  # BoAnalyst iOS — App Store & TestFlight Workflow (Master v3 - Minimalist)
   # ─────────────────────────────────────────────────────────────────────────
 
   ios-release:
@@ -20,7 +20,6 @@ workflows:
       vars:
         BUNDLE_ID: "com.boanalyst.app"
         XCODE_SCHEME: "BoAnalyst"
-        # Using absolute paths to prevent any folder-mismatch errors
         PROJ_DIR: "$CM_BUILD_DIR/IOSDeployment/BoAnalystXcode"
         XCODE_WORKSPACE: "$CM_BUILD_DIR/IOSDeployment/BoAnalystXcode/BoAnalyst.xcworkspace"
         BUILD_DIR: "$CM_BUILD_DIR/IOSDeployment/BoAnalystXcode/build"
@@ -39,7 +38,6 @@ workflows:
         script: |
           set -euo pipefail
           
-          # Force absolute paths for scaffolding
           mkdir -p "$PROJ_DIR/BoAnalyst"
 
           echo "▶ Copying source files..."
@@ -58,7 +56,7 @@ workflows:
           if [ -f "$CM_BUILD_DIR/IOSDeployment/assets/AppIcon-1024.png" ]; then
             ICON_SRC="$CM_BUILD_DIR/IOSDeployment/assets/AppIcon-1024.png"
             ICONSET="$ASSETS/AppIcon.appiconset"
-            echo "▶ Generating all required icon sizes via sips..."
+            echo "▶ Generating all icon sizes..."
             sips -s format png -z 1024 1024 "$ICON_SRC" --out "$ICONSET/AppIcon-1024.png" > /dev/null
             sips -s format png -z 20   20   "$ICON_SRC" --out "$ICONSET/AppIcon-20.png"   > /dev/null
             sips -s format png -z 29   29   "$ICON_SRC" --out "$ICONSET/AppIcon-29.png"   > /dev/null
@@ -67,7 +65,7 @@ workflows:
             sips -s format png -z 60   60   "$ICON_SRC" --out "$ICONSET/AppIcon-60.png"   > /dev/null
             sips -s format png -z 76   76   "$ICON_SRC" --out "$ICONSET/AppIcon-76.png"   > /dev/null
             sips -s format png -z 80   80   "$ICON_SRC" --out "$ICONSET/AppIcon-80.png"   > /dev/null
-            sips -s format png -z 87   87   "$ICON_SRC" --out "$ICONSET/AppIcon-87.png"   > /dev/null
+            sips -z 87   87   "$ICON_SRC" --out "$ICONSET/AppIcon-87.png"   > /dev/null
             sips -s format png -z 120  120  "$ICON_SRC" --out "$ICONSET/AppIcon-120.png"  > /dev/null
             sips -s format png -z 152  152  "$ICON_SRC" --out "$ICONSET/AppIcon-152.png"  > /dev/null
             sips -s format png -z 167  167  "$ICON_SRC" --out "$ICONSET/AppIcon-167.png"  > /dev/null
@@ -76,7 +74,8 @@ workflows:
             printf '{\n  "images" : [\n    {"filename":"AppIcon-20.png","idiom":"iphone","scale":"1x","size":"20x20"},\n    {"filename":"AppIcon-40.png","idiom":"iphone","scale":"2x","size":"20x20"},\n    {"filename":"AppIcon-60.png","idiom":"iphone","scale":"3x","size":"20x20"},\n    {"filename":"AppIcon-29.png","idiom":"iphone","scale":"1x","size":"29x29"},\n    {"filename":"AppIcon-58.png","idiom":"iphone","scale":"2x","size":"29x29"},\n    {"filename":"AppIcon-87.png","idiom":"iphone","scale":"3x","size":"29x29"},\n    {"filename":"AppIcon-80.png","idiom":"iphone","scale":"2x","size":"40x40"},\n    {"filename":"AppIcon-120.png","idiom":"iphone","scale":"3x","size":"40x40"},\n    {"filename":"AppIcon-120.png","idiom":"iphone","scale":"2x","size":"60x60"},\n    {"filename":"AppIcon-180.png","idiom":"iphone","scale":"3x","size":"60x60"},\n    {"filename":"AppIcon-20.png","idiom":"ipad","scale":"1x","size":"20x20"},\n    {"filename":"AppIcon-40.png","idiom":"ipad","scale":"2x","size":"20x20"},\n    {"filename":"AppIcon-29.png","idiom":"ipad","scale":"1x","size":"29x29"},\n    {"filename":"AppIcon-58.png","idiom":"ipad","scale":"2x","size":"29x29"},\n    {"filename":"AppIcon-40.png","idiom":"ipad","scale":"1x","size":"40x40"},\n    {"filename":"AppIcon-80.png","idiom":"ipad","scale":"2x","size":"40x40"},\n    {"filename":"AppIcon-76.png","idiom":"ipad","scale":"1x","size":"76x76"},\n    {"filename":"AppIcon-152.png","idiom":"ipad","scale":"2x","size":"76x76"},\n    {"filename":"AppIcon-167.png","idiom":"ipad","scale":"2x","size":"83.5x83.5"},\n    {"filename":"AppIcon-1024.png","idiom":"ios-marketing","scale":"1x","size":"1024x1024"}\n  ],\n  "info" : { "author" : "xcode", "version" : 1 }\n}\n' > "$ICONSET/Contents.json"
           fi
 
-          printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n  <key>method</key><string>app-store</string>\n  <key>teamID</key><string>%s</string>\n  <key>uploadBitcode</key><false/>\n  <key>uploadSymbols</key><true/>\n  <key>signingStyle</key><string>manual</string>\n</dict>\n</plist>\n' "${APPLE_TEAM_ID:-}" > "$EXPORT_PLIST"
+          echo "▶ Generating ExportOptions (Minimalist)..."
+          printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n  <key>method</key><string>app-store</string>\n  <key>uploadBitcode</key><false/>\n  <key>uploadSymbols</key><true/>\n</dict>\n</plist>\n' > "$EXPORT_PLIST"
 
           printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n  <key>com.apple.developer.associated-domains</key>\n  <array><string>applinks:boanalyst.com</string></array>\n  <key>com.apple.developer.applesignin</key>\n  <array><string>Default</string></array>\n  <key>aps-environment</key>\n  <string>production</string>\n</dict>\n</plist>\n' > "$PROJ_DIR/BoAnalyst/BoAnalyst.entitlements"
 
@@ -111,7 +110,6 @@ workflows:
           set -euo pipefail
           mkdir -p "$BUILD_DIR/Export"
 
-          # Using exact flag names and absolute paths for absolute precision
           xcode-project build-ipa \
             --workspace "$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME" \
