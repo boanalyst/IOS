@@ -11,7 +11,7 @@ workflows:
 
     environment:
       groups:
-        - env_vars
+        - env_codemagic
       ios_signing:
 
         distribution_type: app_store
