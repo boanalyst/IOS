@@ -1107,6 +1107,7 @@ struct ProfileView: View {
     @State private var showEditProfile = false
     @State private var showPrivacy = false
     @State private var showTerms = false
+    @State private var showDeleteAccount = false
 
     var body: some View {
         ZStack {
@@ -1243,6 +1244,11 @@ struct ProfileView: View {
                         ProfileRow(icon: "arrow.backward.circle", title: "Sign Out", isDestructive: true) {
                             showLogoutConfirm = true
                         }
+                        Divider().background(Color.white.opacity(0.05))
+                        // Guideline 5.1.1(v) — Account Deletion (required for apps with account creation)
+                        ProfileRow(icon: "trash.fill", title: "Delete Account", isDestructive: true) {
+                            showDeleteAccount = true
+                        }
                     }
                     .cardStyle()
                     .padding(.horizontal, 20)
@@ -1304,6 +1310,12 @@ struct ProfileView: View {
                 }
             }
         }
+        // Delete Account flow (Guideline 5.1.1(v))
+        .sheet(isPresented: $showDeleteAccount) {
+            DeleteAccountSheet()
+                .environmentObject(authViewModel)
+                .presentationDetents([.medium])
+        }
     }
 
     // MARK: - Subscription Badge
@@ -1337,6 +1349,178 @@ struct ProfileView: View {
             .padding(.vertical, 8)
             .background(color)
             .clipShape(Capsule())
+    }
+}
+
+// MARK: - Delete Account Sheet (Guideline 5.1.1(v))
+// Two-step confirmation: first explains consequences, then requires typing "DELETE"
+// to prevent accidental account deletion.
+
+struct DeleteAccountSheet: View {
+    @EnvironmentObject private var authViewModel: AuthViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var step = 0            // 0 = warning, 1 = confirm text
+    @State private var confirmText = ""
+    @State private var isDeleting = false
+    @State private var errorMsg: String? = nil
+
+    private var isConfirmValid: Bool {
+        confirmText.trimmingCharacters(in: .whitespaces).uppercased() == "DELETE"
+    }
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                AppTheme.background.ignoresSafeArea()
+                VStack(spacing: 28) {
+                    if step == 0 {
+                        warningStep
+                    } else {
+                        confirmStep
+                    }
+                    Spacer()
+                }
+                .padding(.top, 32)
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("DELETE ACCOUNT")
+                        .font(.custom("Cinzel-Regular", size: 12))
+                        .foregroundColor(AppTheme.error)
+                }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+            }
+        }
+    }
+
+    // MARK: Step 0 — Warning
+
+    private var warningStep: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 52))
+                .foregroundColor(AppTheme.error)
+
+            Text("Delete Your Account?")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(AppTheme.textPrimary)
+
+            VStack(alignment: .leading, spacing: 10) {
+                warningRow("All your posts and comments will be permanently deleted.")
+                warningRow("Your subscription and Pro membership will be cancelled.")
+                warningRow("This action cannot be undone.")
+            }
+            .padding(.horizontal, 24)
+
+            Button {
+                step = 1
+            } label: {
+                Text("I understand, continue")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(AppTheme.error)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(AppTheme.error.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.error.opacity(0.4), lineWidth: 1))
+            }
+            .padding(.horizontal, 24)
+        }
+    }
+
+    private func warningRow(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 14))
+                .foregroundColor(AppTheme.error)
+                .padding(.top, 2)
+            Text(text)
+                .font(.system(size: 14))
+                .foregroundColor(AppTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: Step 1 — Type DELETE to confirm
+
+    private var confirmStep: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "trash.fill")
+                .font(.system(size: 44))
+                .foregroundColor(AppTheme.error)
+
+            VStack(spacing: 6) {
+                Text("Confirm Deletion")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(AppTheme.textPrimary)
+                Text("Type DELETE below to permanently delete your account.")
+                    .font(.system(size: 13))
+                    .foregroundColor(AppTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
+            }
+
+            if let err = errorMsg {
+                Text(err)
+                    .font(.system(size: 13))
+                    .foregroundColor(AppTheme.error)
+                    .padding(10)
+                    .background(AppTheme.error.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(.horizontal, 24)
+            }
+
+            TextField("Type DELETE to confirm", text: $confirmText)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.characters)
+                .foregroundColor(AppTheme.textPrimary)
+                .tint(AppTheme.error)
+                .padding(16)
+                .background(AppTheme.surfaceVariant)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(isConfirmValid ? AppTheme.error : Color.white.opacity(0.08), lineWidth: 1)
+                )
+                .padding(.horizontal, 24)
+
+            Button {
+                Task { await performDeletion() }
+            } label: {
+                ZStack {
+                    if isDeleting {
+                        ProgressView().tint(.white)
+                    } else {
+                        Text("Permanently Delete Account")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(isConfirmValid ? AppTheme.error : AppTheme.error.opacity(0.3))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .disabled(!isConfirmValid || isDeleting)
+            .padding(.horizontal, 24)
+        }
+    }
+
+    private func performDeletion() async {
+        isDeleting = true
+        errorMsg = nil
+        do {
+            try await authViewModel.deleteAccount()
+            // authViewModel.deleteAccount() resets uiState — app navigates to login automatically
+            dismiss()
+        } catch {
+            errorMsg = "Unable to delete account. Please check your connection and try again."
+        }
+        isDeleting = false
     }
 }
 
