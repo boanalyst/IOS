@@ -3,6 +3,8 @@
 
 import SwiftUI
 import SafariServices
+import AuthenticationServices
+import CryptoKit
 
 struct LoginView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
@@ -13,6 +15,8 @@ struct LoginView: View {
     @State private var oauthURL: URL? = nil
     // Forgot Password: native in-app sheet — no external URL needed
     @State private var showForgotPassword = false
+    // Sign in with Apple
+    @State private var appleSignInNonce: String = ""
 
     private var isFormValid: Bool {
         !email.trimmingCharacters(in: .whitespaces).isEmpty &&
@@ -161,6 +165,20 @@ struct LoginView: View {
                             )
                         }
 
+                        // Sign in with Apple (Guideline 4.8 — required when offering third-party login)
+                        SignInWithAppleButton(.signIn) { request in
+                            let nonce = randomNonceString()
+                            appleSignInNonce = nonce
+                            request.requestedScopes = [.fullName, .email]
+                            request.nonce = sha256(nonce)
+                        } onCompletion: { result in
+                            handleAppleSignIn(result)
+                        }
+                        .signInWithAppleButtonStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+
                         // Register link
                         HStack {
                             Text("Don't have an account?")
@@ -199,15 +217,63 @@ struct LoginView: View {
     }
 
     private func openGoogleOAuth() {
-        // Opens in-app SFSafariViewController — same as Android Chrome Custom Tab.
-        // Server redirects to boanalyst://auth?token=... which closes this sheet
-        // and triggers BoAnalystApp.handleDeepLink.
         oauthURL = URL(string: "https://boanalyst.com/api/auth/google?platform=ios")
     }
 
     private func openTwitterOAuth() {
-        // Same flow as Google OAuth — server redirects back via boanalyst:// deep link.
         oauthURL = URL(string: "https://boanalyst.com/api/auth/twitter?platform=ios")
+    }
+
+    // MARK: - Sign in with Apple helpers
+
+    private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .success(let auth):
+            guard
+                let cred = auth.credential as? ASAuthorizationAppleIDCredential,
+                let tokenData = cred.identityToken,
+                let identityToken = String(data: tokenData, encoding: .utf8)
+            else {
+                authViewModel.uiState.error = "Sign in with Apple failed. Please try again."
+                return
+            }
+            let firstName  = cred.fullName?.givenName ?? ""
+            let lastName   = cred.fullName?.familyName ?? ""
+            let fullName   = [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
+            let email      = cred.email ?? ""
+
+            // Send identityToken + nonce to our backend for server-side verification.
+            // The backend exchanges it for a session JWT via Apple's public keys.
+            Task {
+                await authViewModel.handleAppleSignIn(
+                    identityToken: identityToken,
+                    nonce: appleSignInNonce,
+                    name: fullName,
+                    email: email
+                )
+            }
+        case .failure(let error):
+            // User cancelled — ASAuthorizationError.canceled — don’t show an error
+            let nsErr = error as NSError
+            if nsErr.code != ASAuthorizationError.canceled.rawValue {
+                authViewModel.uiState.error = "Sign in with Apple failed. Please try again."
+            }
+        }
+    }
+
+    /// Generates a cryptographically random nonce string (RFC 4086).
+    private func randomNonceString(length: Int = 32) -> String {
+        var randomBytes = [UInt8](repeating: 0, count: length)
+        _ = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
+        let charset = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        return String(randomBytes.map { charset[Int($0) % charset.count] })
+    }
+
+    /// SHA-256 hashes a string (used as the nonce for Apple Sign In).
+    private func sha256(_ input: String) -> String {
+        let data = Data(input.utf8)
+        let hash = SHA256.hash(data: data)
+        return hash.compactMap { String(format: "%02x", $0) }.joined()
     }
 }
 

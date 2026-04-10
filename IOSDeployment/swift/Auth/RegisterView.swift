@@ -3,6 +3,8 @@
 
 import SwiftUI
 import SafariServices
+import AuthenticationServices
+import CryptoKit
 
 struct RegisterView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
@@ -15,6 +17,7 @@ struct RegisterView: View {
     @State private var showPassword = false
     @State private var showConfirmPassword = false
     @State private var oauthURL: URL? = nil
+    @State private var appleSignInNonce: String = ""
 
     private var isFormValid: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty &&
@@ -136,6 +139,20 @@ struct RegisterView: View {
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1), lineWidth: 1))
                         }
 
+                        // Sign in with Apple (Guideline 4.8 — required when offering third-party login)
+                        SignInWithAppleButton(.signUp) { request in
+                            let nonce = randomNonceString()
+                            appleSignInNonce = nonce
+                            request.requestedScopes = [.fullName, .email]
+                            request.nonce = sha256(nonce)
+                        } onCompletion: { result in
+                            handleAppleSignIn(result)
+                        }
+                        .signInWithAppleButtonStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+
                         // Back to Login
                         HStack {
                             Text("Already have an account?")
@@ -175,6 +192,52 @@ struct RegisterView: View {
             SafariView(url: url)
                 .ignoresSafeArea()
         }
+    }
+
+    // MARK: - Sign in with Apple helpers
+
+    private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .success(let auth):
+            guard
+                let cred = auth.credential as? ASAuthorizationAppleIDCredential,
+                let tokenData = cred.identityToken,
+                let identityToken = String(data: tokenData, encoding: .utf8)
+            else {
+                authViewModel.uiState.error = "Sign in with Apple failed. Please try again."
+                return
+            }
+            let firstName = cred.fullName?.givenName ?? ""
+            let lastName  = cred.fullName?.familyName ?? ""
+            let fullName  = [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
+            let email     = cred.email ?? ""
+            Task {
+                await authViewModel.handleAppleSignIn(
+                    identityToken: identityToken,
+                    nonce: appleSignInNonce,
+                    name: fullName,
+                    email: email
+                )
+            }
+        case .failure(let error):
+            let nsErr = error as NSError
+            if nsErr.code != ASAuthorizationError.canceled.rawValue {
+                authViewModel.uiState.error = "Sign in with Apple failed. Please try again."
+            }
+        }
+    }
+
+    private func randomNonceString(length: Int = 32) -> String {
+        var randomBytes = [UInt8](repeating: 0, count: length)
+        _ = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
+        let charset = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        return String(randomBytes.map { charset[Int($0) % charset.count] })
+    }
+
+    private func sha256(_ input: String) -> String {
+        let data = Data(input.utf8)
+        let hash = SHA256.hash(data: data)
+        return hash.compactMap { String(format: "%02x", $0) }.joined()
     }
 }
 

@@ -137,6 +137,15 @@ final class AuthViewModel: ObservableObject {
         uiState = AuthUiState()
     }
 
+    // MARK: - Delete Account (Guideline 5.1.1(v))
+    // Permanently deletes the user's account on the server, then wipes the
+    // local session so the app returns to the login screen.
+    func deleteAccount() async throws {
+        _ = try await api.requestRaw(.deleteAccount)
+        keychain.deleteToken()
+        uiState = AuthUiState()
+    }
+
     // MARK: - OAuth Callback Handler
     // SECURITY: Mirrors Android's handleOAuthToken — token is saved tentatively,
     // then validated server-side. If rejected, it's wiped AND error is shown.
@@ -162,6 +171,37 @@ final class AuthViewModel: ObservableObject {
             uiState.isAuthenticated = false
             uiState.error = "Sign-in failed. Please try again."
         }
+    }
+
+    // MARK: - Sign in with Apple (Guideline 4.8)
+    // Sends the Apple identity token + nonce to POST /api/auth/apple.
+    // The backend verifies the token via Apple's public keys and returns a session JWT.
+    func handleAppleSignIn(identityToken: String, nonce: String, name: String, email: String) async {
+        uiState.isLoading = true
+        uiState.error = nil
+        do {
+            var payload: [String: Any] = ["identityToken": identityToken, "nonce": nonce]
+            if !name.isEmpty  { payload["name"]  = name  }
+            if !email.isEmpty { payload["email"] = email }
+            let body = try JSONSerialization.data(withJSONObject: payload)
+            let endpoint = APIEndpoint(path: "/api/auth/apple", method: .POST, body: body)
+            let response = try await api.requestRaw(endpoint)
+            if let success = response["success"] as? Bool, success,
+               let token = response["token"] as? String {
+                keychain.saveToken(token)
+                if let userData = response["user"] as? [String: Any],
+                   let userJSON = try? JSONSerialization.data(withJSONObject: userData),
+                   let user = try? JSONDecoder().decode(User.self, from: userJSON) {
+                    uiState.user = user
+                }
+                uiState.isAuthenticated = true
+            } else {
+                uiState.error = (response["message"] as? String) ?? "Sign in with Apple failed. Please try again."
+            }
+        } catch {
+            uiState.error = "Unable to connect. Please check your internet and try again."
+        }
+        uiState.isLoading = false
     }
 
     // MARK: - Refresh User
