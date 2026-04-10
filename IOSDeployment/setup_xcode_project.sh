@@ -181,12 +181,19 @@ cat > "$PROJECT_DIR/$PROJECT_NAME/$PROJECT_NAME.entitlements" <<'XML'
     <string>applinks:boanalyst.com</string>
   </array>
 
+  <!-- Sign In with Apple (Guideline 4.8) -->
+  <key>com.apple.developer.applesignin</key>
+  <array>
+    <string>Default</string>
+  </array>
+
   <!-- Push Notifications -->
   <key>aps-environment</key>
   <string>production</string>
 </dict>
 </plist>
 XML
+
 
 # ── Run XcodeGen if available ──────────────────────────────────────────────
 if command -v xcodegen &> /dev/null; then
