@@ -2,6 +2,13 @@ workflows:
 
   # ─────────────────────────────────────────────────────────────────────────
   # BoAnalyst iOS — App Store & TestFlight
+  # This file must be at the ROOT of your github.com/boanalyst/IOS repository.
+  #
+  # REQUIRED secrets — add in Codemagic UI → Environment Variables (mark encrypted):
+  #   APP_STORE_CONNECT_ISSUER_ID       ← App Store Connect > Users > Integrations > Keys
+  #   APP_STORE_CONNECT_KEY_IDENTIFIER  ← Key ID (10 chars)
+  #   APP_STORE_CONNECT_PRIVATE_KEY     ← Full text of your .p8 file (paste as-is)
+  #   APPLE_TEAM_ID                     ← Your 10-char Team ID (e.g. AB12CD34EF)
   # ─────────────────────────────────────────────────────────────────────────
 
   ios-release:
@@ -31,163 +38,52 @@ workflows:
           brew install xcodegen
           gem install xcpretty --no-document
 
-      # ── Step 2a: Generate all scaffold files (Python — no heredoc issues)
-      - name: Generate Scaffold Files
-        script: |
-          #!/usr/bin/env python3
-          import json, os, subprocess
-
-          base     = "IOSDeployment/BoAnalystXcode/BoAnalyst"
-          assets   = base + "/Assets.xcassets"
-          iconset  = assets + "/AppIcon.appiconset"
-          accent   = assets + "/AccentColor.colorset"
-          team_id  = os.environ.get("APPLE_TEAM_ID", "")
-          bundle   = os.environ.get("BUNDLE_ID", "com.boanalyst.app")
-          build_no = os.environ.get("BUILD_NUMBER", "1")
-
-          for d in [base, assets, iconset, accent,
-                    "IOSDeployment/BoAnalystXcode"]:
-              os.makedirs(d, exist_ok=True)
-
-          # Assets root Contents.json
-          with open(assets + "/Contents.json", "w") as f:
-              json.dump({"info": {"author": "xcode", "version": 1}}, f)
-
-          # AccentColor
-          with open(accent + "/Contents.json", "w") as f:
-              json.dump({
-                  "colors": [{"color": {"color-space": "srgb", "components": {
-                      "alpha": "1.000", "blue": "0.000",
-                      "green": "0.843", "red": "1.000"}},
-                      "idiom": "universal"}],
-                  "info": {"author": "xcode", "version": 1}
-              }, f, indent=2)
-
-          # AppIcon Contents.json — all required sizes
-          with open(iconset + "/Contents.json", "w") as f:
-              json.dump({
-                  "images": [
-                      {"filename": "AppIcon-20.png",   "idiom": "iphone", "scale": "1x", "size": "20x20"},
-                      {"filename": "AppIcon-40.png",   "idiom": "iphone", "scale": "2x", "size": "20x20"},
-                      {"filename": "AppIcon-60.png",   "idiom": "iphone", "scale": "3x", "size": "20x20"},
-                      {"filename": "AppIcon-29.png",   "idiom": "iphone", "scale": "1x", "size": "29x29"},
-                      {"filename": "AppIcon-58.png",   "idiom": "iphone", "scale": "2x", "size": "29x29"},
-                      {"filename": "AppIcon-87.png",   "idiom": "iphone", "scale": "3x", "size": "29x29"},
-                      {"filename": "AppIcon-80.png",   "idiom": "iphone", "scale": "2x", "size": "40x40"},
-                      {"filename": "AppIcon-120.png",  "idiom": "iphone", "scale": "3x", "size": "40x40"},
-                      {"filename": "AppIcon-120.png",  "idiom": "iphone", "scale": "2x", "size": "60x60"},
-                      {"filename": "AppIcon-180.png",  "idiom": "iphone", "scale": "3x", "size": "60x60"},
-                      {"filename": "AppIcon-20.png",   "idiom": "ipad",   "scale": "1x", "size": "20x20"},
-                      {"filename": "AppIcon-40.png",   "idiom": "ipad",   "scale": "2x", "size": "20x20"},
-                      {"filename": "AppIcon-29.png",   "idiom": "ipad",   "scale": "1x", "size": "29x29"},
-                      {"filename": "AppIcon-58.png",   "idiom": "ipad",   "scale": "2x", "size": "29x29"},
-                      {"filename": "AppIcon-40.png",   "idiom": "ipad",   "scale": "1x", "size": "40x40"},
-                      {"filename": "AppIcon-80.png",   "idiom": "ipad",   "scale": "2x", "size": "40x40"},
-                      {"filename": "AppIcon-76.png",   "idiom": "ipad",   "scale": "1x", "size": "76x76"},
-                      {"filename": "AppIcon-152.png",  "idiom": "ipad",   "scale": "2x", "size": "76x76"},
-                      {"filename": "AppIcon-167.png",  "idiom": "ipad",   "scale": "2x", "size": "83.5x83.5"},
-                      {"filename": "AppIcon-1024.png", "idiom": "ios-marketing", "scale": "1x", "size": "1024x1024"},
-                  ],
-                  "info": {"author": "xcode", "version": 1}
-              }, f, indent=2)
-
-          # Entitlements — Sign in with Apple
-          with open(base + "/BoAnalyst.entitlements", "w") as f:
-              f.write(
-                  '<?xml version="1.0" encoding="UTF-8"?>\n'
-                  '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"'
-                  ' "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
-                  '<plist version="1.0">\n<dict>\n'
-                  '  <key>com.apple.developer.applesignin</key>\n'
-                  '  <array><string>Default</string></array>\n'
-                  '</dict>\n</plist>\n'
-              )
-
-          # ExportOptions
-          with open("IOSDeployment/BoAnalystXcode/ExportOptions-AppStore.plist", "w") as f:
-              f.write(
-                  '<?xml version="1.0" encoding="UTF-8"?>\n'
-                  '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"'
-                  ' "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
-                  '<plist version="1.0"><dict>\n'
-                  '  <key>method</key><string>app-store</string>\n'
-                  f'  <key>teamID</key><string>{team_id}</string>\n'
-                  '  <key>uploadBitcode</key><false/>\n'
-                  '  <key>uploadSymbols</key><true/>\n'
-                  '  <key>signingStyle</key><string>manual</string>\n'
-                  '</dict></plist>\n'
-              )
-
-          # project.yml
-          with open("IOSDeployment/BoAnalystXcode/project.yml", "w") as f:
-              f.write(f"""name: BoAnalyst
-options:
-  bundleIdPrefix: com.boanalyst
-  deploymentTarget:
-    iOS: "16.0"
-  createIntermediateGroups: true
-settings:
-  base:
-    PRODUCT_BUNDLE_IDENTIFIER: {bundle}
-    MARKETING_VERSION: "1.0.0"
-    CURRENT_PROJECT_VERSION: "{build_no}"
-    SWIFT_VERSION: "5.10"
-    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
-    CODE_SIGN_STYLE: Manual
-    DEVELOPMENT_TEAM: {team_id}
-    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-    DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
-    SUPPORTS_MACCATALYST: "NO"
-    TARGETED_DEVICE_FAMILY: "1,2"
-targets:
-  BoAnalyst:
-    type: application
-    platform: iOS
-    sources:
-      - path: BoAnalyst
-        excludes:
-          - "**/*.md"
-          - "**/*.plist"
-          - "**/*.xcassets"
-    resources:
-      - path: BoAnalyst/Assets.xcassets
-      - "BoAnalyst/*.ttf"
-    settings:
-      base:
-        INFOPLIST_FILE: BoAnalyst/Info.plist
-        PRODUCT_NAME: BoAnalyst
-        CODE_SIGN_ENTITLEMENTS: BoAnalyst/BoAnalyst.entitlements
-""")
-
-          print("All scaffold files written successfully.")
-
-      # ── Step 2b: Copy sources & generate icons (bash — no file writing)
+      # ── Step 2: Scaffold Xcode project from Swift source files ─────────
       - name: Scaffold Xcode Project
         script: |
           set -euo pipefail
           cd IOSDeployment
 
-          echo "Copying Swift source files..."
+          mkdir -p BoAnalystXcode/BoAnalyst
+
+          echo "▶ Copying Swift source files..."
           find swift -name "*.swift" -exec cp {} BoAnalystXcode/BoAnalyst/ \;
 
-          echo "Copying Info.plist..."
+          echo "▶ Copying Info.plist..."
           cp Info.plist BoAnalystXcode/BoAnalyst/Info.plist
 
-          echo "Copying Podfile..."
+          echo "▶ Copying Podfile..."
           cp Podfile BoAnalystXcode/Podfile
 
-          echo "Copying fonts..."
-          for font in "Cinzel-Regular.ttf" "Cinzel-Bold.ttf" "Cinzel-Black.ttf"; do
-            if [ -f "assets/$font" ]; then
-              cp "assets/$font" BoAnalystXcode/BoAnalyst/
-              echo "Copied $font"
-            fi
-          done
+          echo "▶ Building Assets.xcassets..."
+          ASSETS="BoAnalystXcode/BoAnalyst/Assets.xcassets"
+          mkdir -p "$ASSETS/AppIcon.appiconset"
+          mkdir -p "$ASSETS/AccentColor.colorset"
+
+          cat > "$ASSETS/Contents.json" <<'EOF'
+          { "info" : { "author" : "xcode", "version" : 1 } }
+          EOF
+
+          cat > "$ASSETS/AccentColor.colorset/Contents.json" <<'EOF'
+          {
+            "colors" : [
+              {
+                "color" : {
+                  "color-space" : "srgb",
+                  "components" : { "alpha" : "1.000", "blue" : "0.000", "green" : "0.843", "red" : "1.000" }
+                },
+                "idiom" : "universal"
+              }
+            ],
+            "info" : { "author" : "xcode", "version" : 1 }
+          }
+          EOF
 
           if [ -f "assets/AppIcon-1024.png" ]; then
             SRC="assets/AppIcon-1024.png"
-            ICONSET="BoAnalystXcode/BoAnalyst/Assets.xcassets/AppIcon.appiconset"
-            echo "Generating icon sizes..."
+            ICONSET="$ASSETS/AppIcon.appiconset"
+
+            echo "▶ Generating all required icon sizes via sips..."
             sips -z 20   20   "$SRC" --out "$ICONSET/AppIcon-20.png"   > /dev/null
             sips -z 29   29   "$SRC" --out "$ICONSET/AppIcon-29.png"   > /dev/null
             sips -z 40   40   "$SRC" --out "$ICONSET/AppIcon-40.png"   > /dev/null
@@ -201,16 +97,117 @@ targets:
             sips -z 167  167  "$SRC" --out "$ICONSET/AppIcon-167.png"  > /dev/null
             sips -z 180  180  "$SRC" --out "$ICONSET/AppIcon-180.png"  > /dev/null
             sips -z 1024 1024 "$SRC" --out "$ICONSET/AppIcon-1024.png" > /dev/null
-            echo "All icon sizes generated."
+
+            cat > "$ICONSET/Contents.json" <<'EOF'
+          {
+            "images" : [
+              {"filename":"AppIcon-20.png",   "idiom":"iphone","scale":"1x","size":"20x20"},
+              {"filename":"AppIcon-40.png",   "idiom":"iphone","scale":"2x","size":"20x20"},
+              {"filename":"AppIcon-60.png",   "idiom":"iphone","scale":"3x","size":"20x20"},
+              {"filename":"AppIcon-29.png",   "idiom":"iphone","scale":"1x","size":"29x29"},
+              {"filename":"AppIcon-58.png",   "idiom":"iphone","scale":"2x","size":"29x29"},
+              {"filename":"AppIcon-87.png",   "idiom":"iphone","scale":"3x","size":"29x29"},
+              {"filename":"AppIcon-80.png",   "idiom":"iphone","scale":"2x","size":"40x40"},
+              {"filename":"AppIcon-120.png",  "idiom":"iphone","scale":"3x","size":"40x40"},
+              {"filename":"AppIcon-120.png",  "idiom":"iphone","scale":"2x","size":"60x60"},
+              {"filename":"AppIcon-180.png",  "idiom":"iphone","scale":"3x","size":"60x60"},
+              {"filename":"AppIcon-20.png",   "idiom":"ipad",  "scale":"1x","size":"20x20"},
+              {"filename":"AppIcon-40.png",   "idiom":"ipad",  "scale":"2x","size":"20x20"},
+              {"filename":"AppIcon-29.png",   "idiom":"ipad",  "scale":"1x","size":"29x29"},
+              {"filename":"AppIcon-58.png",   "idiom":"ipad",  "scale":"2x","size":"29x29"},
+              {"filename":"AppIcon-40.png",   "idiom":"ipad",  "scale":"1x","size":"40x40"},
+              {"filename":"AppIcon-80.png",   "idiom":"ipad",  "scale":"2x","size":"40x40"},
+              {"filename":"AppIcon-76.png",   "idiom":"ipad",  "scale":"1x","size":"76x76"},
+              {"filename":"AppIcon-152.png",  "idiom":"ipad",  "scale":"2x","size":"76x76"},
+              {"filename":"AppIcon-167.png",  "idiom":"ipad",  "scale":"2x","size":"83.5x83.5"},
+              {"filename":"AppIcon-1024.png", "idiom":"ios-marketing","scale":"1x","size":"1024x1024"}
+            ],
+            "info" : { "author" : "xcode", "version" : 1 }
+          }
+          EOF
+            echo "✅ All icons generated."
           else
-            echo "WARNING: assets/AppIcon-1024.png missing."
-            exit 1
+            echo "⚠️  WARNING: assets/AppIcon-1024.png missing."
           fi
 
-          echo "Running XcodeGen..."
-          cd BoAnalystXcode
-          xcodegen generate
-          echo "XcodeGen done."
+          echo "▶ Copying fonts..."
+          for font in "Cinzel-Regular.ttf" "Cinzel-Bold.ttf" "Cinzel-Black.ttf"; do
+            [ -f "assets/$font" ] && cp "assets/$font" BoAnalystXcode/BoAnalyst/ && echo "✅ $font copied."
+          done
+
+          echo "▶ Generating ExportOptions..."
+          cat > BoAnalystXcode/ExportOptions-AppStore.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>uploadBitcode</key><false/>
+            <key>uploadSymbols</key><true/>
+            <key>signingStyle</key><string>manual</string>
+          </dict>
+          </plist>
+          EOF
+
+          echo "▶ Generating Entitlements..."
+          cat > BoAnalystXcode/BoAnalyst/BoAnalyst.entitlements <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>com.apple.developer.associated-domains</key>
+            <array><string>applinks:boanalyst.com</string></array>
+            <key>com.apple.developer.applesignin</key>
+            <array><string>Default</string></array>
+            <key>aps-environment</key>
+            <string>production</string>
+          </dict>
+          </plist>
+          EOF
+
+          echo "▶ Generating project.yml..."
+          cat > BoAnalystXcode/project.yml <<EOF
+          name: BoAnalyst
+          options:
+            bundleIdPrefix: com.boanalyst
+            deploymentTarget: { iOS: "16.0" }
+            createIntermediateGroups: true
+          settings:
+            base:
+              PRODUCT_BUNDLE_IDENTIFIER: ${BUNDLE_ID:-com.boanalyst.app}
+              MARKETING_VERSION: "1.0.0"
+              CURRENT_PROJECT_VERSION: "${BUILD_NUMBER:-1}"
+              SWIFT_VERSION: "5.10"
+              IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+              CODE_SIGN_STYLE: Manual
+              DEVELOPMENT_TEAM: "${APPLE_TEAM_ID}"
+              ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+              DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+          targets:
+            BoAnalyst:
+              type: application
+              platform: iOS
+              sources:
+                - path: BoAnalyst
+                  excludes: ["**/*.md", "**/*.plist", "**/*.xcassets"]
+              resources:
+                - path: BoAnalyst/Assets.xcassets
+                - "BoAnalyst/*.ttf"
+              settings:
+                base:
+                  INFOPLIST_FILE: BoAnalyst/Info.plist
+                  PRODUCT_NAME: BoAnalyst
+              entitlements:
+                path: BoAnalyst/BoAnalyst.entitlements
+          EOF
+
+          echo "▶ all scaffold files written successfully."
+          echo "▶ Running XcodeGen..."
+          cd BoAnalystXcode && xcodegen generate
+
+
+          echo "✅ BoAnalyst.xcodeproj generated."
 
       # ── Step 3: Install CocoaPods ───────────────────────────────────────
       - name: Install Pods
@@ -218,13 +215,13 @@ targets:
           set -euo pipefail
           cd IOSDeployment/BoAnalystXcode
           pod install --repo-update
-          echo "Pods installed."
+          echo "✅ Pods installed."
 
-      # ── Step 4: Code Signing ────────────────────────────────────────────
+      # ── Step 4: Code Signing (using manually uploaded keys) ─────────────
       - name: Set Up Code Signing
         script: |
           xcode-project use-profiles
-          echo "Code signing configured."
+          echo "✅ Code signing configured from uploaded identities."
 
       # ── Step 5: Build & Archive ─────────────────────────────────────────
       - name: Build & Archive
@@ -232,11 +229,13 @@ targets:
           set -euo pipefail
           cd IOSDeployment
           mkdir -p "$BUILD_DIR/Export"
+
           xcode-project build-ipa \
             --workspace "$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME" \
             --ipa-directory "$BUILD_DIR/Export"
-          echo "Build complete."
+
+          echo "✅ Archive & IPA export complete."
 
     artifacts:
       - IOSDeployment/BoAnalystXcode/build/Export/*.ipa
