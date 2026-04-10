@@ -204,7 +204,7 @@ struct RegisterView: View {
                 let tokenData = cred.identityToken,
                 let identityToken = String(data: tokenData, encoding: .utf8)
             else {
-                authViewModel.uiState.error = "Sign in with Apple failed. Please try again."
+                authViewModel.uiState.error = "Native Data Missing: Identity token could not be parsed."
                 return
             }
             let firstName = cred.fullName?.givenName ?? ""
@@ -222,7 +222,7 @@ struct RegisterView: View {
         case .failure(let error):
             let nsErr = error as NSError
             if nsErr.code != ASAuthorizationError.canceled.rawValue {
-                authViewModel.uiState.error = "Sign in with Apple failed. Please try again."
+                authViewModel.uiState.error = "Native Apple Block [\(nsErr.code)]: \(error.localizedDescription)"
             }
         }
     }

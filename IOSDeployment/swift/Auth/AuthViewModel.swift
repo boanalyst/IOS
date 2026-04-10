@@ -196,10 +196,10 @@ final class AuthViewModel: ObservableObject {
                 }
                 uiState.isAuthenticated = true
             } else {
-                uiState.error = (response["message"] as? String) ?? "Sign in with Apple failed. Please try again."
+                uiState.error = "Backend Parsed OK but JSON was wrong: " + ((response["message"] as? String) ?? "No message")
             }
         } catch {
-            uiState.error = "Unable to connect. Please check your internet and try again."
+            uiState.error = "Catch block Network Error: \(error.localizedDescription)"
         }
         uiState.isLoading = false
     }
