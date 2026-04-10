@@ -38,6 +38,8 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/user/profile", method: .PUT, body: body)
     }
 
+    static let deleteAccount = APIEndpoint(path: "/api/auth/account", method: .DELETE)
+
     // ── Flock Feed ────────────────────────────────────────────────────────────
 
     static func getFlockPosts(offset: Int = 0, limit: Int = 20, topic: String? = nil) -> APIEndpoint {
