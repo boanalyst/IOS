@@ -1,122 +1,109 @@
 // SubscriptionView.swift
-// Netflix Strategy — No Apple IAP / StoreKit.
-// When a user needs to subscribe, we show a beautiful screen explaining
-// Pro benefits and redirect them to boanalyst.com/#subscription in Safari.
-//
-// ✅ This is 100% compliant with Apple's App Store guidelines.
-//    Apple (post-2024) permits apps to link out to a website for purchases.
-//    Reference: App Store Review Guidelines 3.1.3(a) — "Reader" entitlement.
+// Apple In-App Purchase UI using StoreKit 2
+// Plans:
+//   Pro Monthly       — com.boanalyst.app.pro.monthly       ₹399/month
+//   Pro Yearly        — com.boanalyst.app.pro.yearly        ₹3,999/year
+//   Distributors Hub  — com.boanalyst.app.distributor.yearly ₹24,999/year
 
 import SwiftUI
+import StoreKit
 
-// MARK: - Subscription Web URL
+// MARK: - Plan display metadata (mirrors IAPProduct enum)
 
-private let subscriptionURL = URL(string: "https://boanalyst.com/#subscription")!
-
-// MARK: - Plan Model
-
-private struct Plan: Identifiable {
-    let id = UUID()
-    let name: String
+private struct PlanInfo {
+    let productID: IAPProduct
     let badge: String
-    let price: String
-    let period: String
-    let description: String
-    let features: [String]
     let isPopular: Bool
+    let savings: String?
+    let features: [String]
 }
 
-private let plans: [Plan] = [
-    Plan(
-        name: "Pro Monthly",
+private let planInfos: [PlanInfo] = [
+    PlanInfo(
+        productID: .proMonthly,
         badge: "STARTER",
-        price: "₹399",
-        period: "per month",
-        description: "Essential intelligence for fans",
+        isPopular: false,
+        savings: nil,
         features: [
             "Advanced Movie Analytics",
             "Inside Talks Exclusive Content",
             "Priority Support",
             "Early Access To New Features"
-        ],
-        isPopular: false
+        ]
     ),
-    Plan(
-        name: "Pro Yearly",
+    PlanInfo(
+        productID: .proYearly,
         badge: "⭐ BEST VALUE",
-        price: "₹999",
-        period: "per year",
-        description: "Save ~80% vs monthly",
+        isPopular: true,
+        savings: "Save ~77% vs monthly",
         features: [
             "Advanced Movie Analytics",
-            "Inside Talk (Prior to 4 Days)",
+            "Inside Talk — 4 Days Early",
+            "Ad-Free Experience",
             "Priority Support",
-            "Early Access To New Features",
-            "Ad Free Experience"
-        ],
-        isPopular: true
+            "Early Access To New Features"
+        ]
     ),
-    Plan(
-        name: "B2B Hub",
+    PlanInfo(
+        productID: .distributorYearly,
         badge: "🎬 DISTRIBUTORS",
-        price: "₹24,999",
-        period: "per year",
-        description: "Trade professionals & distributors",
+        isPopular: false,
+        savings: "Trade professionals only",
         features: [
             "🎬 Early Inside Updates on Movie Projects",
             "📊 Box Office Predictions & Analysis",
             "💰 Investment Recommendations",
-            "🔮 Which Movies to Buy/Distribute",
+            "🔮 Which Movies to Buy / Distribute",
             "🎯 Exclusive Market Insights",
             "🤝 Direct Access to Industry Contacts",
             "🌟 Priority Support & Consultation",
-            "⚡ Scrap Inside Talk (Prior to a Month)"
-        ],
-        isPopular: false
-    ),
+            "⚡ Inside Talk — 1 Month Early Access"
+        ]
+    )
 ]
 
 // MARK: - SubscriptionView
 
 struct SubscriptionView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedPlan = 0
-    @State private var didTapSubscribe = false
+    @EnvironmentObject private var iapManager: IAPManager
+
+    @State private var selectedIndex: Int = 1   // Default to "Best Value" (yearly)
+    @State private var showSuccessBanner = false
+    @State private var purchasedPlanName = ""
+
+    private var selectedPlan: PlanInfo { planInfos[selectedIndex] }
+
+    private func storeProduct(for plan: PlanInfo) -> Product? {
+        iapManager.products.first { $0.id == plan.productID.rawValue }
+    }
 
     var body: some View {
         ZStack {
-            // Background gradient
             LinearGradient(
                 colors: [Color(hex: "0A0A0A"), Color(hex: "0F0D00"), Color(hex: "0A0A0A")],
-                startPoint: .top,
-                endPoint: .bottom
+                startPoint: .top, endPoint: .bottom
             )
             .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 0) {
+                    headerSection.padding(.top, 72)
 
-                    // ── Header ──────────────────────────────────────────────
-                    headerSection
-
-                    // ── Plan Selector ───────────────────────────────────────
-                    planSelector
+                    planTabs
                         .padding(.top, 28)
 
-                    // ── Selected Plan Features ──────────────────────────────
-                    featuresCard(for: plans[selectedPlan])
+                    selectedPlanCard
                         .padding(.horizontal, 20)
                         .padding(.top, 16)
 
-                    // ── CTA ─────────────────────────────────────────────────
                     ctaSection
-                        .padding(.top, 24)
                         .padding(.horizontal, 20)
+                        .padding(.top, 24)
 
-                    // ── Fine Print (Apple compliance) ───────────────────────
-                    finePrint
-                        .padding(.top, 20)
+                    legalSection
                         .padding(.horizontal, 24)
+                        .padding(.top, 20)
 
                     Spacer(minLength: 40)
                 }
@@ -139,17 +126,30 @@ struct SubscriptionView: View {
                 }
                 Spacer()
             }
+
+            if showSuccessBanner {
+                successOverlay
+                    .transition(.scale.combined(with: .opacity))
+            }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .task { await iapManager.loadProducts() }
+        .onChange(of: iapManager.isProActive) { isPro in
+            if isPro {
+                purchasedPlanName = selectedPlan.productID.displayName
+                withAnimation(.spring(response: 0.4)) { showSuccessBanner = true }
+                Task {
+                    try? await Task.sleep(nanoseconds: 2_500_000_000)
+                    dismiss()
+                }
+            }
+        }
     }
 
     // MARK: - Header
 
     private var headerSection: some View {
         VStack(spacing: 12) {
-            Spacer(minLength: 60)
-
-            // Gold crown icon
             ZStack {
                 Circle()
                     .fill(AppTheme.goldPrimary.opacity(0.1))
@@ -177,22 +177,20 @@ struct SubscriptionView: View {
         .padding(.bottom, 8)
     }
 
-    // MARK: - Plan Selector Tabs
+    // MARK: - Plan Tabs
 
-    private var planSelector: some View {
+    private var planTabs: some View {
         HStack(spacing: 0) {
-            ForEach(plans.indices, id: \.self) { idx in
+            ForEach(planInfos.indices, id: \.self) { idx in
                 Button {
-                    withAnimation(.spring(response: 0.3)) {
-                        selectedPlan = idx
-                    }
+                    withAnimation(.spring(response: 0.3)) { selectedIndex = idx }
                 } label: {
                     VStack(spacing: 4) {
-                        Text(plans[idx].badge)
+                        Text(planInfos[idx].badge)
                             .font(.system(size: 11, weight: .bold))
                             .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                        if plans[idx].isPopular {
+                            .minimumScaleFactor(0.6)
+                        if planInfos[idx].isPopular {
                             Text("POPULAR")
                                 .font(.system(size: 9, weight: .bold))
                                 .foregroundColor(.black)
@@ -204,14 +202,10 @@ struct SubscriptionView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .foregroundColor(selectedPlan == idx ? .black : AppTheme.textSecondary)
-                    .background(
-                        ZStack {
-                            if selectedPlan == idx {
-                                AppTheme.goldGradient
-                            }
-                        }
-                    )
+                    .foregroundColor(selectedIndex == idx ? .black : AppTheme.textSecondary)
+                    .background(ZStack {
+                        if selectedIndex == idx { AppTheme.goldGradient }
+                    })
                 }
             }
         }
@@ -224,34 +218,42 @@ struct SubscriptionView: View {
         .padding(.horizontal, 20)
     }
 
-    // MARK: - Features Card
+    // MARK: - Selected Plan Card
 
-    @ViewBuilder
-    private func featuresCard(for plan: Plan) -> some View {
+    private var selectedPlanCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Price header
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(plan.price)
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(AppTheme.textPrimary)
-                    Text(plan.period)
+                    // Live App Store price if loaded, fallback to hardcoded
+                    if let product = storeProduct(for: selectedPlan) {
+                        Text(product.displayPrice)
+                            .font(.system(size: 26, weight: .bold))
+                            .foregroundColor(AppTheme.textPrimary)
+                    } else {
+                        Text(selectedPlan.productID.fallbackPrice)
+                            .font(.system(size: 26, weight: .bold))
+                            .foregroundColor(AppTheme.textPrimary)
+                    }
+                    Text(selectedPlan.productID.period)
                         .font(.system(size: 12))
                         .foregroundColor(AppTheme.textMuted)
                 }
                 Spacer()
-                Text(plan.description)
-                    .font(.system(size: 11))
-                    .foregroundColor(AppTheme.textSecondary)
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: 140)
+                if let savings = selectedPlan.savings {
+                    Text(savings)
+                        .font(.system(size: 11))
+                        .foregroundColor(AppTheme.textSecondary)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: 130)
+                }
             }
 
             Divider().background(AppTheme.goldPrimary.opacity(0.15))
 
             // Feature list
             VStack(alignment: .leading, spacing: 10) {
-                ForEach(plan.features, id: \.self) { feature in
+                ForEach(selectedPlan.features, id: \.self) { feature in
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 14))
@@ -282,64 +284,110 @@ struct SubscriptionView: View {
     }
 
     // MARK: - CTA Section
-    // Strict Netflix/Reader Strategy — 100% App Store compliant.
-    // Apple (post-2024 consent decree) permits linking out to web for purchases.
-    // We inform the user HOW to subscribe; no in-app IAP / StoreKit needed.
+
     private var ctaSection: some View {
-        VStack(spacing: 16) {
-            // Info card explaining where to subscribe
-            VStack(spacing: 8) {
-                Image(systemName: "safari.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(AppTheme.goldGradient)
-                Text("How to Subscribe")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(AppTheme.textPrimary)
-                Text("To upgrade to a Pro or Distributor account, please visit **boanalyst.com** in your web browser.")
-                    .font(.system(size: 14))
-                    .foregroundColor(AppTheme.textSecondary)
+        VStack(spacing: 14) {
+            if let error = iapManager.errorMessage {
+                Text(error)
+                    .font(.system(size: 13))
+                    .foregroundColor(AppTheme.error)
                     .multilineTextAlignment(.center)
-                    .lineSpacing(4)
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity)
-            .background(AppTheme.surfaceVariant)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(AppTheme.goldPrimary.opacity(0.3), lineWidth: 1)
-            )
-
-            // Primary CTA — opens boanalyst.com in Safari
-            GoldButton(title: "Go to boanalyst.com") {
-                UIApplication.shared.open(subscriptionURL)
+                    .padding(.horizontal, 8)
             }
 
-            // Secondary CTA — dismiss
-            Button { dismiss() } label: {
-                Text("Maybe Later")
-                    .font(.system(size: 14))
+            // Primary subscribe button
+            Button {
+                Task {
+                    guard let product = storeProduct(for: selectedPlan) else {
+                        await iapManager.loadProducts()
+                        return
+                    }
+                    _ = await iapManager.purchase(product)
+                }
+            } label: {
+                ZStack {
+                    if iapManager.isPurchasing {
+                        ProgressView().tint(.black)
+                    } else {
+                        HStack(spacing: 8) {
+                            Image(systemName: selectedPlan.productID.isDistributorPlan ? "film.stack.fill" : "crown.fill")
+                                .font(.system(size: 14))
+                            if let product = storeProduct(for: selectedPlan) {
+                                Text("Subscribe · \(product.displayPrice)")
+                                    .font(.system(size: 15, weight: .semibold))
+                            } else {
+                                Text("Subscribe · \(selectedPlan.productID.fallbackPrice)")
+                                    .font(.system(size: 15, weight: .semibold))
+                            }
+                        }
+                    }
+                }
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .background(iapManager.isPurchasing
+                    ? AppTheme.goldPrimary.opacity(0.7)
+                    : AppTheme.goldGradient
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .shadow(color: AppTheme.goldPrimary.opacity(0.3), radius: 12, x: 0, y: 6)
+            }
+            .disabled(iapManager.isPurchasing)
+
+            // Restore purchases
+            Button {
+                Task { await iapManager.restorePurchases() }
+            } label: {
+                Text("Restore Purchases")
+                    .font(.system(size: 13))
                     .foregroundColor(AppTheme.textMuted)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 44)
+                    .frame(height: 40)
             }
+            .disabled(iapManager.isPurchasing)
         }
     }
 
-    // MARK: - Fine Print (Apple compliance text)
+    // MARK: - Legal Fine Print (Apple REQUIRED)
 
-    private var finePrint: some View {
-        VStack(spacing: 6) {
-            Text("Subscription management is handled exclusively on boanalyst.com")
-                .font(.system(size: 11))
-                .foregroundColor(AppTheme.textMuted)
-                .multilineTextAlignment(.center)
+    private var legalSection: some View {
+        Text("Subscription automatically renews unless cancelled at least 24 hours before renewal. Manage or cancel anytime in iPhone Settings → Apple ID → Subscriptions.")
+            .font(.system(size: 10))
+            .foregroundColor(AppTheme.textMuted)
+            .multilineTextAlignment(.center)
+            .lineSpacing(3)
+    }
+
+    // MARK: - Success Overlay
+
+    private var successOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.6).ignoresSafeArea()
+            VStack(spacing: 16) {
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(AppTheme.goldGradient)
+                Text("Welcome to \(purchasedPlanName)!")
+                    .font(.custom("Cinzel-Regular", size: 22))
+                    .foregroundStyle(AppTheme.goldGradient)
+                    .multilineTextAlignment(.center)
+                Text("Your subscription is now active.")
+                    .font(.system(size: 14))
+                    .foregroundColor(AppTheme.textSecondary)
+            }
+            .padding(36)
+            .background(AppTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(AppTheme.goldPrimary.opacity(0.4), lineWidth: 1)
+            )
+            .padding(.horizontal, 32)
         }
     }
 }
 
-// MARK: - Locked Content Paywall Overlay
-// Use this as a sheet or overlay anywhere a Pro feature is tapped
+// MARK: - Locked Content Overlay
 
 struct LockedContentOverlay: View {
     let featureName: String
@@ -347,10 +395,7 @@ struct LockedContentOverlay: View {
 
     var body: some View {
         ZStack {
-            // Frosted overlay
-            Color.black.opacity(0.7)
-                .ignoresSafeArea()
-                .blur(radius: 0)
+            Color.black.opacity(0.7).ignoresSafeArea()
 
             VStack(spacing: 20) {
                 Image(systemName: "lock.fill")
@@ -361,7 +406,7 @@ struct LockedContentOverlay: View {
                     .font(.custom("Cinzel-Regular", size: 20))
                     .foregroundStyle(AppTheme.goldGradient)
 
-                Text("\(featureName) is available to Pro members. Visit boanalyst.com to upgrade your account.")
+                Text("\(featureName) is available to Pro members.")
                     .font(.system(size: 14))
                     .foregroundColor(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
@@ -384,4 +429,5 @@ struct LockedContentOverlay: View {
 
 #Preview {
     SubscriptionView()
+        .environmentObject(IAPManager.shared)
 }
