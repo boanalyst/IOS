@@ -82,12 +82,23 @@ struct SubscriptionView: View {
     }
 
     private var isCurrentPlanActive: Bool {
+        // Hybrid check: backend is source of truth, but StoreKit must also be honored
+        // per Apple Review Guideline 3.1.1 (must honor active IAP subscriptions).
+        // If StoreKit says active but backend doesn't, trigger a sync so backend catches up.
         let backendPro = authVM.currentUser?.isPro ?? false
         let backendDistributor = authVM.currentUser?.isDistributor ?? false
+        let storekitPro = iapManager.isProActive
+        let storekitDistributor = iapManager.isDistributorActive
+
+        // If StoreKit says active but backend doesn't, sync to backend
+        if (storekitPro && !backendPro) || (storekitDistributor && !backendDistributor) {
+            Task { await iapManager.refreshSubscriptionStatus() }
+        }
+
         if selectedPlan.productID.isDistributorPlan {
-            return backendDistributor || iapManager.isDistributorActive
+            return backendDistributor || storekitDistributor
         } else {
-            return backendPro || iapManager.isProActive || backendDistributor || iapManager.isDistributorActive
+            return backendPro || storekitPro || backendDistributor || storekitDistributor
         }
     }
 
