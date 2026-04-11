@@ -147,7 +147,7 @@ final class IAPManager: ObservableObject {
             @unknown default:
                 return .cancelled
             }
-        } catch StoreError.userCancelled {
+        } catch StoreKitError.userCancelled {
             return .cancelled
         } catch {
             self.errorMessage = "Purchase failed. Please try again."

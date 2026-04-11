@@ -326,8 +326,8 @@ struct SubscriptionView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
                 .background(iapManager.isPurchasing
-                    ? AppTheme.goldPrimary.opacity(0.7)
-                    : AppTheme.goldGradient
+                    ? AnyShapeStyle(AppTheme.goldPrimary.opacity(0.7))
+                    : AnyShapeStyle(AppTheme.goldGradient)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .shadow(color: AppTheme.goldPrimary.opacity(0.3), radius: 12, x: 0, y: 6)
