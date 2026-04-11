@@ -87,7 +87,6 @@ struct MainTabView: View {
     @EnvironmentObject private var iapManager: IAPManager
     @StateObject private var flockVM = FlockViewModel()
 
-    @State private var showSubscription = false
     @State private var selectedTab = 0
 
     // Merges Apple IAP entitlements + backend user flags
@@ -101,7 +100,7 @@ struct MainTabView: View {
 
             // ── Tab 1: Home ────────────────────────────────────
             NavigationStack {
-                HomeView(onSubscribeRequired: { showSubscription = true })
+                HomeView(onSubscribeRequired: { selectedTab = 4 })
             }
             .navigationBarHidden(true)
             .tabItem { Label("Home", systemImage: "house.fill") }
@@ -118,7 +117,7 @@ struct MainTabView: View {
 
             // ── Tab 3: Inside Talk ─────────────────────────────────────────
             NavigationStack {
-                InsideTalkView(onSubscribeRequired: { showSubscription = true })
+                InsideTalkView(onSubscribeRequired: { selectedTab = 4 })
             }
             .tabItem { Label("Inside Talk", systemImage: "eye.fill") }
             .tag(2)
@@ -127,32 +126,34 @@ struct MainTabView: View {
             NavigationStack {
                 DistributorsHubView(
                     isUserDistributor: isDistributor,
-                    onSubscribeRequired: { showSubscription = true }
+                    onSubscribeRequired: { selectedTab = 4 }
                 )
             }
             .tabItem { Label("Hub", systemImage: "briefcase.fill") }
             .tag(3)
 
-            // ── Tab 5: Profile ────────────────────────────────────────────
+            // ── Tab 5: Subscription ────────────────────────────────────────
+            NavigationStack {
+                SubscriptionView()
+            }
+            .tabItem { Label("Subscribe", systemImage: "star.fill") }
+            .tag(4)
+
+            // ── Tab 6: Profile ────────────────────────────────────────────
             // Pass isAdmin so admin can see admin controls in Profile
             NavigationStack {
                 ProfileView(
-                    onSubscribeRequired: { showSubscription = true },
+                    onSubscribeRequired: { selectedTab = 4 },
                     isDistributor: isDistributor,
                     isPro: isPro,
                     isAdmin: isAdmin
                 )
             }
             .tabItem { Label("Profile", systemImage: "person.fill") }
-            .tag(4)
+            .tag(5)
         }
         .accentColor(AppTheme.goldPrimary)
         .environmentObject(flockVM)
-        // Subscription sheet — Apple IAP via StoreKit 2
-        .sheet(isPresented: $showSubscription) {
-            SubscriptionView()
-                .environmentObject(iapManager)
-        }
     }
 }
 
