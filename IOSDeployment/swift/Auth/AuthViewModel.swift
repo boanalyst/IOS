@@ -23,6 +23,8 @@ final class AuthViewModel: ObservableObject {
     var isAuthenticated: Bool { uiState.isAuthenticated }
     var currentUser: User? { uiState.user }
 
+    @Published var showProfileSheet = false
+
     private let api = APIClient.shared
     private let keychain = KeychainManager.shared
 
@@ -77,6 +79,7 @@ final class AuthViewModel: ObservableObject {
                     uiState.user = user
                 }
                 uiState.isAuthenticated = true
+                await IAPManager.shared.refreshSubscriptionStatus()
             } else {
                 let message = response["message"] as? String
                 uiState.error = message ?? "Invalid email or password. Please try again."
@@ -113,6 +116,7 @@ final class AuthViewModel: ObservableObject {
                     uiState.user = user
                 }
                 uiState.isAuthenticated = true
+                await IAPManager.shared.refreshSubscriptionStatus()
             } else {
                 let message = response["message"] as? String
                 uiState.error = message ?? "Registration failed. Please try again."
@@ -160,6 +164,7 @@ final class AuthViewModel: ObservableObject {
                     uiState.user = user
                 }
                 uiState.isAuthenticated = true
+                await IAPManager.shared.refreshSubscriptionStatus()
             } else {
                 keychain.deleteToken()
                 uiState.isAuthenticated = false
@@ -195,6 +200,7 @@ final class AuthViewModel: ObservableObject {
                     uiState.user = user
                 }
                 uiState.isAuthenticated = true
+                await IAPManager.shared.refreshSubscriptionStatus()
             } else {
                 uiState.error = "Backend Parsed OK but JSON was wrong: " + ((response["message"] as? String) ?? "No message")
             }
