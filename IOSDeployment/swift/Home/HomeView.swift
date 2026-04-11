@@ -513,7 +513,7 @@ struct HomeHeroBanner: View {
     
     // Instead of navigation link here, we just match Android's UI 
     // and rely on the profile tab for access, or we can use a callback.
-    // For now we just display the header.
+    @EnvironmentObject private var authViewModel: AuthViewModel
     
     var body: some View {
         HStack(alignment: .center) {
@@ -533,6 +533,15 @@ struct HomeHeroBanner: View {
                     .background(AppTheme.goldGradient)
                     .clipShape(Capsule())
             }
+
+            Button {
+                authViewModel.showProfileSheet = true
+            } label: {
+                Image(systemName: "person.crop.circle")
+                    .font(.system(size: 26))
+                    .foregroundColor(AppTheme.goldPrimary)
+            }
+            .padding(.leading, 8)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
