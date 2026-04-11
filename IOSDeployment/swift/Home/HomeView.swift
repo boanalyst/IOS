@@ -94,9 +94,7 @@ struct HomeView: View {
                                 ExclusiveContentCard(
                                     exclusive: exclusive,
                                     onUnlock: {
-                                        if let url = URL(string: "https://boanalyst.com/exclusive.html") {
-                                            UIApplication.shared.open(url)
-                                        }
+                                        onSubscribeRequired()
                                     }
                                 )
                                 .padding(.horizontal, 20)
@@ -460,9 +458,7 @@ struct ExclusiveContentCard: View {
             }
 
             Button(action: onUnlock) {
-                let currency = exclusive.currency ?? "₹"
-                let price = Int(exclusive.price)
-                Text("Unlock for \(currency) \(price)")
+                Text("Unlock with Pro · ₹499/mo")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
