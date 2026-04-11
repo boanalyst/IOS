@@ -14,6 +14,7 @@ class ThemeManager: ObservableObject {
 struct BoAnalystApp: App {
     @StateObject private var authViewModel = AuthViewModel()
     @StateObject private var themeManager = ThemeManager()
+    @StateObject private var iapManager = IAPManager.shared
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -21,17 +22,19 @@ struct BoAnalystApp: App {
             ContentView()
                 .environmentObject(authViewModel)
                 .environmentObject(themeManager)
+                .environmentObject(iapManager)
                 .preferredColorScheme(themeManager.isDarkMode ? .dark : .light)
                 .onOpenURL { url in
                     handleDeepLink(url: url)
                 }
         }
-        // CRITICAL: Refresh user when app returns to foreground.
-        // This ensures isPro / isDistributor are up-to-date after a
-        // user subscribes on boanalyst.com and returns to the app.
+        // Refresh user + IAP status when app returns to foreground
         .onChange(of: scenePhase) { phase in
             if phase == .active, authViewModel.isAuthenticated {
-                Task { await authViewModel.refreshUser() }
+                Task {
+                    await authViewModel.refreshUser()
+                    await iapManager.refreshSubscriptionStatus()
+                }
             }
         }
     }
@@ -57,6 +60,7 @@ struct BoAnalystApp: App {
 
 struct ContentView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var iapManager: IAPManager
 
     var body: some View {
         Group {
@@ -70,26 +74,26 @@ struct ContentView: View {
         }
         .task {
             await authViewModel.checkSavedToken()
+            // Refresh IAP entitlements from Apple on launch
+            await iapManager.refreshSubscriptionStatus()
         }
     }
 }
 
 // MARK: - MainTabView
-// Netflix/Reader strategy: NO StoreKit, NO Apple IAP.
-// showSubscription opens SubscriptionView which redirects to boanalyst.com in Safari.
 
 struct MainTabView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
+    @EnvironmentObject private var iapManager: IAPManager
     @StateObject private var flockVM = FlockViewModel()
 
     @State private var showSubscription = false
     @State private var selectedTab = 0
 
-    // IMPORTANT: These are computed from the LIVE currentUser object so they
-    // update automatically after refreshUser() is called on foreground return.
-    // Bug #1 fix: was using stale closure-captured values from init time.
-    private var isDistributor: Bool { authViewModel.currentUser?.isDistributor ?? false }
-    private var isPro: Bool         { authViewModel.currentUser?.isPro ?? false }
+    // Merges Apple IAP entitlements + backend user flags
+    // so both Apple IAP subscribers and legacy web subscribers are recognised
+    private var isDistributor: Bool { iapManager.isDistributorActive || (authViewModel.currentUser?.isDistributor ?? false) }
+    private var isPro: Bool         { iapManager.isProActive || (authViewModel.currentUser?.isPro ?? false) || isDistributor }
     private var isAdmin: Bool       { authViewModel.currentUser?.isAdmin ?? false }
 
     var body: some View {
@@ -144,9 +148,10 @@ struct MainTabView: View {
         }
         .accentColor(AppTheme.goldPrimary)
         .environmentObject(flockVM)
-        // Subscription sheet — Netflix/Reader strategy: no IAP, links to boanalyst.com
+        // Subscription sheet — Apple IAP via StoreKit 2
         .sheet(isPresented: $showSubscription) {
             SubscriptionView()
+                .environmentObject(iapManager)
         }
     }
 }
