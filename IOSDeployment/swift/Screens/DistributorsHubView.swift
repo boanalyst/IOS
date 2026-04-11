@@ -159,6 +159,9 @@ struct DistributorsHubView: View {
                     .font(.custom("Cinzel-Regular", size: 13))
                     .foregroundStyle(AppTheme.goldGradient)
             }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { authViewModel.showProfileSheet = true } label: { Image(systemName: "person.crop.circle").font(.title3).foregroundColor(AppTheme.goldPrimary) }
+            }
         }
     }
 
