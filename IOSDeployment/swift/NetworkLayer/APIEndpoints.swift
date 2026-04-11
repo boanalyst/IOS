@@ -234,3 +234,4 @@ extension APIEndpoint {
         let body = try JSONSerialization.data(withJSONObject: payload)
         return APIEndpoint(path: "/api/subscription/verify-apple", method: .POST, body: body)
     }
+}
