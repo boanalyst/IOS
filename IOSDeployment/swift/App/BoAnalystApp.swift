@@ -139,21 +139,22 @@ struct MainTabView: View {
             .tabItem { Label("Subscribe", systemImage: "star.fill") }
             .tag(4)
 
-            // ── Tab 6: Profile ────────────────────────────────────────────
-            // Pass isAdmin so admin can see admin controls in Profile
+        }
+        .accentColor(AppTheme.goldPrimary)
+        .environmentObject(flockVM)
+        .sheet(isPresented: $authViewModel.showProfileSheet) {
             NavigationStack {
                 ProfileView(
-                    onSubscribeRequired: { selectedTab = 4 },
+                    onSubscribeRequired: {
+                        authViewModel.showProfileSheet = false
+                        selectedTab = 4
+                    },
                     isDistributor: isDistributor,
                     isPro: isPro,
                     isAdmin: isAdmin
                 )
             }
-            .tabItem { Label("Profile", systemImage: "person.fill") }
-            .tag(5)
         }
-        .accentColor(AppTheme.goldPrimary)
-        .environmentObject(flockVM)
     }
 }
 

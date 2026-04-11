@@ -557,6 +557,9 @@ struct FlockFeedView: View {
                     .font(.custom("Cinzel-Regular", size: 14))
                     .foregroundStyle(AppTheme.goldGradient)
             }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { authViewModel.showProfileSheet = true } label: { Image(systemName: "person.crop.circle").font(.title3).foregroundColor(AppTheme.goldPrimary) }
+            }
         }
         // ── Comment Bottom Sheet (Bug #4 fix: uses FlockCommentSheetContainer for live updates) ──
         .sheet(item: $activeCommentPostId) { postId in
@@ -803,6 +806,9 @@ struct InsideTalkView: View {
                 Text("INSIDE TALK")
                     .font(.custom("Cinzel-Regular", size: 14))
                     .foregroundStyle(AppTheme.goldGradient)
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { authViewModel.showProfileSheet = true } label: { Image(systemName: "person.crop.circle").font(.title3).foregroundColor(AppTheme.goldPrimary) }
             }
         }
         .overlay(alignment: .bottomTrailing) {
