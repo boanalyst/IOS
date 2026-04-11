@@ -67,15 +67,28 @@ private let planInfos: [PlanInfo] = [
 struct SubscriptionView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var iapManager: IAPManager
+    @EnvironmentObject private var authVM: AuthViewModel
 
     @State private var selectedIndex: Int = 1   // Default to "Best Value" (yearly)
     @State private var showSuccessBanner = false
     @State private var purchasedPlanName = ""
+    @State private var showAlert = false
+    @State private var alertMessage = ""
 
     private var selectedPlan: PlanInfo { planInfos[selectedIndex] }
 
     private func storeProduct(for plan: PlanInfo) -> Product? {
         iapManager.products.first { $0.id == plan.productID.rawValue }
+    }
+
+    private var isCurrentPlanActive: Bool {
+        let backendPro = authVM.currentUser?.isPro ?? false
+        let backendDistributor = authVM.currentUser?.isDistributor ?? false
+        if selectedPlan.productID.isDistributorPlan {
+            return backendDistributor || iapManager.isDistributorActive
+        } else {
+            return backendPro || iapManager.isProActive || backendDistributor || iapManager.isDistributorActive
+        }
     }
 
     var body: some View {
@@ -133,6 +146,9 @@ struct SubscriptionView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .alert(isPresented: $showAlert) {
+            Alert(title: Text("Notice"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+        }
         .task { await iapManager.loadProducts() }
         .onChange(of: iapManager.isProActive) { isPro in
             if isPro {
@@ -298,8 +314,13 @@ struct SubscriptionView: View {
             // Primary subscribe button
             Button {
                 Task {
+                    if isCurrentPlanActive { return }
                     guard let product = storeProduct(for: selectedPlan) else {
                         await iapManager.loadProducts()
+                        if storeProduct(for: selectedPlan) == nil {
+                            alertMessage = "In-App Purchases are currently unavailable. Ensure you have accepted the Paid Apps Agreement in App Store Connect."
+                            showAlert = true
+                        }
                         return
                     }
                     _ = await iapManager.purchase(product)
@@ -312,7 +333,10 @@ struct SubscriptionView: View {
                         HStack(spacing: 8) {
                             Image(systemName: selectedPlan.productID.isDistributorPlan ? "film.stack.fill" : "crown.fill")
                                 .font(.system(size: 14))
-                            if let product = storeProduct(for: selectedPlan) {
+                            if isCurrentPlanActive {
+                                Text("Current Plan Active")
+                                    .font(.system(size: 15, weight: .semibold))
+                            } else if let product = storeProduct(for: selectedPlan) {
                                 Text("Subscribe · \(product.displayPrice)")
                                     .font(.system(size: 15, weight: .semibold))
                             } else {
@@ -332,7 +356,7 @@ struct SubscriptionView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .shadow(color: AppTheme.goldPrimary.opacity(0.3), radius: 12, x: 0, y: 6)
             }
-            .disabled(iapManager.isPurchasing)
+            .disabled(iapManager.isPurchasing || isCurrentPlanActive)
 
             // Restore purchases
             Button {
