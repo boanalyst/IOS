@@ -210,27 +210,27 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/distributors/posts/\(id)/pin", method: .PUT, body: body)
     }
 
-    // ── Subscription / Razorpay ───────────────────────────────────────────────
-    // SECURITY NOTE: iOS uses the Netflix/Reader strategy — subscriptions are
-    // purchased on boanalyst.com via Safari, NOT via Apple IAP / StoreKit.
-    // These endpoints exist only for displaying pricing and for future web-view support.
+    // ── Apple In-App Purchase — Receipt Verification ──────────────────────────
+    // After a successful StoreKit 2 transaction, send the transaction details
+    // to our backend so it can mark the user as Pro in the database.
+    // The backend should verify the transaction ID with Apple's /verifyReceipt
+    // or App Store Server API, then update the user's subscription_plan.
 
-    static let getAppConfig = APIEndpoint(path: "/api/config", method: .GET)
-    static let getPricing = APIEndpoint(path: "/api/pricing", method: .GET)
-
-    // FIX: planId + total_count matches Android CreateSubscriptionRequest + server expectation
-    static func createSubscription(planId: String, totalCount: Int = 12, email: String? = nil) throws -> APIEndpoint {
-        let body = try JSONEncoder().encode(CreateSubscriptionRequest(planId: planId, totalCount: totalCount, email: email))
-        return APIEndpoint(path: "/api/create-subscription", method: .POST, body: body)
+    static func verifyAppleReceipt(
+        transactionId: String,
+        originalTransactionId: String,
+        productId: String,
+        expiresDate: Date?
+    ) throws -> APIEndpoint {
+        var payload: [String: Any] = [
+            "transactionId": transactionId,
+            "originalTransactionId": originalTransactionId,
+            "productId": productId,
+            "platform": "ios"
+        ]
+        if let expires = expiresDate {
+            payload["expiresDate"] = ISO8601DateFormatter().string(from: expires)
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        return APIEndpoint(path: "/api/subscription/verify-apple", method: .POST, body: body)
     }
-
-    static func createExclusiveOrder(amount: Int) throws -> APIEndpoint {
-        let body = try JSONEncoder().encode(ExclusiveOrderRequest(amount: amount, currency: "INR"))
-        return APIEndpoint(path: "/api/create-order", method: .POST, body: body)
-    }
-
-    static func verifyPayment(_ req: VerifyPaymentRequest) throws -> APIEndpoint {
-        let body = try JSONEncoder().encode(req)
-        return APIEndpoint(path: "/api/verify-payment", method: .POST, body: body)
-    }
-}
