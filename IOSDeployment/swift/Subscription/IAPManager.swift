@@ -182,10 +182,19 @@ final class IAPManager: ObservableObject {
             case .success(let verification):
                 switch verification {
                 case .verified(let transaction):
-                    // This is a direct user-initiated purchase — always notify backend
-                    // and record the transaction ID so the listener doesn't double-notify
-                    markTransactionNotified(String(transaction.id))
-                    await notifyBackend(transaction: transaction)
+                    // Notify backend FIRST with retry — only mark as notified after
+                    // confirmed success. This prevents the silent-failure bug where
+                    // a network blip marks the txn as notified but the backend never
+                    // actually received it, causing the plan to stay unchanged forever.
+                    let backendNotified = await notifyBackendWithRetry(transaction: transaction)
+                    if backendNotified {
+                        markTransactionNotified(String(transaction.id))
+                    } else {
+                        // Backend notification failed even after retries.
+                        // Do NOT mark notified — the listener may succeed on next launch.
+                        // Still finish the transaction with Apple (Apple requires this).
+                        print("⚠️ IAPManager: Backend notification failed for \(transaction.id) — will retry on next app launch via listener")
+                    }
                     await transaction.finish()
                     activeTransaction = transaction
                     updateProStatus(for: transaction)
@@ -263,14 +272,47 @@ final class IAPManager: ObservableObject {
 
     // MARK: - Notify Backend
 
-    private func notifyBackend(transaction: Transaction) async {
+    /// Sends the transaction to the backend and returns true if the backend
+    /// confirmed success (success: true). Returns false on network failure or
+    /// backend error so the caller can decide whether to mark the txn as notified.
+    @discardableResult
+    private func notifyBackend(transaction: Transaction) async -> Bool {
         guard let endpoint = try? APIEndpoint.verifyAppleReceipt(
             transactionId: String(transaction.id),
             originalTransactionId: String(transaction.originalID),
             productId: transaction.productID,
             expiresDate: transaction.expirationDate
-        ) else { return }
-        _ = try? await api.requestRaw(endpoint)
+        ) else { return false }
+        do {
+            let response = try await api.requestRaw(endpoint)
+            let success = response["success"] as? Bool ?? false
+            let ignored = response["ignored"] as? Bool ?? false
+            let duplicate = response["duplicate"] as? Bool ?? false
+            // ignored / duplicate are also considered "handled" — no retry needed
+            return success || ignored || duplicate
+        } catch {
+            print("🍎 IAPManager: notifyBackend error: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Retries notifyBackend up to 3 times with exponential back-off.
+    /// Returns true if any attempt succeeds.
+    private func notifyBackendWithRetry(transaction: Transaction, maxAttempts: Int = 3) async -> Bool {
+        for attempt in 1...maxAttempts {
+            let ok = await notifyBackend(transaction: transaction)
+            if ok {
+                print("🍎 IAPManager: Backend notified successfully on attempt \(attempt) for txn \(transaction.id)")
+                return true
+            }
+            if attempt < maxAttempts {
+                let delayNs = UInt64(attempt) * 2_000_000_000 // 2s, 4s back-off
+                print("🍎 IAPManager: Attempt \(attempt) failed — retrying in \(attempt * 2)s…")
+                try? await Task.sleep(nanoseconds: delayNs)
+            }
+        }
+        print("🍎 IAPManager: All \(maxAttempts) backend notification attempts failed for txn \(transaction.id)")
+        return false
     }
 
     // MARK: - Private: Update local Pro/Distributor state after purchase
@@ -371,8 +413,11 @@ final class IAPManager: ObservableObject {
 
                         if isCurrentEntitlement {
                             print("🍎 IAPManager: New current transaction \(txIdStr) for \(transaction.productID) — notifying backend")
-                            markTransactionNotified(txIdStr)
-                            await notifyBackend(transaction: transaction)
+                            let ok = await notifyBackendWithRetry(transaction: transaction)
+                            if ok {
+                                markTransactionNotified(txIdStr)
+                            }
+                            // If it failed, leave it un-marked so next listener fire retries
                         } else {
                             // This is a historical replay from the subscription group.
                             // Mark it as notified so we never process it later, but do NOT
