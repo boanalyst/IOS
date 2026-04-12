@@ -310,7 +310,10 @@ struct SubscriptionView: View {
                         }
                         return
                     }
-                    _ = await iapManager.purchase(product)
+                    let result = await iapManager.purchase(product)
+                    if case .success = result {
+                        await authVM.refreshUser()
+                    }
                 }
             } label: {
                 ZStack {
@@ -347,10 +350,13 @@ struct SubscriptionView: View {
 
             // Restore purchases
             Button {
-                Task { await iapManager.restorePurchases() }
+                Task { 
+                    await iapManager.restorePurchases() 
+                    await authVM.refreshUser()
+                }
             } label: {
                 Text("Restore Purchases")
-                    .font(.system(size: 13))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundColor(AppTheme.textMuted)
                     .frame(maxWidth: .infinity)
                     .frame(height: 40)
