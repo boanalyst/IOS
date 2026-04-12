@@ -292,16 +292,15 @@ struct SubscriptionView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .background(
-                        Group {
-                            if isActivePlan(selectedPlan) {
-                                LinearGradient(colors: [Color(hex: "2A7A2A"), Color(hex: "1A4A1A")],
-                                               startPoint: .leading, endPoint: .trailing)
-                            } else if iapManager.isPurchasing {
-                                AnyShapeStyle(goldA.opacity(0.6))
-                            } else {
-                                LinearGradient(colors: [goldA, goldB], startPoint: .leading, endPoint: .trailing)
-                            }
-                        }
+                        LinearGradient(
+                            colors: isActivePlan(selectedPlan)
+                                ? [Color(hex: "2A7A2A"), Color(hex: "1A4A1A")]
+                                : iapManager.isPurchasing
+                                    ? [goldA.opacity(0.55), goldA.opacity(0.4)]
+                                    : [goldA, goldB],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .shadow(color: isActivePlan(selectedPlan) ? Color.green.opacity(0.25) : goldA.opacity(0.28),
