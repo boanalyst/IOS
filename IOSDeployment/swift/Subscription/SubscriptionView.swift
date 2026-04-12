@@ -65,7 +65,6 @@ private let planInfos: [PlanInfo] = [
 // MARK: - SubscriptionView
 
 struct SubscriptionView: View {
-    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var iapManager: IAPManager
     @EnvironmentObject private var authVM: AuthViewModel
 
@@ -126,23 +125,7 @@ struct SubscriptionView: View {
                 }
             }
 
-            // Close button
-            VStack {
-                HStack {
-                    Spacer()
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(AppTheme.textMuted)
-                            .padding(10)
-                            .background(AppTheme.surfaceVariant)
-                            .clipShape(Circle())
-                    }
-                    .padding(.top, 56)
-                    .padding(.trailing, 20)
-                }
-                Spacer()
-            }
+            // Close button removed since this is a Tab and cannot be dismissed
 
             if showSuccessBanner {
                 successOverlay
@@ -160,7 +143,7 @@ struct SubscriptionView: View {
                 withAnimation(.spring(response: 0.4)) { showSuccessBanner = true }
                 Task {
                     try? await Task.sleep(nanoseconds: 2_500_000_000)
-                    dismiss()
+                    withAnimation(.spring(response: 0.4)) { showSuccessBanner = false }
                 }
             }
         }
