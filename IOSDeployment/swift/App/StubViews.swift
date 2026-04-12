@@ -557,6 +557,9 @@ struct FlockFeedView: View {
                     .font(.custom("Cinzel-Regular", size: 14))
                     .foregroundStyle(AppTheme.goldGradient)
             }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { authViewModel.showProfileSheet = true } label: { Image(systemName: "person.crop.circle").font(.title3).foregroundColor(AppTheme.goldPrimary) }
+            }
         }
         // ── Comment Bottom Sheet (Bug #4 fix: uses FlockCommentSheetContainer for live updates) ──
         .sheet(item: $activeCommentPostId) { postId in
@@ -803,6 +806,9 @@ struct InsideTalkView: View {
                 Text("INSIDE TALK")
                     .font(.custom("Cinzel-Regular", size: 14))
                     .foregroundStyle(AppTheme.goldGradient)
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { authViewModel.showProfileSheet = true } label: { Image(systemName: "person.crop.circle").font(.title3).foregroundColor(AppTheme.goldPrimary) }
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -1232,6 +1238,15 @@ struct ProfileView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
 
+                        Divider().background(Color.white.opacity(0.05))
+                        
+                        ProfileRow(icon: "questionmark.circle.fill", title: "Help & Support") {
+                            // Opens the mail app gracefully
+                            if let url = URL(string: "mailto:support@boanalyst.com?subject=BoAnalyst%20App%20Support") {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                        
                         Divider().background(Color.white.opacity(0.05))
                         ProfileRow(icon: "shield", title: "Privacy Policy") {
                             showPrivacy = true
