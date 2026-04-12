@@ -1242,7 +1242,7 @@ struct ProfileView: View {
                         
                         ProfileRow(icon: "questionmark.circle.fill", title: "Help & Support") {
                             // Opens the mail app gracefully
-                            if let url = URL(string: "mailto:support@boanalyst.com?subject=BoAnalyst%20App%20Support") {
+                            if let url = URL(string: "mailto:appsupport@boanalyst.com?subject=BoAnalyst%20App%20Support") {
                                 UIApplication.shared.open(url)
                             }
                         }
