@@ -346,13 +346,40 @@ final class IAPManager: ObservableObject {
                         // or a previous run of this listener). Skip to avoid duplicates.
                         print("🍎 IAPManager: Transaction \(txIdStr) already notified — skipping backend call")
                     } else {
-                        // Not seen before — this is either a genuine renewal or a first-time
-                        // notification for a new purchase. Notify the backend.
-                        // The backend's own guards (expiry check, cross-user ownership check)
-                        // will reject any stale/invalid transactions that slip through.
-                        print("🍎 IAPManager: New transaction event \(txIdStr) for \(transaction.productID) — notifying backend")
-                        markTransactionNotified(txIdStr)
-                        await notifyBackend(transaction: transaction)
+                        // CRITICAL SANDBOX GUARD: Verify this transaction is CURRENTLY ACTIVE
+                        // in the subscription group before notifying the backend.
+                        //
+                        // Problem: All three plans share ONE subscription group. When a user
+                        // subscribes to Monthly, Apple Sandbox also replays historical Yearly
+                        // transactions (from the subscription group history) that are NOT in
+                        // our notifiedTransactionIds set (new install / new account). These
+                        // replays arrive milliseconds after the real purchase and cause the
+                        // backend to wrongly set premium-yearly instead of premium-monthly.
+                        //
+                        // Fix: Check Transaction.currentEntitlements first. This returns ONLY
+                        // the ACTUALLY ACTIVE subscription right now. If this transaction's ID
+                        // is not among the current entitlements, it is a historical replay and
+                        // must NOT be sent to the backend.
+                        var isCurrentEntitlement = false
+                        for await entResult in Transaction.currentEntitlements {
+                            if case .verified(let entTx) = entResult,
+                               String(entTx.id) == txIdStr {
+                                isCurrentEntitlement = true
+                                break
+                            }
+                        }
+
+                        if isCurrentEntitlement {
+                            print("🍎 IAPManager: New current transaction \(txIdStr) for \(transaction.productID) — notifying backend")
+                            markTransactionNotified(txIdStr)
+                            await notifyBackend(transaction: transaction)
+                        } else {
+                            // This is a historical replay from the subscription group.
+                            // Mark it as notified so we never process it later, but do NOT
+                            // call the backend — it would overwrite a legitimate current plan.
+                            print("🍎 IAPManager: Transaction \(txIdStr) for \(transaction.productID) is NOT a current entitlement — marking as seen but skipping backend (historical replay)")
+                            markTransactionNotified(txIdStr)
+                        }
                     }
 
                     await transaction.finish()
