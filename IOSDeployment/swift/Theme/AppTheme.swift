@@ -71,15 +71,18 @@ extension Color {
         self.init(.sRGB, red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255, opacity: Double(a) / 255)
     }
 
-    // Dynamic color initializer for light and dark modes
+    // Dynamic color initializer for light and dark modes.
+    // UIColor's dynamicProvider responds to the CURRENT trait environment which
+    // SwiftUI propagates from .preferredColorScheme — so dark/light toggle works.
     init(lightHex: String, darkHex: String) {
-        self.init(UIColor { traitCollection in
-            if traitCollection.userInterfaceStyle == .dark {
+        self.init(UIColor(dynamicProvider: { traitCollection in
+            switch traitCollection.userInterfaceStyle {
+            case .dark:
                 return UIColor(Color(hex: darkHex))
-            } else {
+            default:
                 return UIColor(Color(hex: lightHex))
             }
-        })
+        }))
     }
 }
 
@@ -104,8 +107,10 @@ struct CardStyle: ViewModifier {
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(AppTheme.goldPrimary.opacity(0.15), lineWidth: 1)
             )
-            // Use lighter shadow in light mode
-            .shadow(color: colorScheme == .dark ? .black.opacity(0.4) : .black.opacity(0.1), radius: 8, x: 0, y: 4)
+            .shadow(
+                color: colorScheme == .dark ? .black.opacity(0.4) : .black.opacity(0.1),
+                radius: 8, x: 0, y: 4
+            )
     }
 }
 
