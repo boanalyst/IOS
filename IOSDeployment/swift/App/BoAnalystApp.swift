@@ -89,10 +89,12 @@ struct MainTabView: View {
 
     @State private var selectedTab = 0
 
-    // Merges Apple IAP entitlements + backend user flags
-    // so both Apple IAP subscribers and legacy web subscribers are recognised
-    private var isDistributor: Bool { iapManager.isDistributorActive || (authViewModel.currentUser?.isDistributor ?? false) }
-    private var isPro: Bool         { iapManager.isProActive || (authViewModel.currentUser?.isPro ?? false) || isDistributor }
+    // Backend is the sole source of truth for subscription status.
+    // StoreKit currentEntitlements returns old transactions from previous
+    // accounts, giving every new user distributor/pro access incorrectly.
+    // StoreKit is still used for purchase/restore in IAPManager.
+    private var isDistributor: Bool { authViewModel.currentUser?.isDistributor ?? false }
+    private var isPro: Bool         { authViewModel.currentUser?.isPro ?? false || isDistributor }
     private var isAdmin: Bool       { authViewModel.currentUser?.isAdmin ?? false }
 
     var body: some View {
