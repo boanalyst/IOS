@@ -78,6 +78,7 @@ struct User: Decodable, Identifiable {
 
     var isPro: Bool {
         isAdmin ||
+        subscriptionPlan == "distributors-hub" ||
         subscriptionPlan == "premium-monthly" ||
         subscriptionPlan == "premium-yearly" ||
         subscriptionPlan?.contains("premium") == true ||
