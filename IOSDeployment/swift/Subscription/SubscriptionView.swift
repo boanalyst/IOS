@@ -312,7 +312,13 @@ struct SubscriptionView: View {
                     }
                     let result = await iapManager.purchase(product)
                     if case .success = result {
+                        // Immediate refresh to show the new plan ASAP
                         await authVM.refreshUser()
+                        // Delayed refresh in case backend needs a moment to propagate
+                        Task {
+                            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                            await authVM.refreshUser()
+                        }
                     }
                 }
             } label: {
