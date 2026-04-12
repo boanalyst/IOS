@@ -139,6 +139,10 @@ final class AuthViewModel: ObservableObject {
         _ = try? await api.request(.logout, responseType: MessageResponse.self)
         keychain.deleteToken()
         uiState = AuthUiState()
+        // Clear the IAP notified-transaction cache so the next account
+        // gets a clean slate. This prevents a stale cache entry from
+        // blocking a legitimate renewal notification for a different user.
+        IAPManager.shared.clearNotifiedTransactions()
     }
 
     // MARK: - Delete Account (Guideline 5.1.1(v))
