@@ -1187,8 +1187,7 @@ struct ProfileView: View {
                         }
                         Divider().background(Color.white.opacity(0.05))
 
-                        ProfileRow(icon: "bell", title: "Notifications") {}
-                        Divider().background(Color.white.opacity(0.05))
+
 
                         // Distributors Hub — gated
                         if isDistributor || isAdmin {
@@ -1238,6 +1237,15 @@ struct ProfileView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
 
+                        Divider().background(Color.white.opacity(0.05))
+                        
+                        ProfileRow(icon: "questionmark.circle.fill", title: "Help & Support") {
+                            // Opens the mail app gracefully
+                            if let url = URL(string: "mailto:appsupport@boanalyst.com?subject=BoAnalyst%20App%20Support") {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                        
                         Divider().background(Color.white.opacity(0.05))
                         ProfileRow(icon: "shield", title: "Privacy Policy") {
                             showPrivacy = true
