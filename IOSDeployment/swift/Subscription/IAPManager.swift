@@ -87,6 +87,56 @@ final class IAPManager: ObservableObject {
     private var transactionUpdateTask: Task<Void, Never>? = nil
     private let api = APIClient.shared
 
+    // MARK: - Notified Transaction ID Tracking
+    //
+    // We persist a set of transaction IDs that have already been sent to our
+    // backend. This is the correct, precise way to decide whether to call
+    // notifyBackend from the transaction update listener:
+    //
+    //   • A REAL new purchase/renewal   → new transactionId not in the set → notify ✅
+    //   • A HISTORICAL replayed txn      → transactionId never seen by THIS app
+    //                                      install... BUT it may not be in our set
+    //                                      either! So we rely on the BACKEND guards
+    //                                      (cross-user ownership check, expiry check)
+    //                                      to reject those. The set prevents double-
+    //                                      notifying within the same install lifecycle.
+    //   • A re-delivered renewal         → transactionId IS already in the set → skip ✅
+    //
+    // The set is stored in UserDefaults and cleared on logout so it doesn't
+    // grow unbounded across account switches.
+
+    private static let notifiedTxnsKey = "boanalyst_iap_notified_txn_ids"
+
+    private var notifiedTransactionIds: Set<String> {
+        get {
+            let arr = UserDefaults.standard.stringArray(forKey: Self.notifiedTxnsKey) ?? []
+            return Set(arr)
+        }
+        set {
+            // Cap the stored set at 200 entries to avoid indefinite growth
+            let capped = Array(newValue.prefix(200))
+            UserDefaults.standard.set(capped, forKey: Self.notifiedTxnsKey)
+        }
+    }
+
+    private func markTransactionNotified(_ transactionId: String) {
+        var current = notifiedTransactionIds
+        current.insert(transactionId)
+        notifiedTransactionIds = current
+    }
+
+    private func hasNotifiedTransaction(_ transactionId: String) -> Bool {
+        return notifiedTransactionIds.contains(transactionId)
+    }
+
+    /// Call this on logout so the set is reset for the next account.
+    /// This prevents a logged-out transaction ID from blocking a new
+    /// legitimate activation after the user switches accounts.
+    func clearNotifiedTransactions() {
+        UserDefaults.standard.removeObject(forKey: Self.notifiedTxnsKey)
+        print("🍎 IAPManager: Cleared notified transaction ID cache (logout)")
+    }
+
     // MARK: - Init
 
     private init() {
@@ -132,6 +182,9 @@ final class IAPManager: ObservableObject {
             case .success(let verification):
                 switch verification {
                 case .verified(let transaction):
+                    // This is a direct user-initiated purchase — always notify backend
+                    // and record the transaction ID so the listener doesn't double-notify
+                    markTransactionNotified(String(transaction.id))
                     await notifyBackend(transaction: transaction)
                     await transaction.finish()
                     activeTransaction = transaction
@@ -163,6 +216,10 @@ final class IAPManager: ObservableObject {
         do {
             try await AppStore.sync()
             await refreshSubscriptionStatus()
+            // After restore, notify backend if there's an active transaction
+            if let tx = activeTransaction {
+                await notifyBackend(transaction: tx)
+            }
         } catch {
             self.errorMessage = "Restore failed. Please try again or contact support."
         }
@@ -198,9 +255,10 @@ final class IAPManager: ObservableObject {
         isDistributorActive = hasDistributor
         activeTransaction = latestTransaction
 
-        if let tx = latestTransaction {
-            await notifyBackend(transaction: tx)
-        }
+        // Do NOT call notifyBackend on every refresh — only after actual purchases.
+        // Calling it here caused new accounts to get auto-activated because StoreKit
+        // has old transactions from previous accounts. The backend is the source of truth;
+        // notifyBackend is only called in purchase() and restorePurchases().
     }
 
     // MARK: - Notify Backend
@@ -230,12 +288,42 @@ final class IAPManager: ObservableObject {
     }
 
     // MARK: - Transaction Update Listener
+    //
+    // This listener fires for ALL StoreKit transaction events:
+    //   1. A genuine new purchase (user just bought) ← want to notify backend
+    //   2. A subscription auto-renewal              ← want to notify backend
+    //   3. StoreKit replaying old device transactions when a new user signs in ← DO NOT notify
+    //
+    // The correct guard is a PERSISTENT SET of already-notified transaction IDs
+    // stored in UserDefaults. Each StoreKit transaction has a unique, stable
+    // `id` (UInt64). If we've already hit the backend with a given ID, we skip it.
+    //
+    // WHY NOT A TIME WINDOW?
+    //   A time window (e.g. "< 5 minutes old") breaks renewals: StoreKit delivers
+    //   renewal events even if the app was in the background for hours, so the
+    //   renewal's purchaseDate might be 6+ hours old — yet it IS a legitimate new
+    //   billing event that the backend needs to know about.
+    //
+    // HOW THIS CORRECTLY HANDLES THE 3 SCENARIOS:
+    //   1. New purchase  → purchase() already called notifyBackend AND marked the ID
+    //                      → listener sees ID in set → skips (no double-notify) ✅
+    //   2. Auto-renewal  → StoreKit delivers a brandnew transactionId
+    //                      → NOT in our set → notifyBackend called → ID marked ✅
+    //   3. Historical replay → old txnId not in our set (first run), BUT backend's
+    //                          GUARD 3 (cross-user ownership) rejects it as it
+    //                          belongs to a different account, AND GUARD 2 rejects
+    //                          it if expired. If it somehow passes backend guards
+    //                          (e.g. the old account never used this backend),
+    //                          the 1-hour backend dedup cache will prevent
+    //                          repeat calls. ✅
 
     private func listenForTransactionUpdates() async {
         for await result in Transaction.updates {
             if case .verified(let transaction) = result {
                 if transaction.revocationDate != nil {
-                    // Refunded / revoked
+                    // Refunded / revoked — update local UI state only. No backend call
+                    // needed here because the subscription expiry checker on the server
+                    // will handle this, and the user's plan should be downgraded to free.
                     await MainActor.run {
                         switch transaction.productID {
                         case IAPProduct.distributorYearly.rawValue:
@@ -251,8 +339,22 @@ final class IAPManager: ObservableObject {
                         }
                     }
                 } else {
-                    // Renewal or new purchase
-                    await notifyBackend(transaction: transaction)
+                    let txIdStr = String(transaction.id)
+
+                    if hasNotifiedTransaction(txIdStr) {
+                        // Already sent this transaction to the backend (e.g., via purchase()
+                        // or a previous run of this listener). Skip to avoid duplicates.
+                        print("🍎 IAPManager: Transaction \(txIdStr) already notified — skipping backend call")
+                    } else {
+                        // Not seen before — this is either a genuine renewal or a first-time
+                        // notification for a new purchase. Notify the backend.
+                        // The backend's own guards (expiry check, cross-user ownership check)
+                        // will reject any stale/invalid transactions that slip through.
+                        print("🍎 IAPManager: New transaction event \(txIdStr) for \(transaction.productID) — notifying backend")
+                        markTransactionNotified(txIdStr)
+                        await notifyBackend(transaction: transaction)
+                    }
+
                     await transaction.finish()
                     await MainActor.run {
                         self.updateProStatus(for: transaction)

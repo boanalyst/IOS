@@ -82,23 +82,16 @@ struct SubscriptionView: View {
     }
 
     private var isCurrentPlanActive: Bool {
-        // Hybrid check: backend is source of truth, but StoreKit must also be honored
-        // per Apple Review Guideline 3.1.1 (must honor active IAP subscriptions).
-        // If StoreKit says active but backend doesn't, trigger a sync so backend catches up.
+        // Backend is the sole source of truth for subscription status display.
+        // StoreKit currentEntitlements returns old transactions from previous
+        // accounts, causing "Current Plan Active" on new free accounts.
+        // StoreKit is still used for purchase/restore in IAPManager.
         let backendPro = authVM.currentUser?.isPro ?? false
         let backendDistributor = authVM.currentUser?.isDistributor ?? false
-        let storekitPro = iapManager.isProActive
-        let storekitDistributor = iapManager.isDistributorActive
-
-        // If StoreKit says active but backend doesn't, sync to backend
-        if (storekitPro && !backendPro) || (storekitDistributor && !backendDistributor) {
-            Task { await iapManager.refreshSubscriptionStatus() }
-        }
-
         if selectedPlan.productID.isDistributorPlan {
-            return backendDistributor || storekitDistributor
+            return backendDistributor
         } else {
-            return backendPro || storekitPro || backendDistributor || storekitDistributor
+            return backendPro || backendDistributor
         }
     }
 
