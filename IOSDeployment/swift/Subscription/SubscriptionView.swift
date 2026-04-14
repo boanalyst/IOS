@@ -105,18 +105,10 @@ struct SubscriptionView: View {
     }
 
     private func isActivePlan(_ plan: PlanInfo) -> Bool {
-        // Primary source: backend user record (authoritative for server-gated features)
         let backendPro          = authVM.currentUser?.isPro          ?? false
         let backendDistributor  = authVM.currentUser?.isDistributor  ?? false
-        // Secondary source: StoreKit-confirmed local state.
-        // Used as fallback when backend refresh is slow/unavailable (e.g., sandbox review).
-        // This ensures the paywall shows "Current Plan" immediately after a successful purchase.
-        let storeKitPro         = iapManager.isProActive
-        let storeKitDistributor = iapManager.isDistributorActive
-        if plan.productID.isDistributorPlan {
-            return backendDistributor || storeKitDistributor
-        }
-        return backendPro || backendDistributor || storeKitPro
+        if plan.productID.isDistributorPlan { return backendDistributor }
+        return backendPro || backendDistributor
     }
 
     var body: some View {
