@@ -60,6 +60,8 @@ final class APIClient {
     static let shared = APIClient()
     private init() {}
 
+    private let userAgent = "BoAnalyst iOS App / 1.0 (Build 5; Sandbox Compatible)"
+
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
