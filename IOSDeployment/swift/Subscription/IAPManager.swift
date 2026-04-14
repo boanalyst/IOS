@@ -189,11 +189,14 @@ final class IAPManager: ObservableObject {
                     let backendNotified = await notifyBackendWithRetry(transaction: transaction)
                     if backendNotified {
                         markTransactionNotified(String(transaction.id))
+                        print("🍎 IAPManager: ✅ Purchase + backend sync complete for \(transaction.productID)")
                     } else {
                         // Backend notification failed even after retries.
                         // Do NOT mark notified — the listener may succeed on next launch.
                         // Still finish the transaction with Apple (Apple requires this).
                         print("⚠️ IAPManager: Backend notification failed for \(transaction.id) — will retry on next app launch via listener")
+                        // CRITICAL: Surface this error to the user so they know to take action
+                        self.errorMessage = "Purchase completed but server sync failed. Please tap 'Restore Purchases' or restart the app to activate your plan."
                     }
                     await transaction.finish()
                     activeTransaction = transaction
@@ -283,33 +286,65 @@ final class IAPManager: ObservableObject {
     /// confirmed success (success: true). Returns false on network failure or
     /// backend error so the caller can decide whether to mark the txn as notified.
     @discardableResult
+    @MainActor
     private func notifyBackend(transaction: Transaction) async -> Bool {
+        print("🍎 IAPManager: notifyBackend called — productId=\(transaction.productID), txnId=\(transaction.id), originalTxnId=\(transaction.originalID)")
+        
         guard let endpoint = try? APIEndpoint.verifyAppleReceipt(
             transactionId: String(transaction.id),
             originalTransactionId: String(transaction.originalID),
             productId: transaction.productID,
             expiresDate: transaction.expirationDate
-        ) else { return false }
+        ) else {
+            let msg = "Failed to create API request"
+            self.errorMessage = msg
+            print("🍎 IAPManager: ❌ \(msg)")
+            return false
+        }
+        
+        print("🍎 IAPManager: Calling backend at \(endpoint.path) with productId=\(transaction.productID)")
+        
         do {
             let response = try await api.requestRaw(endpoint)
             let success = response["success"] as? Bool ?? false
             let ignored = response["ignored"] as? Bool ?? false
             let duplicate = response["duplicate"] as? Bool ?? false
+            let blocked = response["blocked"] as? Bool ?? false
+            let plan = response["plan"] as? String ?? "unknown"
+            let message = response["message"] as? String ?? "No message"
+            let errorDetails = response["error"] as? String ?? ""
+            
+            print("🍎 IAPManager: Backend response — success=\(success), ignored=\(ignored), duplicate=\(duplicate), blocked=\(blocked), plan=\(plan), message=\(message)")
+            
+            if !success && !ignored && !duplicate {
+                let msg = "Backend Sync Failed: \(message)\n\(errorDetails)"
+                self.errorMessage = msg
+                print("🍎 IAPManager: ❌ \(msg)")
+            } else if ignored {
+                // Not an error, but let's clear errorMessage just in case
+            }
+            
             // ignored / duplicate are also considered "handled" — no retry needed
             return success || ignored || duplicate
         } catch {
-            print("🍎 IAPManager: notifyBackend error: \(error.localizedDescription)")
+            let errorStr = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            let msg = "Network/API Error: \(errorStr)"
+            self.errorMessage = msg
+            print("🍎 IAPManager: ❌ \(msg)")
             return false
         }
     }
 
     /// Retries notifyBackend up to 3 times with exponential back-off.
     /// Returns true if any attempt succeeds.
+    @MainActor
     private func notifyBackendWithRetry(transaction: Transaction, maxAttempts: Int = 3) async -> Bool {
+        self.errorMessage = nil // Clear previous errors
         for attempt in 1...maxAttempts {
             let ok = await notifyBackend(transaction: transaction)
             if ok {
                 print("🍎 IAPManager: Backend notified successfully on attempt \(attempt) for txn \(transaction.id)")
+                self.errorMessage = nil // Success, clear any retry errors
                 return true
             }
             if attempt < maxAttempts {
@@ -319,6 +354,7 @@ final class IAPManager: ObservableObject {
             }
         }
         print("🍎 IAPManager: All \(maxAttempts) backend notification attempts failed for txn \(transaction.id)")
+        // errorMessage is already set by the last call to notifyBackend
         return false
     }
 

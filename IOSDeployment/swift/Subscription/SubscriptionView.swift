@@ -298,10 +298,29 @@ struct SubscriptionView: View {
                         }
                         let result = await iapManager.purchase(product)
                         if case .success = result {
+                            // Check if backend sync failed (purchase succeeded on Apple but server didn't update)
+                            if let syncError = iapManager.errorMessage, !syncError.isEmpty {
+                                alertMessage = syncError
+                                showAlert = true
+                            }
+                            // Refresh user data from backend to reflect the new plan
                             await authVM.refreshUser()
+                            // Retry after 2s in case of propagation delay
                             Task {
                                 try? await Task.sleep(nanoseconds: 2_000_000_000)
                                 await authVM.refreshUser()
+                                // If plan still not updated after 2s, try restore as fallback
+                                if !isActivePlan(selectedPlan) {
+                                    print("🍎 SubscriptionView: Plan not updated after purchase, attempting restore as fallback")
+                                    await iapManager.restorePurchases()
+                                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                                    await authVM.refreshUser()
+                                }
+                            }
+                        } else if case .failed = result {
+                            if let error = iapManager.errorMessage {
+                                alertMessage = error
+                                showAlert = true
                             }
                         }
                     }
