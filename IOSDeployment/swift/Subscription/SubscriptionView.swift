@@ -8,6 +8,12 @@
 import SwiftUI
 import StoreKit
 
+// MARK: - Legal URLs (Guideline 3.1.2c)
+private enum LegalLinks {
+    static let privacyPolicy = URL(string: "https://boanalyst.com/privacy-policy.html")!
+    static let termsOfUse   = URL(string: "https://boanalyst.com/terms-of-service.html")!
+}
+
 // MARK: - Plan display metadata
 
 private struct PlanInfo {
@@ -99,10 +105,18 @@ struct SubscriptionView: View {
     }
 
     private func isActivePlan(_ plan: PlanInfo) -> Bool {
+        // Primary source: backend user record (authoritative for server-gated features)
         let backendPro          = authVM.currentUser?.isPro          ?? false
         let backendDistributor  = authVM.currentUser?.isDistributor  ?? false
-        if plan.productID.isDistributorPlan { return backendDistributor }
-        return backendPro || backendDistributor
+        // Secondary source: StoreKit-confirmed local state.
+        // Used as fallback when backend refresh is slow/unavailable (e.g., sandbox review).
+        // This ensures the paywall shows "Current Plan" immediately after a successful purchase.
+        let storeKitPro         = iapManager.isProActive
+        let storeKitDistributor = iapManager.isDistributorActive
+        if plan.productID.isDistributorPlan {
+            return backendDistributor || storeKitDistributor
+        }
+        return backendPro || backendDistributor || storeKitPro
     }
 
     var body: some View {
@@ -249,6 +263,27 @@ struct SubscriptionView: View {
                     .padding(.horizontal, 16)
             }
 
+            // Required by Guideline 3.1.2(c): show title, length, price before purchase
+            if !isActivePlan(selectedPlan) {
+                let priceStr: String = {
+                    if let p = storeProduct(for: selectedPlan) { return p.displayPrice }
+                    return selectedPlan.productID.fallbackPrice
+                }()
+                // Map period to human-readable subscription length
+                let lengthStr: String = {
+                    switch selectedPlan.productID {
+                    case .proMonthly:        return "1-month subscription"
+                    case .proYearly:         return "1-year subscription"
+                    case .distributorYearly: return "1-year subscription"
+                    }
+                }()
+                Text("\(selectedPlan.productID.displayName) · \(lengthStr) · \(priceStr)")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(Color(hex: "8A8A9A"))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
+            }
+
             HStack(spacing: 10) {
                 // Subscribe / Active button
                 Button {
@@ -334,17 +369,35 @@ struct SubscriptionView: View {
     }
 
     // MARK: - Legal
+    // Required by Guideline 3.1.2(c): must include functional Privacy Policy
+    // and Terms of Use (EULA) links within the app's purchase flow.
 
     private var legalSection: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             Divider()
                 .background(Color(hex: "2A2A35"))
 
-            Text("Subscription renews automatically unless cancelled at least 24 hours before renewal. Manage in iPhone Settings → Apple ID → Subscriptions.")
+            // Subscription disclosure — auto-renewal terms
+            Text("Payment will be charged to your Apple ID account at confirmation of purchase. Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the current period. Manage or cancel anytime in iPhone Settings → Apple ID → Subscriptions.")
                 .font(.system(size: 10))
                 .foregroundColor(Color(hex: "5A5A6A"))
                 .multilineTextAlignment(.center)
                 .lineSpacing(3)
+
+            // Required functional links — Guideline 3.1.2(c)
+            HStack(spacing: 4) {
+                Link("Privacy Policy", destination: LegalLinks.privacyPolicy)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(Color(hex: "4FC3F7"))
+
+                Text("·")
+                    .font(.system(size: 10))
+                    .foregroundColor(Color(hex: "5A5A6A"))
+
+                Link("Terms of Use", destination: LegalLinks.termsOfUse)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(Color(hex: "4FC3F7"))
+            }
         }
     }
 
