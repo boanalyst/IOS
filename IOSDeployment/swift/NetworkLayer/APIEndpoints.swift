@@ -232,6 +232,6 @@ extension APIEndpoint {
             payload["expiresDate"] = ISO8601DateFormatter().string(from: expires)
         }
         let body = try JSONSerialization.data(withJSONObject: payload)
-        return APIEndpoint(path: "/api/subscription/verify-apple", method: .POST, body: body)
+        return APIEndpoint(path: "/api/auth/subscription/verify-apple", method: .POST, body: body)
     }
 }
