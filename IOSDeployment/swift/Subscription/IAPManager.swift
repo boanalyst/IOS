@@ -225,9 +225,16 @@ final class IAPManager: ObservableObject {
         do {
             try await AppStore.sync()
             await refreshSubscriptionStatus()
-            // After restore, notify backend if there's an active transaction
-            if let tx = activeTransaction {
-                await notifyBackend(transaction: tx)
+            // After restore, notify backend with the HIGHEST active entitlement
+            // (not just activeTransaction which might be stale/wrong tier)
+            if let highestTx = await getHighestActiveEntitlement() {
+                let txIdStr = String(highestTx.id)
+                if !hasNotifiedTransaction(txIdStr) {
+                    let backendNotified = await notifyBackendWithRetry(transaction: highestTx)
+                    if backendNotified {
+                        markTransactionNotified(txIdStr)
+                    }
+                }
             }
         } catch {
             self.errorMessage = "Restore failed. Please try again or contact support."
@@ -359,6 +366,41 @@ final class IAPManager: ObservableObject {
     //                          the 1-hour backend dedup cache will prevent
     //                          repeat calls. ✅
 
+    // MARK: - Determine Highest Active Entitlement
+    //
+    // Checks Transaction.currentEntitlements to find the highest-tier subscription
+    // the user ACTUALLY owns right now. This is the critical filter that prevents
+    // StoreKit historical replays from overriding the correct plan.
+    //
+    // Apple's currentEntitlements ONLY contains subscriptions that are genuinely
+    // active (paid, not expired, not revoked). Historical replays are NOT included.
+    // By cross-referencing against this, we ensure we only forward the correct
+    // subscription to our backend.
+
+    private func getHighestActiveEntitlement() async -> Transaction? {
+        let planRank: [String: Int] = [
+            IAPProduct.proMonthly.rawValue: 1,
+            IAPProduct.proYearly.rawValue: 2,
+            IAPProduct.distributorYearly.rawValue: 3
+        ]
+
+        var highestTransaction: Transaction? = nil
+        var highestRank = 0
+
+        for await result in Transaction.currentEntitlements {
+            if case .verified(let tx) = result,
+               tx.revocationDate == nil {
+                let rank = planRank[tx.productID] ?? 0
+                if rank > highestRank {
+                    highestRank = rank
+                    highestTransaction = tx
+                }
+            }
+        }
+
+        return highestTransaction
+    }
+
     private func listenForTransactionUpdates() async {
         for await result in Transaction.updates {
             if case .verified(let transaction) = result {
@@ -388,22 +430,69 @@ final class IAPManager: ObservableObject {
                         // or a previous run of this listener). Skip to avoid duplicates.
                         print("🍎 IAPManager: Transaction \(txIdStr) already notified — skipping backend call")
                     } else {
-                        // We simply forward the transaction to the backend and let the 
-                        // backend handle idempotency and plan hierarchy (blocking downgrades).
-                        // Apple Sandbox is notorious for replaying active overlapping subscriptions.
-                        print("🍎 IAPManager: New current transaction \(txIdStr) for \(transaction.productID) — notifying backend")
-                        
-                        let backendNotified = await notifyBackendWithRetry(transaction: transaction)
-                        if backendNotified {
-                            markTransactionNotified(txIdStr)
+                        // *** CRITICAL FIX: Cross-check against currentEntitlements ***
+                        //
+                        // StoreKit fires Transaction.updates for ALL transactions in the
+                        // subscription group — including historical replays of old plans.
+                        // If we blindly forward every update, a replayed premium-yearly
+                        // transaction will OVERRIDE a fresh premium-monthly purchase
+                        // (because yearly has higher rank on the backend).
+                        //
+                        // The fix: check currentEntitlements to find which subscription
+                        // is ACTUALLY active. Only notify the backend with that one.
+                        // If the incoming transaction isn't the active entitlement, skip it.
+
+                        let highestActive = await getHighestActiveEntitlement()
+
+                        if let activeEntitlement = highestActive {
+                            // Only proceed if THIS transaction matches the highest active
+                            // entitlement, OR if this transaction IS the active entitlement's
+                            // product (could be a renewal with a new transaction ID).
+                            if transaction.productID == activeEntitlement.productID {
+                                print("🍎 IAPManager: Transaction \(txIdStr) for \(transaction.productID) IS the active entitlement — notifying backend")
+
+                                // Send the ACTUAL active entitlement's transaction to the backend
+                                // (use the highest active, not the incoming one, in case IDs differ)
+                                let txToSend = activeEntitlement
+                                let txToSendIdStr = String(txToSend.id)
+
+                                if !hasNotifiedTransaction(txToSendIdStr) {
+                                    let backendNotified = await notifyBackendWithRetry(transaction: txToSend)
+                                    if backendNotified {
+                                        markTransactionNotified(txToSendIdStr)
+                                        // Also mark the incoming transaction as notified to avoid re-processing
+                                        if txIdStr != txToSendIdStr {
+                                            markTransactionNotified(txIdStr)
+                                        }
+                                    }
+                                } else {
+                                    print("🍎 IAPManager: Active entitlement \(txToSendIdStr) already notified — skipping")
+                                    markTransactionNotified(txIdStr) // Mark incoming too
+                                }
+                            } else {
+                                // This transaction is for a DIFFERENT product than what's currently active.
+                                // It's a historical replay / stale renewal. SKIP the backend call.
+                                print("🍎 IAPManager: Transaction \(txIdStr) for \(transaction.productID) is NOT the active entitlement (\(activeEntitlement.productID)) — SKIPPING backend call to prevent plan override")
+                                markTransactionNotified(txIdStr) // Mark as handled to prevent future retries
+                            }
+                        } else {
+                            // No active entitlement found — user may have no subscription.
+                            // This can happen if all subscriptions expired. Still forward it
+                            // in case this is a brand-new purchase that hasn't appeared in
+                            // currentEntitlements yet (race with StoreKit's internal state).
+                            print("🍎 IAPManager: No active entitlement found, forwarding transaction \(txIdStr) for \(transaction.productID) to backend")
+                            let backendNotified = await notifyBackendWithRetry(transaction: transaction)
+                            if backendNotified {
+                                markTransactionNotified(txIdStr)
+                            }
                         }
                     }
-                    
+
                     await transaction.finish()
-                    await MainActor.run {
-                        self.updateProStatus(for: transaction)
-                        self.activeTransaction = transaction
-                    }
+                    // Refresh full subscription status from currentEntitlements
+                    // instead of using updateProStatus(for: transaction) which would
+                    // set incorrect UI state if the incoming transaction is a lower-tier replay.
+                    await refreshSubscriptionStatus()
                 }
             }
         }
