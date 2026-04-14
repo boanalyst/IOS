@@ -104,11 +104,18 @@ struct SubscriptionView: View {
         iapManager.products.first { $0.id == plan.productID.rawValue }
     }
 
-    private func isActivePlan(_ plan: PlanInfo) -> Bool {
-        let backendPro          = authVM.currentUser?.isPro          ?? false
-        let backendDistributor  = authVM.currentUser?.isDistributor  ?? false
-        if plan.productID.isDistributorPlan { return backendDistributor }
-        return backendPro || backendDistributor
+    private func isActivePlan(_ planInfo: PlanInfo) -> Bool {
+        let subscriptionPlan = authVM.currentUser?.subscriptionPlan ?? ""
+        switch planInfo.productID {
+        case .distributorYearly:
+            return subscriptionPlan == "distributors-hub"
+        case .proMonthly:
+            // Active if on monthly OR distributor (distributor includes pro access)
+            return subscriptionPlan == "premium-monthly" || subscriptionPlan == "distributors-hub"
+        case .proYearly:
+            // Active if on yearly OR distributor
+            return subscriptionPlan == "premium-yearly" || subscriptionPlan == "distributors-hub"
+        }
     }
 
     var body: some View {
