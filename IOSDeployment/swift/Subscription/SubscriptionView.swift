@@ -410,7 +410,7 @@ struct SubscriptionView: View {
                     .font(.system(size: 10))
                     .foregroundColor(Color(hex: "5A5A6A"))
 
-                Link("Terms of Use", destination: LegalLinks.termsOfUse)
+                Link("Terms of Use (EULA)", destination: LegalLinks.termsOfUse)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(Color(hex: "4FC3F7"))
             }
