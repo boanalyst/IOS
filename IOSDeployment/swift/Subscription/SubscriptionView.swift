@@ -303,19 +303,17 @@ struct SubscriptionView: View {
                                 alertMessage = syncError
                                 showAlert = true
                             }
-                            // Refresh user data from backend to reflect the new plan
+                            // Refresh user data from backend to reflect the new plan.
+                            // notifyBackendWithRetry already retried 3 times, so the DB
+                            // should be updated by now. A single refresh + one delayed
+                            // retry is sufficient. DO NOT call restorePurchases() here —
+                            // it creates a cascade of competing backend requests that
+                            // cause race conditions during plan upgrades.
                             await authVM.refreshUser()
-                            // Retry after 2s in case of propagation delay
+                            // Retry after 3s in case of propagation delay
                             Task {
-                                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                                try? await Task.sleep(nanoseconds: 3_000_000_000)
                                 await authVM.refreshUser()
-                                // If plan still not updated after 2s, try restore as fallback
-                                if !isActivePlan(selectedPlan) {
-                                    print("🍎 SubscriptionView: Plan not updated after purchase, attempting restore as fallback")
-                                    await iapManager.restorePurchases()
-                                    try? await Task.sleep(nanoseconds: 1_000_000_000)
-                                    await authVM.refreshUser()
-                                }
                             }
                         } else if case .failed = result {
                             if let error = iapManager.errorMessage {
