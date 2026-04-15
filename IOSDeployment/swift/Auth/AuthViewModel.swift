@@ -83,7 +83,7 @@ final class AuthViewModel: ObservableObject {
                 // Sync Apple entitlements with this backend account.
                 // If the Apple ID has an active subscription (from any account),
                 // ensure this backend user gets the correct plan.
-                await IAPManager.shared.syncSubscriptionWithBackend()
+                await IAPManager.shared.syncSubscriptionWithBackend(backendPlan: uiState.user?.subscriptionPlan)
             } else {
                 let message = response["message"] as? String
                 uiState.error = message ?? "Invalid email or password. Please try again."
@@ -121,7 +121,7 @@ final class AuthViewModel: ObservableObject {
                 }
                 uiState.isAuthenticated = true
                 await IAPManager.shared.refreshSubscriptionStatus()
-                await IAPManager.shared.syncSubscriptionWithBackend()
+                await IAPManager.shared.syncSubscriptionWithBackend(backendPlan: uiState.user?.subscriptionPlan)
             } else {
                 let message = response["message"] as? String
                 uiState.error = message ?? "Registration failed. Please try again."
@@ -174,7 +174,7 @@ final class AuthViewModel: ObservableObject {
                 }
                 uiState.isAuthenticated = true
                 await IAPManager.shared.refreshSubscriptionStatus()
-                await IAPManager.shared.syncSubscriptionWithBackend()
+                await IAPManager.shared.syncSubscriptionWithBackend(backendPlan: uiState.user?.subscriptionPlan)
             } else {
                 keychain.deleteToken()
                 uiState.isAuthenticated = false
@@ -211,7 +211,7 @@ final class AuthViewModel: ObservableObject {
                 }
                 uiState.isAuthenticated = true
                 await IAPManager.shared.refreshSubscriptionStatus()
-                await IAPManager.shared.syncSubscriptionWithBackend()
+                await IAPManager.shared.syncSubscriptionWithBackend(backendPlan: uiState.user?.subscriptionPlan)
             } else {
                 uiState.error = "Backend Parsed OK but JSON was wrong: " + ((response["message"] as? String) ?? "No message")
             }
