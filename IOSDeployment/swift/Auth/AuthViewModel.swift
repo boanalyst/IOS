@@ -77,7 +77,7 @@ final class AuthViewModel: ObservableObject {
                    let userJSON = try? JSONSerialization.data(withJSONObject: userData),
                    let user = try? JSONDecoder().decode(User.self, from: userJSON) {
                     uiState.user = user
-                }
+                }                                                                               
                 uiState.isAuthenticated = true
                 await IAPManager.shared.refreshSubscriptionStatus()
                 // Sync Apple entitlements with this backend account.
@@ -222,7 +222,12 @@ final class AuthViewModel: ObservableObject {
     }
 
     // MARK: - Refresh User
-    // If token is expired (401), auto-logout so the user gets the login screen.
+    // Fetches fresh user data from /api/auth/me. Only logs out if the server
+    // explicitly rejects the token (HTTP 401). Network errors, server errors
+    // (500/403), and transient failures are silently ignored — the local
+    // session stays intact because the JWT may still be valid; forcing a
+    // logout during a transient backend hiccup (e.g. during a subscription
+    // upgrade write) is what caused the "repeated sign-in" bug.
     func refreshUser() async {
         do {
             let response = try await api.requestRaw(.getMe)
@@ -233,8 +238,15 @@ final class AuthViewModel: ObservableObject {
                 uiState.user = user
             }
         } catch APIError.unauthorized {
+            // 401 = token definitively rejected by the server (expired or revoked).
+            // This is the ONLY case where we should auto-logout.
             await logout()
-        } catch {}
+        } catch {
+            // Network errors, 403, 500, timeouts — do NOT logout.
+            // The JWT might still be perfectly valid; the server may just be
+            // temporarily unreachable or under load during a subscription update.
+            print("⚠️ refreshUser failed (non-fatal, keeping session): \(error)")
+        }
     }
 
     func clearError() {
