@@ -283,31 +283,29 @@ final class IAPManager: ObservableObject {
         activeTransaction = latestTransaction
     }
 
-    /// Call this ONCE after login/signup to sync the current Apple entitlement
-    /// with the backend for the just-signed-in user. This handles the case where:
-    ///   - User has an active Apple subscription from a previous purchase
-    ///   - User just created a new backend account (or signed into a different one)
-    ///   - The backend doesn't know about the Apple subscription yet
+    /// DISABLED: Auto-syncing Apple entitlements on login was causing the
+    /// "every plan auto-subscribes" bug. In Apple Sandbox (and potentially
+    /// production with shared Apple IDs), old test purchases persist as active
+    /// entitlements on the device. When ANY user signs in, this method would
+    /// find those stale entitlements and push them to the backend — auto-
+    /// subscribing users who never purchased anything.
     ///
-    /// Unlike the listener (which runs all the time), this is deliberately called
-    /// once so we know the backend user context is correct.
-    func syncSubscriptionWithBackend() async {
-        guard let highest = await getHighestActiveEntitlement() else {
-            print("🍎 IAPManager: syncSubscriptionWithBackend — no active Apple entitlement found")
-            return
-        }
-        
-        let txIdStr = String(highest.id)
-        // Always send on login — don't check notifiedTransactionIds here because
-        // the user may have switched accounts. The backend has its own dedup logic.
-        print("🍎 IAPManager: syncSubscriptionWithBackend — sending \(highest.productID) (txn \(txIdStr)) to backend")
-        let ok = await notifyBackendWithRetry(transaction: highest)
-        if ok {
-            markTransactionNotified(txIdStr)
-            print("🍎 IAPManager: ✅ syncSubscriptionWithBackend complete — \(highest.productID)")
-        } else {
-            print("🍎 IAPManager: ⚠️ syncSubscriptionWithBackend failed for \(highest.productID)")
-        }
+    /// The correct subscription flows are:
+    ///   1. `purchase()` — user explicitly buys a plan → notifies backend ✅
+    ///   2. `restorePurchases()` — user taps "Restore" button → notifies backend ✅
+    ///   3. Transaction listener — catches renewals → notifies backend ✅
+    ///
+    /// There is NO safe way to auto-sync on login because Apple entitlements
+    /// are tied to the Apple ID, not the backend user. We cannot verify that
+    /// the entitlement on this device actually belongs to the user who just
+    /// signed in.
+    ///
+    /// If a user purchased on another device and needs to activate here,
+    /// they can tap "Restore Purchases" in the subscription screen.
+    func syncSubscriptionWithBackend(backendPlan: String?) async {
+        // NO-OP: Intentionally disabled to prevent stale entitlements from
+        // auto-subscribing users on login. See comment above.
+        print("🍎 IAPManager: syncSubscriptionWithBackend — DISABLED (use Restore Purchases instead)")
     }
 
     // MARK: - Notify Backend
