@@ -500,51 +500,44 @@ final class IAPManager: ObservableObject {
                         print("🍎 IAPManager: Transaction \(txIdStr) for \(transaction.productID) BLOCKED — purchase cooldown active until \(purchaseCooldownUntil)")
                         markTransactionNotified(txIdStr)
                     } else {
-                        // Cross-check against currentEntitlements to avoid forwarding historical replays.
+                        // *** CRITICAL FIX: Cross-check against currentEntitlements ***
                         //
-                        // UPGRADE EDGE CASE (e.g. premium-yearly → distributors-hub):
-                        // During a subscription *upgrade*, StoreKit delivers the new higher-tier
-                        // transaction via Transaction.updates. However, Apple's currentEntitlements
-                        // may briefly still show the OLD plan in the transition window. If we blindly
-                        // skip any tx whose productID differs from currentEntitlements, we permanently
-                        // lose the upgrade transaction (it gets marked notified with no backend call).
+                        // StoreKit fires Transaction.updates for ALL transactions in the
+                        // subscription group — including historical replays of old plans.
+                        // If we blindly forward every update, a replayed premium-yearly
+                        // transaction will OVERRIDE a fresh premium-monthly purchase
+                        // (because yearly has higher rank on the backend).
                         //
-                        // FIX: Compare the ranks of the incoming tx and the current entitlement.
-                        //   • incoming rank >= entitlement rank → it's an upgrade or renewal → FORWARD it
-                        //   • incoming rank <  entitlement rank → it's a lower-tier replay      → SKIP it
-                        //   • no active entitlement at all       → forward (backend guards will catch replays)
-
-                        let planRank: [String: Int] = [
-                            IAPProduct.proMonthly.rawValue: 1,
-                            IAPProduct.proYearly.rawValue: 2,
-                            IAPProduct.distributorYearly.rawValue: 3
-                        ]
+                        // The fix: check currentEntitlements to find which subscription
+                        // is ACTUALLY active. Only notify the backend with that one.
+                        // If the incoming transaction isn't the active entitlement, skip it.
 
                         let highestActive = await getHighestActiveEntitlement()
 
                         if let activeEntitlement = highestActive {
-                            let incomingRank   = planRank[transaction.productID] ?? 0
-                            let entitlementRank = planRank[activeEntitlement.productID] ?? 0
+                            if transaction.productID == activeEntitlement.productID {
+                                print("🍎 IAPManager: Transaction \(txIdStr) for \(transaction.productID) IS the active entitlement — notifying backend")
 
-                            if incomingRank >= entitlementRank {
-                                // The incoming transaction is the same tier or higher — either it IS
-                                // the active entitlement, or currentEntitlements is lagging mid-upgrade.
-                                // Forward it directly to the backend.
-                                print("🍎 IAPManager: Transaction \(txIdStr) for \(transaction.productID) (rank \(incomingRank)) >= entitlement \(activeEntitlement.productID) (rank \(entitlementRank)) — forwarding to backend")
-                                let backendNotified = await notifyBackendWithRetry(transaction: transaction)
-                                if backendNotified {
+                                let txToSend = activeEntitlement
+                                let txToSendIdStr = String(txToSend.id)
+
+                                if !hasNotifiedTransaction(txToSendIdStr) {
+                                    let backendNotified = await notifyBackendWithRetry(transaction: txToSend)
+                                    if backendNotified {
+                                        markTransactionNotified(txToSendIdStr)
+                                        if txIdStr != txToSendIdStr {
+                                            markTransactionNotified(txIdStr)
+                                        }
+                                    }
+                                } else {
+                                    print("🍎 IAPManager: Active entitlement \(txToSendIdStr) already notified — skipping")
                                     markTransactionNotified(txIdStr)
                                 }
                             } else {
-                                // Incoming rank is lower than current entitlement — genuine lower-tier replay.
-                                // Silently discard. DO NOT mark as notified — if ranks change in future the
-                                // backend will still reject it via plan hierarchy guard anyway.
-                                print("🍎 IAPManager: Transaction \(txIdStr) for \(transaction.productID) (rank \(incomingRank)) < entitlement \(activeEntitlement.productID) (rank \(entitlementRank)) — lower-tier replay, SKIPPING")
-                                // Still mark notified to prevent repeated processing of this same replay txn.
+                                print("🍎 IAPManager: Transaction \(txIdStr) for \(transaction.productID) is NOT the active entitlement (\(activeEntitlement.productID)) — SKIPPING")
                                 markTransactionNotified(txIdStr)
                             }
                         } else {
-                            // No active entitlement found — forward and let backend guards decide.
                             print("🍎 IAPManager: No active entitlement found, forwarding transaction \(txIdStr) for \(transaction.productID) to backend")
                             let backendNotified = await notifyBackendWithRetry(transaction: transaction)
                             if backendNotified {

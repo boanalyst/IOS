@@ -315,21 +315,6 @@ struct SubscriptionView: View {
                                 try? await Task.sleep(nanoseconds: 3_000_000_000)
                                 await authVM.refreshUser()
                             }
-                        } else if case .pending = result {
-                            // During a subscription GROUP UPGRADE (e.g. premium-yearly → distributors-hub),
-                            // Apple may return .pending while it billing-switches in the background.
-                            // The real verified transaction will arrive via the Transaction.updates listener,
-                            // which will call notifyBackend and then finish the transaction.
-                            // We schedule progressive refreshes so the UI catches up once the DB is updated.
-                            print("🍎 SubscriptionView: Purchase returned .pending — scheduling delayed refreshes for upgrade")
-                            Task {
-                                // First check after 4s (listener usually fires within 2-3s)
-                                try? await Task.sleep(nanoseconds: 4_000_000_000)
-                                await authVM.refreshUser()
-                                // Second check after 10s total in case of slow billing switch
-                                try? await Task.sleep(nanoseconds: 6_000_000_000)
-                                await authVM.refreshUser()
-                            }
                         } else if case .failed = result {
                             if let error = iapManager.errorMessage {
                                 alertMessage = error
