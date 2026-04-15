@@ -538,10 +538,41 @@ final class IAPManager: ObservableObject {
                                 markTransactionNotified(txIdStr)
                             }
                         } else {
-                            print("🍎 IAPManager: No active entitlement found, forwarding transaction \(txIdStr) for \(transaction.productID) to backend")
-                            let backendNotified = await notifyBackendWithRetry(transaction: transaction)
-                            if backendNotified {
+                            // No active entitlement found in currentEntitlements.
+                            //
+                            // ⚠️ STALE REPLAY GUARD:
+                            // After clearing Sandbox purchase history (or on first-install after
+                            // account switches), Apple replays ALL old transactions via
+                            // Transaction.updates — even fully expired ones. currentEntitlements
+                            // correctly returns nil for them. If we blindly forward these to the
+                            // backend, an old expired "premium-yearly" replay would set the user's
+                            // plan to yearly BEFORE their actual purchase, causing the hierarchy
+                            // guard to then block the real "premium-monthly" purchase as a downgrade.
+                            //
+                            // FIX: Only forward if the transaction is NOT already expired.
+                            //   • expirationDate in the past  → stale replay → SKIP
+                            //   • expirationDate in the future → live subscription in transition → forward
+                            //   • expirationDate == nil        → non-subscription / one-time → forward
+                            
+                            let isExpired: Bool
+                            if let expiry = transaction.expirationDate {
+                                isExpired = expiry <= Date()
+                            } else {
+                                isExpired = false // no expiry = non-subscription product
+                            }
+                            
+                            if isExpired {
+                                // Expired transaction with no active entitlement = historical replay.
+                                // Mark as notified so we never process it again.
+                                print("🍎 IAPManager: Transaction \(txIdStr) for \(transaction.productID) is EXPIRED with no active entitlement — stale replay, SKIPPING")
                                 markTransactionNotified(txIdStr)
+                            } else {
+                                // Transaction is still live (or non-expiring) — forward to backend.
+                                print("🍎 IAPManager: No active entitlement found, forwarding live transaction \(txIdStr) for \(transaction.productID) to backend")
+                                let backendNotified = await notifyBackendWithRetry(transaction: transaction)
+                                if backendNotified {
+                                    markTransactionNotified(txIdStr)
+                                }
                             }
                         }
                     }
