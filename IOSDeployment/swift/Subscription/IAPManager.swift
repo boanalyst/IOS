@@ -87,6 +87,12 @@ final class IAPManager: ObservableObject {
     private var transactionUpdateTask: Task<Void, Never>? = nil
     private let api = APIClient.shared
 
+    // After purchase() sends a transaction to the backend, block the listener
+    // from overriding it for 30 seconds. This prevents Apple Sandbox replays
+    // of old transactions (from previous accounts on the same Apple ID) from
+    // overriding the plan the user JUST purchased.
+    private var purchaseCooldownUntil: Date = .distantPast
+
     // MARK: - Notified Transaction ID Tracking
     //
     // We persist a set of transaction IDs that have already been sent to our
@@ -189,7 +195,9 @@ final class IAPManager: ObservableObject {
                     let backendNotified = await notifyBackendWithRetry(transaction: transaction)
                     if backendNotified {
                         markTransactionNotified(String(transaction.id))
-                        print("🍎 IAPManager: ✅ Purchase + backend sync complete for \(transaction.productID)")
+                        // Block listener from overriding this purchase for 30 seconds
+                        purchaseCooldownUntil = Date().addingTimeInterval(30)
+                        print("🍎 IAPManager: ✅ Purchase + backend sync complete for \(transaction.productID) — listener blocked for 30s")
                     } else {
                         // Backend notification failed even after retries.
                         // Do NOT mark notified — the listener may succeed on next launch.
@@ -273,11 +281,33 @@ final class IAPManager: ObservableObject {
         isProActive = hasPro
         isDistributorActive = hasDistributor
         activeTransaction = latestTransaction
+    }
 
-        // Do NOT call notifyBackend on every refresh — only after actual purchases.
-        // Calling it here caused new accounts to get auto-activated because StoreKit
-        // has old transactions from previous accounts. The backend is the source of truth;
-        // notifyBackend is only called in purchase() and restorePurchases().
+    /// Call this ONCE after login/signup to sync the current Apple entitlement
+    /// with the backend for the just-signed-in user. This handles the case where:
+    ///   - User has an active Apple subscription from a previous purchase
+    ///   - User just created a new backend account (or signed into a different one)
+    ///   - The backend doesn't know about the Apple subscription yet
+    ///
+    /// Unlike the listener (which runs all the time), this is deliberately called
+    /// once so we know the backend user context is correct.
+    func syncSubscriptionWithBackend() async {
+        guard let highest = await getHighestActiveEntitlement() else {
+            print("🍎 IAPManager: syncSubscriptionWithBackend — no active Apple entitlement found")
+            return
+        }
+        
+        let txIdStr = String(highest.id)
+        // Always send on login — don't check notifiedTransactionIds here because
+        // the user may have switched accounts. The backend has its own dedup logic.
+        print("🍎 IAPManager: syncSubscriptionWithBackend — sending \(highest.productID) (txn \(txIdStr)) to backend")
+        let ok = await notifyBackendWithRetry(transaction: highest)
+        if ok {
+            markTransactionNotified(txIdStr)
+            print("🍎 IAPManager: ✅ syncSubscriptionWithBackend complete — \(highest.productID)")
+        } else {
+            print("🍎 IAPManager: ⚠️ syncSubscriptionWithBackend failed for \(highest.productID)")
+        }
     }
 
     // MARK: - Notify Backend
@@ -465,6 +495,12 @@ final class IAPManager: ObservableObject {
                         // Already sent this transaction to the backend (e.g., via purchase()
                         // or a previous run of this listener). Skip to avoid duplicates.
                         print("🍎 IAPManager: Transaction \(txIdStr) already notified — skipping backend call")
+                    } else if Date() < purchaseCooldownUntil {
+                        // A purchase() just completed and sent its transaction to the backend.
+                        // Block ALL listener-driven backend calls for 30 seconds to prevent
+                        // Apple Sandbox replays from overriding the purchased plan.
+                        print("🍎 IAPManager: Transaction \(txIdStr) for \(transaction.productID) BLOCKED — purchase cooldown active until \(purchaseCooldownUntil)")
+                        markTransactionNotified(txIdStr)
                     } else {
                         // *** CRITICAL FIX: Cross-check against currentEntitlements ***
                         //
@@ -481,14 +517,9 @@ final class IAPManager: ObservableObject {
                         let highestActive = await getHighestActiveEntitlement()
 
                         if let activeEntitlement = highestActive {
-                            // Only proceed if THIS transaction matches the highest active
-                            // entitlement, OR if this transaction IS the active entitlement's
-                            // product (could be a renewal with a new transaction ID).
                             if transaction.productID == activeEntitlement.productID {
                                 print("🍎 IAPManager: Transaction \(txIdStr) for \(transaction.productID) IS the active entitlement — notifying backend")
 
-                                // Send the ACTUAL active entitlement's transaction to the backend
-                                // (use the highest active, not the incoming one, in case IDs differ)
                                 let txToSend = activeEntitlement
                                 let txToSendIdStr = String(txToSend.id)
 
@@ -496,26 +527,19 @@ final class IAPManager: ObservableObject {
                                     let backendNotified = await notifyBackendWithRetry(transaction: txToSend)
                                     if backendNotified {
                                         markTransactionNotified(txToSendIdStr)
-                                        // Also mark the incoming transaction as notified to avoid re-processing
                                         if txIdStr != txToSendIdStr {
                                             markTransactionNotified(txIdStr)
                                         }
                                     }
                                 } else {
                                     print("🍎 IAPManager: Active entitlement \(txToSendIdStr) already notified — skipping")
-                                    markTransactionNotified(txIdStr) // Mark incoming too
+                                    markTransactionNotified(txIdStr)
                                 }
                             } else {
-                                // This transaction is for a DIFFERENT product than what's currently active.
-                                // It's a historical replay / stale renewal. SKIP the backend call.
-                                print("🍎 IAPManager: Transaction \(txIdStr) for \(transaction.productID) is NOT the active entitlement (\(activeEntitlement.productID)) — SKIPPING backend call to prevent plan override")
-                                markTransactionNotified(txIdStr) // Mark as handled to prevent future retries
+                                print("🍎 IAPManager: Transaction \(txIdStr) for \(transaction.productID) is NOT the active entitlement (\(activeEntitlement.productID)) — SKIPPING")
+                                markTransactionNotified(txIdStr)
                             }
                         } else {
-                            // No active entitlement found — user may have no subscription.
-                            // This can happen if all subscriptions expired. Still forward it
-                            // in case this is a brand-new purchase that hasn't appeared in
-                            // currentEntitlements yet (race with StoreKit's internal state).
                             print("🍎 IAPManager: No active entitlement found, forwarding transaction \(txIdStr) for \(transaction.productID) to backend")
                             let backendNotified = await notifyBackendWithRetry(transaction: transaction)
                             if backendNotified {
