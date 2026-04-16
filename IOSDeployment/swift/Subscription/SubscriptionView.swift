@@ -105,16 +105,20 @@ struct SubscriptionView: View {
     }
 
     private func isActivePlan(_ planInfo: PlanInfo) -> Bool {
+        // Use StoreKit's local entitlement as the primary truth for iOS subscriptions
+        if let activeTx = iapManager.activeTransaction, activeTx.productID == planInfo.productID.rawValue {
+            return true
+        }
+        
+        // Fallback to backend source of truth
         let subscriptionPlan = authVM.currentUser?.subscriptionPlan ?? ""
         switch planInfo.productID {
         case .distributorYearly:
             return subscriptionPlan == "distributors-hub"
         case .proMonthly:
-            // Active if on monthly OR distributor (distributor includes pro access)
-            return subscriptionPlan == "premium-monthly" || subscriptionPlan == "distributors-hub"
+            return subscriptionPlan == "premium-monthly"
         case .proYearly:
-            // Active if on yearly OR distributor
-            return subscriptionPlan == "premium-yearly" || subscriptionPlan == "distributors-hub"
+            return subscriptionPlan == "premium-yearly"
         }
     }
 
