@@ -265,10 +265,20 @@ struct Comment: Decodable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case id = "_id"
+        case id2 = "id"
         case content
         case authorName = "author_name"
         case userId = "author_id"
         case createdAt = "created_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = (try? c.decode(String.self, forKey: .id)) ?? (try? c.decode(String.self, forKey: .id2)) ?? UUID().uuidString
+        self.content = (try? c.decode(String.self, forKey: .content)) ?? ""
+        self.authorName = (try? c.decode(String.self, forKey: .authorName)) ?? "User"
+        self.userId = try? c.decode(String.self, forKey: .userId)
+        self.createdAt = (try? c.decode(String.self, forKey: .createdAt)) ?? ""
     }
 }
 
@@ -630,10 +640,20 @@ struct InsideTalkReply: Decodable, Identifiable {
     let createdAt: String
     enum CodingKeys: String, CodingKey {
         case id = "_id"
+        case id2 = "id"
         case content
         case authorName = "author_name"
         case userId = "author_id"
         case createdAt = "created_at"
+    }
+    
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = (try? c.decode(String.self, forKey: .id)) ?? (try? c.decode(String.self, forKey: .id2)) ?? UUID().uuidString
+        self.content = (try? c.decode(String.self, forKey: .content)) ?? ""
+        self.authorName = (try? c.decode(String.self, forKey: .authorName)) ?? "User"
+        self.userId = try? c.decode(String.self, forKey: .userId)
+        self.createdAt = (try? c.decode(String.self, forKey: .createdAt)) ?? ""
     }
 }
 
