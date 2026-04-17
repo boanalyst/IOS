@@ -200,10 +200,15 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
     // ── Step 2: Convert standard tags to intermediate markers ──
     clean = clean.replacingOccurrences(of: "(?is)<b>(.*?)</b>", with: "**$1**", options: .regularExpression)
     clean = clean.replacingOccurrences(of: "(?is)<i>(.*?)</i>", with: "₩₩$1₩₩", options: .regularExpression)
+    clean = clean.replacingOccurrences(of: "(?is)<u>(.*?)</u>", with: "§§$1§§", options: .regularExpression)
+
+    // Android markdown compat
+    clean = clean.replacingOccurrences(of: "__([^_]+)__", with: "§§$1§§", options: .regularExpression)
+    clean = clean.replacingOccurrences(of: "_([^_]+)_", with: "₩₩$1₩₩", options: .regularExpression)
 
     // ── Step 3: Block HTML to newlines ──
     clean = clean.replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: .regularExpression)
-    clean = clean.replacingOccurrences(of: "(?i)</?o?p>", with: "\n\n", options: .regularExpression)
+    clean = clean.replacingOccurrences(of: "(?i)</?p>", with: "\n\n", options: .regularExpression)
     clean = clean.replacingOccurrences(of: "(?i)<li>", with: "\n• ", options: .regularExpression)
 
     // ── Step 4: Strip all remaining HTML tags ──
@@ -241,17 +246,27 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
             if iPart.isEmpty { continue }
             let isItalic = (j % 2 == 1 && italicParts.count > 1)
             
-            var attrPart = AttributedString(iPart)
-            
-            var intent: InlinePresentationIntent = []
-            if isBold { intent.insert(.stronglyEmphasized) }
-            if isItalic { intent.insert(.emphasized) }
-            
-            if !intent.isEmpty {
-                attrPart.inlinePresentationIntent = intent
+            let underParts = iPart.components(separatedBy: "§§")
+            for (k, uPart) in underParts.enumerated() {
+                if uPart.isEmpty { continue }
+                let isUnder = (k % 2 == 1 && underParts.count > 1)
+                
+                var attrPart = AttributedString(uPart)
+                
+                var intent: InlinePresentationIntent = []
+                if isBold { intent.insert(.stronglyEmphasized) }
+                if isItalic { intent.insert(.emphasized) }
+                
+                if !intent.isEmpty {
+                    attrPart.inlinePresentationIntent = intent
+                }
+                
+                if isUnder {
+                    attrPart.underlineStyle = Text.LineStyle(pattern: .solid)
+                }
+                
+                attrResult.append(attrPart)
             }
-            
-            attrResult.append(attrPart)
         }
     }
     

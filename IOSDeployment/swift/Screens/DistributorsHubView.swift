@@ -341,7 +341,7 @@ struct DistributorsPostCard: View {
             Text(attrContent)
                 .tint(AppTheme.goldPrimary)
                 .font(.system(size: 14))
-                .foregroundColor(AppTheme.textSecondary)
+                .foregroundColor(AppTheme.textPrimary)
                 .lineLimit(nil)
                 .lineSpacing(6)
                 .fixedSize(horizontal: false, vertical: true)
