@@ -35,7 +35,7 @@ struct CachedAsyncImage<Content: View>: View {
             phase = .success(Image(uiImage: cached))
             return
         }
-        if phase != .empty { phase = .empty }
+        phase = .empty
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             if let uiImage = UIImage(data: data) {
