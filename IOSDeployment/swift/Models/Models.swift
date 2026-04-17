@@ -275,7 +275,8 @@ struct Comment: Decodable, Identifiable {
 struct AddCommentResponse: Decodable {
     let success: Bool
     let comment: Comment?
-    var resolvedComment: Comment? { comment }
+    let data: Comment?
+    var resolvedComment: Comment? { comment ?? data }
 }
 
 // TrendingTrend — mirrors Android TrendingTrend model name
@@ -646,7 +647,8 @@ struct InsideTalkRepliesResponse: Decodable {
 struct InsideTalkReplyResponse: Decodable {
     let success: Bool
     let reply: InsideTalkReply?
-    var resolvedReply: InsideTalkReply? { reply }
+    let data: InsideTalkReply?
+    var resolvedReply: InsideTalkReply? { reply ?? data }
 }
 
 // MARK: - Distributors
