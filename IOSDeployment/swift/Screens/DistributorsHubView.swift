@@ -61,23 +61,37 @@ final class DistributorsViewModel: ObservableObject {
     }
 
     func deletePost(_ id: String) {
+        // Optimistic remove
         posts.removeAll { $0.id == id }
         Task {
             let endpoint = APIEndpoint.deleteDistributorsPost(id: id)
-            _ = try? await api.requestRaw(endpoint)
+            let result = try? await api.requestRaw(endpoint)
+            if result == nil {
+                // Network failed — reload to restore correct state
+                await loadPosts(reset: true)
+            }
         }
     }
 
     func pinPost(_ post: DistributorsPost) {
+        // Optimistically toggle pin state on main actor
+        let newPinned = !post.isPinned
+        if let idx = posts.firstIndex(where: { $0.id == post.id }) {
+            posts[idx] = DistributorsPost(from: posts[idx], isPinned: newPinned)
+        }
         Task {
-            // Optimistically toggle pin state locally
-            if let idx = posts.firstIndex(where: { $0.id == post.id }) {
-                posts[idx] = DistributorsPost(from: posts[idx], isPinned: !post.isPinned)
+            // Call pin endpoint
+            if let endpoint = try? APIEndpoint.pinDistributorsPost(id: post.id, isPinned: newPinned) {
+                do {
+                    _ = try await api.requestRaw(endpoint)
+                } catch {
+                    // Revert if server call fails
+                    if let idx = self.posts.firstIndex(where: { $0.id == post.id }) {
+                        self.posts[idx] = DistributorsPost(from: self.posts[idx], isPinned: post.isPinned)
+                    }
+                }
             }
-            // Call pin endpoint if it exists
-            if let endpoint = try? APIEndpoint.pinDistributorsPost(id: post.id, isPinned: !post.isPinned) {
-                _ = try? await api.requestRaw(endpoint)
-            }
+            // Refresh to get server-side sort order (pinned posts first)
             await loadPosts(reset: true)
         }
     }
@@ -254,31 +268,29 @@ struct DistributorsPostCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header
+            // ── Header — matches FlockPostCard exactly ──────────────────────
             HStack(spacing: 10) {
-                let authorStr = post.authorName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-                if authorStr.contains("boanalyst") || authorStr.contains("admin") || post.isPinned {
+                // Avatar: BoAnalyst logo always shown (mirrors FlockPostCard)
+                ZStack {
+                    Circle()
+                        .fill(Color.black)
+                        .frame(width: 36, height: 36)
                     AsyncImage(url: URL(string: "https://boanalyst.com/Logo/download.jpeg")) { phase in
                         if let image = phase.image {
                             image.resizable()
                                  .scaledToFit()
                                  .background(Color.black)
+                                 .padding(3)
                         } else {
-                            Circle().fill(AppTheme.goldPrimary.opacity(0.15))
+                            // Fallback: initial letter avatar
+                            Text(String(post.authorName.prefix(1)).uppercased())
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(AppTheme.goldGradient)
                         }
                     }
-                    .frame(width: 40, height: 40)
-                    .clipShape(Circle())
-                } else {
-                    Circle()
-                        .fill(AppTheme.goldPrimary.opacity(0.15))
-                        .frame(width: 40, height: 40)
-                        .overlay(
-                            Text(String(post.authorName.prefix(1)).uppercased())
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(AppTheme.goldGradient)
-                        )
                 }
+                .frame(width: 36, height: 36)
+                .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
@@ -299,7 +311,10 @@ struct DistributorsPostCard: View {
                         .font(.system(size: 11))
                         .foregroundColor(AppTheme.textMuted)
                 }
+
                 Spacer()
+
+                // Right side: pin badge + admin menu
                 HStack(spacing: 8) {
                     if post.isPinned {
                         Image(systemName: "pin.fill")
@@ -308,18 +323,18 @@ struct DistributorsPostCard: View {
                     }
                     if isAdmin {
                         Menu {
-                            Button(role: .destructive) { onDelete() } label: {
-                                Label("Delete Post", systemImage: "trash")
-                            }
                             Button { onPin() } label: {
                                 Label(post.isPinned ? "Unpin Post" : "Pin Post",
                                       systemImage: post.isPinned ? "pin.slash" : "pin")
+                            }
+                            Button(role: .destructive) { onDelete() } label: {
+                                Label("Delete Post", systemImage: "trash")
                             }
                         } label: {
                             Image(systemName: "ellipsis")
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(AppTheme.textMuted)
-                                .padding(8)
+                                .frame(width: 32, height: 32)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -327,62 +342,66 @@ struct DistributorsPostCard: View {
                 }
             }
 
-            // Content — strip embed URLs, then render as markdown
+            // ── Pinned banner (mirrors FlockPostCard pinned indicator) ──
+            if post.isPinned {
+                HStack(spacing: 4) {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(AppTheme.goldPrimary)
+                    Text("Pinned Post")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(AppTheme.goldPrimary)
+                }
+                .padding(.top, -4)
+            }
+
+            // ── Content — strip embed URLs, render with HTML parser ──────
             let socialEmbeds = extractSocialEmbeds(from: post.content)
             let cleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
             let attrContent = parseBoAnalystHTML(cleanContent)
-            
+
             Text(attrContent)
                 .tint(AppTheme.goldPrimary)
                 .font(.system(size: 14))
                 .foregroundColor(AppTheme.textSecondary)
                 .lineLimit(nil)
-                .lineSpacing(8)
+                .lineSpacing(6)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 4)
-                .padding(.bottom, 8)
 
-            // ── Uploaded Media ────────────────────────────────────────
+            // ── Uploaded Media ────────────────────────────────────────────
             if let urls = post.mediaUrls, !urls.isEmpty {
                 PostMediaView(urls: urls)
-                    .padding(.bottom, 8)
             }
 
             // ── Social Embeds (YouTube / X / Instagram) ───────────────────
             if !socialEmbeds.isEmpty {
                 SocialEmbedsSection(embeds: socialEmbeds)
-                    .padding(.bottom, 8)
             }
 
-            // Tags
+            // ── Hashtags (same style as FlockPostCard) ────────────────────
             if let tags = post.tags, !tags.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(tags, id: \.self) { tag in
-                            Text("#\(tag)")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(AppTheme.goldGradient)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(AppTheme.goldPrimary.opacity(0.1))
-                                .clipShape(Capsule())
-                        }
-                    }
-                }
-                .padding(.bottom, 4)
+                Text(tags.map { "#\($0)" }.joined(separator: " "))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(AppTheme.goldGradient)
+                    .lineLimit(1)
             }
 
-            // Engagement
+            // ── Engagement row ─────────────────────────────────────────────
             HStack(spacing: 16) {
                 Button { onLike() } label: {
                     Label("\(post.likeCount)", systemImage: "heart")
                         .font(.system(size: 12))
                         .foregroundColor(AppTheme.textMuted)
                 }
+                .buttonStyle(.plain)
+
                 Label("\(post.viewCount)", systemImage: "eye")
                     .font(.system(size: 12))
                     .foregroundColor(AppTheme.textMuted)
+
+                Spacer()
             }
         }
         .padding(16)
