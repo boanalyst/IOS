@@ -5,6 +5,58 @@
 
 import SwiftUI
 
+// MARK: - BoAnalystAvatarView
+// Canonical avatar component — mirrors Android's:
+//   Box(modifier = Modifier.size(x).clip(CircleShape).background(Color.Black)) {
+//     SubcomposeAsyncImage(contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(4.dp))
+//   }
+//
+// KEY FIX: The ZStack with Color.black first, then the image inside, then
+// .clipShape(Circle()) on the whole ZStack ensures the circle is always
+// completely filled with black — the image scales to fit inside it with
+// a small inset padding. This is what makes it look "round and perfect"
+// (no white/transparent bars on the sides like .background() on the image does).
+
+struct BoAnalystAvatarView: View {
+    var size: CGFloat = 40
+    var padding: CGFloat = 5
+
+    var body: some View {
+        ZStack {
+            // 1. Black circle background fills the full frame
+            Color.black
+
+            // 2. Logo image centered and padded inside the circle
+            AsyncImage(url: URL(string: "https://boanalyst.com/Logo/download.jpeg")) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .padding(padding)
+                case .failure:
+                    // Fallback: gold "B" initial on dark background
+                    Text("B")
+                        .font(.system(size: size * 0.4, weight: .bold))
+                        .foregroundStyle(AppTheme.goldGradient)
+                default:
+                    // Loading state: subtle gold shimmer ring
+                    Circle()
+                        .stroke(AppTheme.goldPrimary.opacity(0.3), lineWidth: 1.5)
+                        .padding(padding)
+                }
+            }
+        }
+        .frame(width: size, height: size)
+        // 3. Clip the ENTIRE ZStack to a circle — this is the key:
+        //    the black background + image are both cut together,
+        //    giving a perfectly round avatar at any image aspect ratio.
+        .clipShape(Circle())
+        // Subtle gold ring border (same as Android's optional border)
+        .overlay(Circle().stroke(AppTheme.goldPrimary.opacity(0.25), lineWidth: 1))
+    }
+}
+
 // MARK: - FlockPostCard (canonical — used by FlockFeedView and HomeView)
 // isLiked drives heart.fill / heart state.
 // onLike and onComment are separated from onTap so gesture areas don't clash.
@@ -25,29 +77,8 @@ struct FlockPostCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 // Author header
                 HStack(spacing: 10) {
-                    let authorStr = post.authorName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-                    if authorStr.contains("boanalyst") || authorStr.contains("admin") || post.isPinned {
-                        AsyncImage(url: URL(string: "https://boanalyst.com/Logo/download.jpeg")) { phase in
-                            if let image = phase.image {
-                                image.resizable()
-                                     .scaledToFit()
-                                     .background(Color.black)
-                            } else {
-                                Circle().fill(AppTheme.goldPrimary.opacity(0.15))
-                            }
-                        }
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
-                    } else {
-                        Circle()
-                            .fill(AppTheme.goldPrimary.opacity(0.15))
-                            .frame(width: 36, height: 36)
-                            .overlay(
-                                Text(String(post.authorName.prefix(1)).uppercased())
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(AppTheme.goldGradient)
-                            )
-                    }
+                    // BoAnalystAvatarView: perfectly circular avatar (fixes flat/broken look)
+                    BoAnalystAvatarView(size: 40, padding: 5)
 
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {

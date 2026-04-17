@@ -270,27 +270,8 @@ struct DistributorsPostCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // ── Header — matches FlockPostCard exactly ──────────────────────
             HStack(spacing: 10) {
-                // Avatar: BoAnalyst logo always shown (mirrors FlockPostCard)
-                ZStack {
-                    Circle()
-                        .fill(Color.black)
-                        .frame(width: 36, height: 36)
-                    AsyncImage(url: URL(string: "https://boanalyst.com/Logo/download.jpeg")) { phase in
-                        if let image = phase.image {
-                            image.resizable()
-                                 .scaledToFit()
-                                 .background(Color.black)
-                                 .padding(3)
-                        } else {
-                            // Fallback: initial letter avatar
-                            Text(String(post.authorName.prefix(1)).uppercased())
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(AppTheme.goldGradient)
-                        }
-                    }
-                }
-                .frame(width: 36, height: 36)
-                .clipShape(Circle())
+                // Avatar: shared component — perfectly circular (fixes flat/broken look)
+                BoAnalystAvatarView(size: 36, padding: 4)
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
