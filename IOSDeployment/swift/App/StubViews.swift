@@ -128,17 +128,7 @@ struct CommentBottomSheet: View {
         HStack(alignment: .top, spacing: 10) {
             let authorStr = c.authorName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
             if authorStr.contains("boanalyst") || authorStr.contains("admin") {
-                AsyncImage(url: URL(string: "https://boanalyst.com/Logo/download.jpeg")) { phase in
-                    if let image = phase.image {
-                        image.resizable()
-                             .scaledToFit()
-                             .background(Color.black)
-                    } else {
-                        Circle().fill(AppTheme.goldPrimary.opacity(0.15))
-                    }
-                }
-                .frame(width: 32, height: 32)
-                .clipShape(Circle())
+                BoAnalystAvatarView(size: 32, padding: 4)
             } else {
                 Circle()
                     .fill(AppTheme.goldPrimary.opacity(0.15))
@@ -892,17 +882,8 @@ struct InsideTalkCard: View {
             // Author header
             HStack(spacing: 8) {
                 // Inside Talk posts are always from the BoAnalyst Admin
-                AsyncImage(url: URL(string: "https://boanalyst.com/Logo/download.jpeg")) { phase in
-                    if let image = phase.image {
-                        image.resizable()
-                             .scaledToFit()
-                             .background(Color.black)
-                    } else {
-                        Circle().fill(AppTheme.goldPrimary.opacity(0.15))
-                    }
-                }
-                .frame(width: 32, height: 32)
-                .clipShape(Circle())
+                // BoAnalystAvatarView: perfectly circular avatar (fixes flat/broken look)
+                BoAnalystAvatarView(size: 32, padding: 4)
                 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(content.authorName)
