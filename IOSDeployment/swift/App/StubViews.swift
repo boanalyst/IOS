@@ -345,14 +345,10 @@ final class FlockViewModel: ObservableObject {
 
     func addComment(postId: String, text: String) {
         Task {
-            guard let endpoint = try? APIEndpoint.addComment(postId: postId, text: text),
-                  let result = try? await api.request(endpoint, responseType: AddCommentResponse.self),
-                  let raw = result.resolvedComment else { return }
-            let comment = AppComment(id: raw.id, authorName: raw.authorName,
-                                     content: raw.content, createdAt: raw.createdAt, userId: raw.userId ?? "")
-            var list = commentsState[postId] ?? []
-            list.append(comment)
-            commentsState[postId] = list
+            guard let endpoint = try? APIEndpoint.addComment(postId: postId, text: text) else { return }
+            _ = try? await api.requestRaw(endpoint)
+            self.loadComments(postId: postId)
+            
             // Increment reply_count optimistically
             posts = posts.map { p in
                 guard p.id == postId else { return p }
@@ -685,14 +681,10 @@ final class InsideTalkViewModel: ObservableObject {
 
     func addReply(tweetId: String, text: String) {
         Task {
-            guard let endpoint = try? APIEndpoint.addInsideTalkReply(tweetId: tweetId, text: text),
-                  let result = try? await api.request(endpoint, responseType: InsideTalkReplyResponse.self),
-                  let raw = result.resolvedReply else { return }
-            let reply = AppComment(id: raw.id, authorName: raw.authorName,
-                                   content: raw.content, createdAt: raw.createdAt, userId: raw.userId ?? "")
-            var list = repliesState[tweetId] ?? []
-            list.append(reply)
-            repliesState[tweetId] = list
+            guard let endpoint = try? APIEndpoint.addInsideTalkReply(tweetId: tweetId, text: text) else { return }
+            _ = try? await api.requestRaw(endpoint)
+            self.loadReplies(tweetId: tweetId)
+            
             tweets = tweets.map { t in
                 guard t.id == tweetId else { return t }
                 return InsideTalkContent(from: t, replyCount: t.replyCount + 1)
