@@ -91,7 +91,7 @@ extension APIEndpoint {
     }
 
     static func pinFlockPost(id: String, isPinned: Bool) throws -> APIEndpoint {
-        let body = try JSONSerialization.data(withJSONObject: ["isPinned": isPinned, "is_pinned": isPinned ? 1 : 0])
+        let body = try JSONSerialization.data(withJSONObject: ["isPinned": isPinned, "is_pinned": isPinned])
         return APIEndpoint(path: "/api/flock/posts/\(id)/pin", method: .PUT, body: body)
     }
 
@@ -167,7 +167,7 @@ extension APIEndpoint {
     }
 
     static func pinInsideTalkPost(id: String, isPinned: Bool) throws -> APIEndpoint {
-        let body = try JSONSerialization.data(withJSONObject: ["tweetId": id, "isPinned": isPinned, "is_pinned": isPinned ? 1 : 0])
+        let body = try JSONSerialization.data(withJSONObject: ["tweetId": id, "isPinned": isPinned, "is_pinned": isPinned])
         return APIEndpoint(path: "/api/twitter/pin-tweet", method: .PUT, body: body)
     }
 
@@ -206,7 +206,7 @@ extension APIEndpoint {
     }
 
     static func pinDistributorsPost(id: String, isPinned: Bool) throws -> APIEndpoint {
-        let body = try JSONSerialization.data(withJSONObject: ["isPinned": isPinned, "is_pinned": isPinned ? 1 : 0])
+        let body = try JSONSerialization.data(withJSONObject: ["isPinned": isPinned, "is_pinned": isPinned])
         return APIEndpoint(path: "/api/distributors/posts/\(id)/pin", method: .PUT, body: body)
     }
 
