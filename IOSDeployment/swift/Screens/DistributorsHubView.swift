@@ -41,24 +41,21 @@ final class DistributorsViewModel: ObservableObject {
     func likePost(_ id: String) async {
         guard let idx = posts.firstIndex(where: { $0.id == id }) else { return }
         let p = posts[idx]
-        
+
         // Optimistic UI toggle
-        let newCount = p.likeCount + 1
-        posts[idx] = DistributorsPost(from: p, likeCount: newCount)
-        
+        posts[idx] = DistributorsPost(from: p, likeCount: p.likeCount + 1)
+
         let endpoint = APIEndpoint.likeDistributorsPost(id: id)
-        
         do {
             _ = try await api.requestRaw(endpoint)
         } catch {
-            // Revert on failure
-            DispatchQueue.main.async {
-                if let reverseIdx = self.posts.firstIndex(where: { $0.id == id }) {
-                    self.posts[reverseIdx] = DistributorsPost(from: p, likeCount: p.likeCount)
-                }
+            // Revert on failure — @MainActor guarantees main thread, no GCD needed
+            if let reverseIdx = self.posts.firstIndex(where: { $0.id == id }) {
+                self.posts[reverseIdx] = DistributorsPost(from: p, likeCount: p.likeCount)
             }
         }
     }
+
 
     func deletePost(_ id: String) {
         // Optimistic remove
