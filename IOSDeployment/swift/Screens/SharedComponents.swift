@@ -5,6 +5,51 @@
 
 import SwiftUI
 
+class ImageLoaderCache {
+    static let shared = NSCache<NSURL, UIImage>()
+}
+
+enum CachedImagePhase {
+    case empty
+    case success(Image)
+    case failure(Error)
+}
+
+struct CachedAsyncImage<Content: View>: View {
+    let url: URL?
+    @ViewBuilder let content: (CachedImagePhase) -> Content
+    
+    @State private var phase: CachedImagePhase = .empty
+    
+    var body: some View {
+        content(phase)
+            .task(id: url) { await load() }
+    }
+    
+    private func load() async {
+        guard let url = url else {
+            phase = .failure(URLError(.badURL))
+            return
+        }
+        if let cached = ImageLoaderCache.shared.object(forKey: url as NSURL) {
+            phase = .success(Image(uiImage: cached))
+            return
+        }
+        if phase != .empty { phase = .empty }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            if let uiImage = UIImage(data: data) {
+                ImageLoaderCache.shared.setObject(uiImage, forKey: url as NSURL)
+                phase = .success(Image(uiImage: uiImage))
+            } else {
+                phase = .failure(URLError(.cannotDecodeRawData))
+            }
+        } catch {
+            phase = .failure(error)
+        }
+    }
+}
+
 // MARK: - BoAnalystAvatarView
 // Canonical avatar component — mirrors Android's:
 //   Box(modifier = Modifier.size(x).clip(CircleShape).background(Color.Black)) {
@@ -27,7 +72,7 @@ struct BoAnalystAvatarView: View {
             Color.black
 
             // 2. Logo image centered and padded inside the circle
-            AsyncImage(url: URL(string: "https://boanalyst.com/Logo/download.jpeg")) { phase in
+            CachedAsyncImage(url: URL(string: "https://boanalyst.com/Logo/download.jpeg")) { phase in
                 switch phase {
                 case .success(let image):
                     image
@@ -424,7 +469,7 @@ struct PostMediaView: View {
             if urls.count == 1 {
                 // Single large full-width image
                 if let urlString = urls.first, let url = URL(string: urlString.hasPrefix("http") ? urlString : "https://boanalyst.com/\(urlString.hasPrefix("/") ? String(urlString.dropFirst()) : urlString)") {
-                    AsyncImage(url: url) { phase in
+                    CachedAsyncImage(url: url) { phase in
                         switch phase {
                         case .empty:
                             Rectangle().fill(AppTheme.surfaceVariant)
@@ -449,7 +494,7 @@ struct PostMediaView: View {
                     HStack(spacing: 8) {
                         ForEach(urls, id: \.self) { urlString in
                             if let url = URL(string: urlString.hasPrefix("http") ? urlString : "https://boanalyst.com/\(urlString.hasPrefix("/") ? String(urlString.dropFirst()) : urlString)") {
-                                AsyncImage(url: url) { phase in
+                                CachedAsyncImage(url: url) { phase in
                                     switch phase {
                                     case .empty:
                                         Rectangle().fill(AppTheme.surfaceVariant)
