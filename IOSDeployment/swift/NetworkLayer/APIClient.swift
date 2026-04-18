@@ -208,7 +208,7 @@ final class APIClient {
 // MARK: - HTTP Method
 
 enum HTTPMethod: String {
-    case GET, POST, PUT, DELETE
+    case GET, POST, PUT, PATCH, DELETE
 }
 
 // MARK: - Multipart Form Data Helper

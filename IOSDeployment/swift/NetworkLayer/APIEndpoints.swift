@@ -206,8 +206,8 @@ extension APIEndpoint {
     }
 
     static func pinDistributorsPost(id: String, isPinned: Bool) throws -> APIEndpoint {
-        let body = try JSONSerialization.data(withJSONObject: ["isPinned": isPinned, "is_pinned": isPinned])
-        return APIEndpoint(path: "/api/distributors/posts/\(id)/pin", method: .PUT, body: body)
+        let body = try JSONSerialization.data(withJSONObject: ["pinned": isPinned])
+        return APIEndpoint(path: "/api/distributors/posts/\(id)/pin", method: .PATCH, body: body)
     }
 
     // ── Apple In-App Purchase — Receipt Verification ──────────────────────────
