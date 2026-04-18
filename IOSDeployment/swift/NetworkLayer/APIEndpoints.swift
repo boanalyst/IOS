@@ -83,7 +83,7 @@ extension APIEndpoint {
     }
 
     static func deleteComment(postId: String, commentId: String) -> APIEndpoint {
-        APIEndpoint(path: "/api/flock/posts/\(postId)/replies/\(commentId)", method: .DELETE) // NOTE: flockRoutes.js doesn't seem to have delete reply for members natively but this is what Android maps to.
+        APIEndpoint(path: "/api/flock/posts/\(postId)/replies/\(commentId)", method: .DELETE)
     }
 
     static func deleteFlockPost(id: String) -> APIEndpoint {
