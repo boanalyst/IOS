@@ -265,10 +265,11 @@ struct CommentResponse: Decodable {
     let success: Bool
     let comments: [Comment]?
     let data: [Comment]?
-    var resolvedComments: [Comment] { comments ?? data ?? [] }
+    let replies: [Comment]?
+    var resolvedComments: [Comment] { comments ?? data ?? replies ?? [] }
     
     enum CodingKeys: String, CodingKey {
-        case success, comments, data
+        case success, comments, data, replies
     }
     
     init(from decoder: Decoder) throws {
@@ -278,6 +279,7 @@ struct CommentResponse: Decodable {
         else { success = false }
         comments = try? c.decode([Comment].self, forKey: .comments)
         data = try? c.decode([Comment].self, forKey: .data)
+        replies = try? c.decode([Comment].self, forKey: .replies)
     }
 }
 
@@ -741,6 +743,7 @@ struct DistributorsPost: Decodable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case id = "_id"
+        case id2 = "id"
         case content
         case authorName = "author_name"
         case authorHandle = "author_handle"
@@ -774,7 +777,7 @@ struct DistributorsPost: Decodable, Identifiable {
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        id = (try? c.decode(String.self, forKey: .id)) ?? (try? c.decode(String.self, forKey: .id2)) ?? UUID().uuidString
         content = (try? c.decode(String.self, forKey: .content)) ?? ""
         authorName = (try? c.decode(String.self, forKey: .authorName)) ?? "BoAnalyst"
         authorHandle = try? c.decode(String.self, forKey: .authorHandle)
