@@ -45,6 +45,18 @@ struct UpdateProfileRequest: Encodable {
 struct MessageResponse: Decodable {
     let success: Bool
     let message: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case success, message
+    }
+    
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let b = try? c.decode(Bool.self, forKey: .success) { success = b }
+        else if let i = try? c.decode(Int.self, forKey: .success) { success = (i != 0) }
+        else { success = false }
+        message = try? c.decode(String.self, forKey: .message)
+    }
 }
 
 // MARK: - User
@@ -254,6 +266,19 @@ struct CommentResponse: Decodable {
     let comments: [Comment]?
     let data: [Comment]?
     var resolvedComments: [Comment] { comments ?? data ?? [] }
+    
+    enum CodingKeys: String, CodingKey {
+        case success, comments, data
+    }
+    
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let b = try? c.decode(Bool.self, forKey: .success) { success = b }
+        else if let i = try? c.decode(Int.self, forKey: .success) { success = (i != 0) }
+        else { success = false }
+        comments = try? c.decode([Comment].self, forKey: .comments)
+        data = try? c.decode([Comment].self, forKey: .data)
+    }
 }
 
 struct Comment: Decodable, Identifiable {
@@ -287,6 +312,19 @@ struct AddCommentResponse: Decodable {
     let comment: Comment?
     let data: Comment?
     var resolvedComment: Comment? { comment ?? data }
+    
+    enum CodingKeys: String, CodingKey {
+        case success, comment, data
+    }
+    
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let b = try? c.decode(Bool.self, forKey: .success) { success = b }
+        else if let i = try? c.decode(Int.self, forKey: .success) { success = (i != 0) }
+        else { success = false }
+        comment = try? c.decode(Comment.self, forKey: .comment)
+        data = try? c.decode(Comment.self, forKey: .data)
+    }
 }
 
 // TrendingTrend — mirrors Android TrendingTrend model name
