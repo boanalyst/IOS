@@ -59,13 +59,16 @@ final class DistributorsViewModel: ObservableObject {
 
     func deletePost(_ id: String) {
         // Optimistic remove
+        let priorPosts = posts
         posts.removeAll { $0.id == id }
         Task {
-            let endpoint = APIEndpoint.deleteDistributorsPost(id: id)
-            let result = try? await api.requestRaw(endpoint)
-            if result == nil {
-                // Network failed — reload to restore correct state
-                await loadPosts(reset: true)
+            do {
+                let endpoint = APIEndpoint.deleteDistributorsPost(id: id)
+                _ = try await api.requestRaw(endpoint)
+            } catch {
+                // Network failed — revert to restore correct state
+                posts = priorPosts
+                self.error = "Error deleting post: \(error.localizedDescription)"
             }
         }
     }
@@ -77,16 +80,15 @@ final class DistributorsViewModel: ObservableObject {
             posts[idx] = DistributorsPost(from: posts[idx], isPinned: newPinned)
         }
         Task {
-            // Call pin endpoint
-            if let endpoint = try? APIEndpoint.pinDistributorsPost(id: post.id, isPinned: newPinned) {
-                do {
-                    _ = try await api.requestRaw(endpoint)
-                } catch {
-                    // Revert if server call fails
-                    if let idx = self.posts.firstIndex(where: { $0.id == post.id }) {
-                        self.posts[idx] = DistributorsPost(from: self.posts[idx], isPinned: post.isPinned)
-                    }
+            do {
+                let endpoint = try APIEndpoint.pinDistributorsPost(id: post.id, isPinned: newPinned)
+                _ = try await api.requestRaw(endpoint)
+            } catch {
+                // Revert if server call fails
+                if let idx = self.posts.firstIndex(where: { $0.id == post.id }) {
+                    self.posts[idx] = DistributorsPost(from: self.posts[idx], isPinned: post.isPinned)
                 }
+                self.error = "Error pinning post: \(error.localizedDescription)"
             }
             // Refresh to get server-side sort order (pinned posts first)
             await loadPosts(reset: true)
