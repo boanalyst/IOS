@@ -702,6 +702,19 @@ struct InsideTalkRepliesResponse: Decodable {
     let replies: [InsideTalkReply]?
     let data: [InsideTalkReply]?
     var resolvedReplies: [InsideTalkReply] { replies ?? data ?? [] }
+
+    enum CodingKeys: String, CodingKey {
+        case success, replies, data
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let b = try? c.decode(Bool.self, forKey: .success) { success = b }
+        else if let i = try? c.decode(Int.self, forKey: .success) { success = (i != 0) }
+        else { success = false }
+        replies = try? c.decode([InsideTalkReply].self, forKey: .replies)
+        data = try? c.decode([InsideTalkReply].self, forKey: .data)
+    }
 }
 
 struct InsideTalkReplyResponse: Decodable {
@@ -709,6 +722,19 @@ struct InsideTalkReplyResponse: Decodable {
     let reply: InsideTalkReply?
     let data: InsideTalkReply?
     var resolvedReply: InsideTalkReply? { reply ?? data }
+
+    enum CodingKeys: String, CodingKey {
+        case success, reply, data
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let b = try? c.decode(Bool.self, forKey: .success) { success = b }
+        else if let i = try? c.decode(Int.self, forKey: .success) { success = (i != 0) }
+        else { success = false }
+        reply = try? c.decode(InsideTalkReply.self, forKey: .reply)
+        data = try? c.decode(InsideTalkReply.self, forKey: .data)
+    }
 }
 
 // MARK: - Distributors
