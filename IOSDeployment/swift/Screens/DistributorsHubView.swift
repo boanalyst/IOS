@@ -177,9 +177,9 @@ struct DistributorsHubView: View {
             })
         }
         .sheet(item: $editingPost) { post in
-            CreatePostSheet(title: "Edit Post", initialText: post.content) { newContent, mediaData, mediaType, fileName in
+            CreatePostSheet(title: "Edit Post", initialText: post.content, onSubmitWithMedia: { newContent, mediaData, mediaType, fileName in
                 viewModel.updatePost(id: post.id, content: newContent, mediaData: mediaData, mimeType: mediaType, fileName: fileName)
-            }
+            })
         }
         .task {
             if canView { await viewModel.loadPosts() }
