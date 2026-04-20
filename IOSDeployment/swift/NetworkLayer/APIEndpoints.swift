@@ -64,7 +64,15 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/flock/posts", method: .POST, body: body)
     }
 
-    static func updateFlockPost(id: String, content: String) throws -> APIEndpoint {
+    static func updateFlockPost(id: String, content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) throws -> APIEndpoint {
+        if let data = mediaData, let mime = mimeType, let name = fileName {
+            var multipart = MultipartFormData()
+            multipart.append(name: "content", string: content)
+            multipart.append(name: "media", data: data, filename: name, mimeType: mime)
+            var endpoint = APIEndpoint(path: "/api/flock/posts/\(id)", method: .PUT)
+            endpoint.multipartData = multipart
+            return endpoint
+        }
         let body = try JSONSerialization.data(withJSONObject: ["content": content])
         return APIEndpoint(path: "/api/flock/posts/\(id)", method: .PUT, body: body)
     }
@@ -227,7 +235,15 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/distributors/posts", method: .POST, body: body)
     }
 
-    static func updateDistributorsPost(id: String, content: String) throws -> APIEndpoint {
+    static func updateDistributorsPost(id: String, content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) throws -> APIEndpoint {
+        if let data = mediaData, let mime = mimeType, let name = fileName {
+            var multipart = MultipartFormData()
+            multipart.append(name: "content", string: content)
+            multipart.append(name: "media", data: data, filename: name, mimeType: mime)
+            var endpoint = APIEndpoint(path: "/api/distributors/posts/\(id)", method: .PUT)
+            endpoint.multipartData = multipart
+            return endpoint
+        }
         let body = try JSONSerialization.data(withJSONObject: ["content": content])
         return APIEndpoint(path: "/api/distributors/posts/\(id)", method: .PUT, body: body)
     }
