@@ -725,7 +725,7 @@ final class InsideTalkViewModel: ObservableObject {
         Task {
             if let endpoint = try? APIEndpoint.updateInsideTalkPost(id: tweetId, text: text) {
                 if (try? await api.requestRaw(endpoint)) != nil {
-                    await fetchTweets(page: 1, limit: 20, reset: true)
+                    await loadAll()
                 }
             }
         }
