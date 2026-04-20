@@ -564,9 +564,9 @@ struct FlockFeedView: View {
             }
         }
         .sheet(item: $editingPost) { post in
-            CreatePostSheet(title: "Edit Flock Post", initialText: post.content) { newContent, mediaData, mediaType, fileName in
+            CreatePostSheet(title: "Edit Flock Post", initialText: post.content, onSubmitWithMedia: { newContent, mediaData, mediaType, fileName in
                 flockVM.updatePost(post, content: newContent, mediaData: mediaData, mimeType: mediaType, fileName: fileName)
-            }
+            })
         }
         // ── Comment Bottom Sheet (Bug #4 fix: uses FlockCommentSheetContainer for live updates) ──
         .sheet(item: $activeCommentPostId) { postId in
@@ -848,9 +848,9 @@ struct InsideTalkView: View {
             })
         }
         .sheet(item: $editingPost) { tweet in
-            CreatePostSheet(title: "Edit Inside Talk", initialText: tweet.content) { newContent, _, _, _ in
+            CreatePostSheet(title: "Edit Inside Talk", initialText: tweet.content, onSubmitWithMedia: { newContent, _, _, _ in
                 viewModel.updatePost(tweetId: tweet.id, text: newContent)
-            }
+            })
         }
         // ── Reply Bottom Sheet ────────────────────────────────────────────
         // ── Reply Bottom Sheet (Bug #4 fix: uses InsideTalkCommentSheetContainer for live updates) ──
