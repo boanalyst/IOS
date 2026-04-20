@@ -390,9 +390,9 @@ final class FlockViewModel: ObservableObject {
     }
 
     // MARK: Admin: Edit Post
-    func updatePost(_ post: FlockPost, content: String) {
+    func updatePost(_ post: FlockPost, content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) {
         Task {
-            if let endpoint = try? APIEndpoint.updateFlockPost(id: post.id, content: content) {
+            if let endpoint = try? APIEndpoint.updateFlockPost(id: post.id, content: content, mediaData: mediaData, mimeType: mimeType, fileName: fileName) {
                 if (try? await api.requestRaw(endpoint)) != nil {
                     // Success, reload posts
                     await fetchPosts(offset: 0, reset: true)
@@ -564,8 +564,8 @@ struct FlockFeedView: View {
             }
         }
         .sheet(item: $editingPost) { post in
-            PostEditSheet(title: "Edit Flock Post", text: post.content) { newContent in
-                flockVM.updatePost(post, content: newContent)
+            CreatePostSheet(title: "Edit Flock Post", initialText: post.content) { newContent, mediaData, mediaType, fileName in
+                flockVM.updatePost(post, content: newContent, mediaData: mediaData, mimeType: mediaType, fileName: fileName)
             }
         }
         // ── Comment Bottom Sheet (Bug #4 fix: uses FlockCommentSheetContainer for live updates) ──
@@ -848,7 +848,7 @@ struct InsideTalkView: View {
             })
         }
         .sheet(item: $editingPost) { tweet in
-            PostEditSheet(title: "Edit Inside Talk", text: tweet.content) { newContent in
+            CreatePostSheet(title: "Edit Inside Talk", initialText: tweet.content) { newContent, _, _, _ in
                 viewModel.updatePost(tweetId: tweet.id, text: newContent)
             }
         }
@@ -1754,17 +1754,20 @@ import PhotosUI
 struct CreatePostSheet: View {
     @Environment(\.dismiss) var dismiss
     let title: String
+    let initialText: String
     let onSubmitText: ((String) async -> Void)?           // plain-text only (legacy)
     let onSubmitMedia: ((String, Data?, String?, String?) async -> Void)?  // text + media
 
-    init(title: String, onSubmit: @escaping (String) async -> Void) {
+    init(title: String, initialText: String = "", onSubmit: @escaping (String) async -> Void) {
         self.title = title
+        self.initialText = initialText
         self.onSubmitText = onSubmit
         self.onSubmitMedia = nil
     }
 
-    init(title: String, onSubmitWithMedia: @escaping (String, Data?, String?, String?) async -> Void) {
+    init(title: String, initialText: String = "", onSubmitWithMedia: @escaping (String, Data?, String?, String?) async -> Void) {
         self.title = title
+        self.initialText = initialText
         self.onSubmitText = nil
         self.onSubmitMedia = onSubmitWithMedia
     }
@@ -1961,6 +1964,9 @@ struct CreatePostSheet: View {
                     .disabled(!canPost)
                 }
             }
+        }
+        .onAppear {
+            text = initialText
         }
         .fileImporter(
             isPresented: $showAudioPicker,
