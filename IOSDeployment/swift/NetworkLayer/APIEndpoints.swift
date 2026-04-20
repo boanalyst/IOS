@@ -121,6 +121,36 @@ extension APIEndpoint {
 
     static let getInsideTalkCount = APIEndpoint(path: "/api/twitter/inside-talk/count", method: .GET)
     static let getExclusiveContent = APIEndpoint(path: "/api/exclusive/content", method: .GET)
+    static let getFullExclusiveContent = APIEndpoint(path: "/api/exclusive/full-content", method: .GET)
+
+    /// Admin: Update exclusive content (title, description, price, optional new media files).
+    /// Uses multipart/form-data so images can be attached alongside text fields.
+    static func updateExclusiveContent(
+        title: String,
+        description: String,
+        price: Double,
+        existingMedia: [String],
+        newMediaData: [(data: Data, filename: String, mimeType: String)] = []
+    ) throws -> APIEndpoint {
+        var multipart = MultipartFormData()
+        multipart.append(name: "title", string: title)
+        multipart.append(name: "description", string: description)
+        multipart.append(name: "price", string: String(price))
+        multipart.append(name: "currency", string: "INR")
+        if !existingMedia.isEmpty {
+            if let jsonData = try? JSONSerialization.data(withJSONObject: existingMedia),
+               let jsonString = String(data: jsonData, encoding: .utf8) {
+                multipart.append(name: "existingMedia", string: jsonString)
+            }
+        }
+        for item in newMediaData {
+            multipart.append(name: "media", data: item.data, filename: item.filename, mimeType: item.mimeType)
+        }
+        var endpoint = APIEndpoint(path: "/api/exclusive/update", method: .POST)
+        endpoint.multipartData = multipart
+        return endpoint
+    }
+
 
     static func createInsideTalkPost(text: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) throws -> APIEndpoint {
         if let data = mediaData, let mime = mimeType, let name = fileName {
