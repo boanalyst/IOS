@@ -64,6 +64,11 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/flock/posts", method: .POST, body: body)
     }
 
+    static func updateFlockPost(id: String, content: String) throws -> APIEndpoint {
+        let body = try JSONSerialization.data(withJSONObject: ["content": content])
+        return APIEndpoint(path: "/api/flock/posts/\(id)", method: .PUT, body: body)
+    }
+
     static func likePost(id: String) -> APIEndpoint {
         APIEndpoint(path: "/api/flock/posts/\(id)/like", method: .POST)
     }
