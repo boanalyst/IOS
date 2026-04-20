@@ -15,14 +15,15 @@ final class HomeViewModel: ObservableObject {
     @Published var exclusiveContent: ExclusiveContent? = nil
     @Published var isLoading = false
     @Published var error: String? = nil
+    @Published var showExclusiveEditor = false
+    @Published var isSavingExclusive = false
+    @Published var exclusiveSaveError: String? = nil
 
     private let api = APIClient.shared
 
     func loadHomeData() async {
         isLoading = true
         error = nil
-        // Fire all requests in parallel; handle each independently
-        // so a failure in polls/flock doesn't discard the movie results.
         async let moviesTask    = api.request(.getNowPlaying, responseType: MovieResponse.self)
         async let upcomingTask  = api.request(.getUpcoming, responseType: MovieResponse.self)
         async let pollsTask     = api.request(.getPolls, responseType: ApiResult<[Poll]>.self)
@@ -51,6 +52,34 @@ final class HomeViewModel: ObservableObject {
         } catch {
             self.error = "Could not record vote. Please try again."
         }
+    }
+
+    /// Admin: Save exclusive content. `newImages` are UIImage picked by the user.
+    func saveExclusiveContent(
+        title: String,
+        description: String,
+        price: Double,
+        existingMediaUrls: [String],
+        newImages: [UIImage]
+    ) async {
+        isSavingExclusive = true
+        exclusiveSaveError = nil
+        do {
+            let newMediaData: [(data: Data, filename: String, mimeType: String)] = newImages.compactMap { img in
+                guard let data = img.jpegData(compressionQuality: 0.8) else { return nil }
+                return (data: data, filename: "exclusive_\(UUID().uuidString).jpg", mimeType: "image/jpeg")
+            }
+            let endpoint = try APIEndpoint.updateExclusiveContent(
+                title: title, description: description, price: price,
+                existingMedia: existingMediaUrls, newMediaData: newMediaData
+            )
+            _ = try await api.requestRaw(endpoint)
+            await loadHomeData()
+            showExclusiveEditor = false
+        } catch {
+            exclusiveSaveError = "Save failed: \(error.localizedDescription)"
+        }
+        isSavingExclusive = false
     }
 }
 
@@ -93,9 +122,9 @@ struct HomeView: View {
                             if let exclusive = viewModel.exclusiveContent {
                                 ExclusiveContentCard(
                                     exclusive: exclusive,
-                                    onUnlock: {
-                                        onSubscribeRequired()
-                                    }
+                                    isAdmin: authViewModel.currentUser?.isAdmin ?? false,
+                                    onEdit: { viewModel.showExclusiveEditor = true },
+                                    onUnlock: { onSubscribeRequired() }
                                 )
                                 .padding(.horizontal, 20)
                             }
@@ -187,6 +216,9 @@ struct HomeView: View {
             await viewModel.loadHomeData()
         }
         .navigationBarHidden(true)
+        .sheet(isPresented: $viewModel.showExclusiveEditor) {
+            ExclusiveContentEditSheet(viewModel: viewModel)
+        }
     }
 
     private var greetingTime: String {
@@ -402,6 +434,8 @@ struct PollCard: View {
 // MARK: - Exclusive Content Card
 struct ExclusiveContentCard: View {
     let exclusive: ExclusiveContent
+    var isAdmin: Bool = false
+    var onEdit: () -> Void = {}
     var onUnlock: () -> Void = {}
 
     var body: some View {
@@ -413,9 +447,16 @@ struct ExclusiveContentCard: View {
                     .font(.system(size: 12, weight: .bold))
                     .tracking(1.5)
                     .foregroundColor(AppTheme.goldPrimary)
+                Spacer()
+                if isAdmin {
+                    Button(action: onEdit) {
+                        Image(systemName: "pencil.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(AppTheme.goldPrimary)
+                    }
+                }
             }
 
-            // Simple HTML tag removal for description
             let cleanDesc = exclusive.description
                 .replacingOccurrences(of: "<div>", with: "")
                 .replacingOccurrences(of: "</div>", with: "")
@@ -423,7 +464,6 @@ struct ExclusiveContentCard: View {
                 .replacingOccurrences(of: "</b>", with: "")
                 .replacingOccurrences(of: "&nbsp;", with: " ")
 
-            // Simple HTML tag removal for title
             let cleanTitle = exclusive.title
                 .replacingOccurrences(of: "<div>", with: "")
                 .replacingOccurrences(of: "</div>", with: "")
@@ -469,6 +509,243 @@ struct ExclusiveContentCard: View {
         }
         .padding(16)
         .cardStyle()
+    }
+}
+
+// MARK: - Exclusive Content Admin Edit Sheet
+import PhotosUI
+
+struct ExclusiveContentEditSheet: View {
+    @ObservedObject var viewModel: HomeViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var title: String = ""
+    @State private var description: String = ""
+    @State private var price: String = ""
+    @State private var existingMediaUrls: [String] = []
+    @State private var newImages: [UIImage] = []
+    @State private var selectedItems: [PhotosPickerItem] = []
+    @State private var isLoadingContent = true
+    @State private var loadError: String? = nil
+
+    private let api = APIClient.shared
+    private var totalMediaCount: Int { existingMediaUrls.count + newImages.count }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.background.ignoresSafeArea()
+
+                if isLoadingContent {
+                    ProgressView("Loading content...")
+                        .tint(AppTheme.goldPrimary)
+                        .foregroundColor(AppTheme.textMuted)
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+
+                            // Title
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Title").font(.system(size: 13, weight: .semibold)).foregroundColor(AppTheme.textMuted)
+                                TextField("Exclusive content title", text: $title, axis: .vertical)
+                                    .font(.system(size: 15))
+                                    .foregroundColor(AppTheme.textPrimary)
+                                    .padding(12)
+                                    .background(AppTheme.surfaceVariant)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                            }
+
+                            // Description
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Description").font(.system(size: 13, weight: .semibold)).foregroundColor(AppTheme.textMuted)
+                                TextField("Description / body text", text: $description, axis: .vertical)
+                                    .lineLimit(4...12)
+                                    .font(.system(size: 15))
+                                    .foregroundColor(AppTheme.textPrimary)
+                                    .padding(12)
+                                    .background(AppTheme.surfaceVariant)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                            }
+
+                            // Price
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Price (₹)").font(.system(size: 13, weight: .semibold)).foregroundColor(AppTheme.textMuted)
+                                TextField("Price in INR", text: $price)
+                                    .keyboardType(.decimalPad)
+                                    .font(.system(size: 15))
+                                    .foregroundColor(AppTheme.textPrimary)
+                                    .padding(12)
+                                    .background(AppTheme.surfaceVariant)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                            }
+
+                            // Media section
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    Text("Media (\(totalMediaCount)/4)")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(AppTheme.textMuted)
+                                    Spacer()
+                                    if totalMediaCount < 4 {
+                                        PhotosPicker(
+                                            selection: $selectedItems,
+                                            maxSelectionCount: 4 - existingMediaUrls.count,
+                                            matching: .images
+                                        ) {
+                                            Label("Add photos", systemImage: "photo.badge.plus")
+                                                .font(.system(size: 13, weight: .medium))
+                                                .foregroundColor(AppTheme.goldPrimary)
+                                        }
+                                        .onChange(of: selectedItems) { items in
+                                            Task {
+                                                newImages = []
+                                                for item in items {
+                                                    if let data = try? await item.loadTransferable(type: Data.self),
+                                                       let img = UIImage(data: data) {
+                                                        newImages.append(img)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Existing images
+                                if !existingMediaUrls.isEmpty {
+                                    Text("Existing images").font(.system(size: 11)).foregroundColor(AppTheme.textMuted)
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 8) {
+                                            ForEach(existingMediaUrls.indices, id: \.self) { i in
+                                                let urlStr = existingMediaUrls[i]
+                                                let fullUrl = URL(string: urlStr.hasPrefix("http") ? urlStr : "https://boanalyst.com" + urlStr)
+                                                ZStack(alignment: .topTrailing) {
+                                                    AsyncImage(url: fullUrl) { phase in
+                                                        switch phase {
+                                                        case .success(let img):
+                                                            img.resizable().scaledToFill()
+                                                        default:
+                                                            Rectangle().fill(AppTheme.surfaceVariant)
+                                                        }
+                                                    }
+                                                    .frame(width: 80, height: 80)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                                                    Button { existingMediaUrls.remove(at: i) } label: {
+                                                        Image(systemName: "xmark.circle.fill")
+                                                            .foregroundColor(.white)
+                                                            .background(Color.black.opacity(0.6), in: Circle())
+                                                            .font(.system(size: 18))
+                                                    }
+                                                    .padding(4)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // New images preview
+                                if !newImages.isEmpty {
+                                    Text("New images to upload").font(.system(size: 11)).foregroundColor(AppTheme.textMuted)
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 8) {
+                                            ForEach(newImages.indices, id: \.self) { i in
+                                                ZStack(alignment: .topTrailing) {
+                                                    Image(uiImage: newImages[i])
+                                                        .resizable().scaledToFill()
+                                                        .frame(width: 80, height: 80)
+                                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                                    Button { newImages.remove(at: i) } label: {
+                                                        Image(systemName: "xmark.circle.fill")
+                                                            .foregroundColor(.white)
+                                                            .background(Color.black.opacity(0.6), in: Circle())
+                                                            .font(.system(size: 18))
+                                                    }
+                                                    .padding(4)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if let err = viewModel.exclusiveSaveError {
+                                Text(err)
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.red)
+                                    .padding(.horizontal, 4)
+                            }
+
+                            // Save button
+                            Button {
+                                Task {
+                                    await viewModel.saveExclusiveContent(
+                                        title: title,
+                                        description: description,
+                                        price: Double(price) ?? 0,
+                                        existingMediaUrls: existingMediaUrls,
+                                        newImages: newImages
+                                    )
+                                }
+                            } label: {
+                                if viewModel.isSavingExclusive {
+                                    ProgressView().tint(.black).frame(maxWidth: .infinity).padding(.vertical, 14)
+                                } else {
+                                    Text("Save Changes")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.black)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 14)
+                                }
+                            }
+                            .background(AppTheme.goldGradient)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .disabled(viewModel.isSavingExclusive || title.trimmingCharacters(in: .whitespaces).isEmpty)
+                        }
+                        .padding(20)
+                    }
+                }
+
+                if let err = loadError {
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 36))
+                            .foregroundColor(AppTheme.warning)
+                        Text(err).font(.system(size: 14)).foregroundColor(AppTheme.textSecondary).multilineTextAlignment(.center)
+                    }
+                    .padding(32)
+                }
+            }
+            .navigationTitle("Edit Exclusive Content")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(AppTheme.goldPrimary)
+                }
+            }
+        }
+        .task {
+            // Load full (admin) content to pre-fill the editor
+            isLoadingContent = true
+            if let content = try? await api.request(.getFullExclusiveContent, responseType: ExclusiveContentResponse.self) {
+                let c = content.content
+                title = c?.title ?? ""
+                description = c?.description ?? ""
+                price = c.flatMap { String($0.price) } ?? ""
+                // Parse existing mediaUrl JSON array
+                if let mediaStr = c?.mediaUrl {
+                    if let data = mediaStr.data(using: .utf8),
+                       let urls = try? JSONDecoder().decode([String].self, from: data) {
+                        existingMediaUrls = urls
+                    } else {
+                        existingMediaUrls = mediaStr.isEmpty ? [] : [mediaStr]
+                    }
+                }
+            } else {
+                loadError = "Could not load content. Check your connection."
+            }
+            isLoadingContent = false
+        }
     }
 }
 
