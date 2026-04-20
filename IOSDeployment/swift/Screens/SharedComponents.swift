@@ -116,6 +116,7 @@ struct FlockPostCard: View {
     var onComment: () -> Void = {}
     var onDelete: () -> Void = {}
     var onPin: () -> Void = {}
+    var onEdit: (() -> Void)? = nil
 
     var body: some View {
         Button(action: onTap) {
@@ -147,6 +148,11 @@ struct FlockPostCard: View {
                         // Bug #1 fix: admin sees a context menu button
                         if isAdmin {
                             Menu {
+                                if let edit = onEdit {
+                                    Button(action: edit) {
+                                        Label("Edit Post", systemImage: "pencil")
+                                    }
+                                }
                                 Button(role: .destructive) { onDelete() } label: {
                                     Label("Delete Post", systemImage: "trash")
                                 }

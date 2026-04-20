@@ -94,6 +94,18 @@ final class DistributorsViewModel: ObservableObject {
             await loadPosts(reset: true)
         }
     }
+
+    func updatePost(id: String, content: String) {
+        Task {
+            if let endpoint = try? APIEndpoint.updateDistributorsPost(id: id, content: content) {
+                if (try? await api.requestRaw(endpoint)) != nil {
+                    await loadPosts(reset: true)
+                } else {
+                    self.error = "Could not update post."
+                }
+            }
+        }
+    }
 }
 
 // MARK: - DistributorsHubView
@@ -104,6 +116,7 @@ struct DistributorsHubView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
     @StateObject private var viewModel = DistributorsViewModel()
     @State private var showCreatePost = false
+    @State private var editingPost: DistributorsPost?
 
     // Admins bypass the distributor paywall, like Android
     private var canView: Bool {
@@ -131,7 +144,8 @@ struct DistributorsHubView: View {
                                 isAdmin: isAdmin,
                                 onLike: { Task { await viewModel.likePost(post.id) } },
                                 onDelete: { viewModel.deletePost(post.id) },
-                                onPin: { viewModel.pinPost(post) }
+                                onPin: { viewModel.pinPost(post) },
+                                onEdit: isAdmin ? { editingPost = post } : nil
                             )
                             .padding(.horizontal, 16)
                         }
@@ -161,6 +175,11 @@ struct DistributorsHubView: View {
             CreatePostSheet(title: "New Distributors Hub Post", onSubmitWithMedia: { text, mediaData, mediaType, fileName in
                 await viewModel.createPost(content: text, mediaData: mediaData, mimeType: mediaType, fileName: fileName)
             })
+        }
+        .sheet(item: $editingPost) { post in
+            PostEditSheet(title: "Edit Post", text: post.content) { newContent in
+                viewModel.updatePost(id: post.id, content: newContent)
+            }
         }
         .task {
             if canView { await viewModel.loadPosts() }
@@ -264,6 +283,7 @@ struct DistributorsPostCard: View {
     var onLike: () -> Void = {}
     var onDelete: () -> Void = {}
     var onPin: () -> Void = {}
+    var onEdit: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -303,6 +323,11 @@ struct DistributorsPostCard: View {
                     }
                     if isAdmin {
                         Menu {
+                            if let edit = onEdit {
+                                Button(action: edit) {
+                                    Label("Edit Post", systemImage: "pencil")
+                                }
+                            }
                             Button { onPin() } label: {
                                 Label(post.isPinned ? "Unpin Post" : "Pin Post",
                                       systemImage: post.isPinned ? "pin.slash" : "pin")
