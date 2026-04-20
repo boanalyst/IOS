@@ -389,6 +389,20 @@ final class FlockViewModel: ObservableObject {
         }
     }
 
+    // MARK: Admin: Edit Post
+    func updatePost(_ post: FlockPost, content: String) {
+        Task {
+            if let endpoint = try? APIEndpoint.updateFlockPost(id: post.id, content: content) {
+                if (try? await api.requestRaw(endpoint)) != nil {
+                    // Success, reload posts
+                    await fetchPosts(offset: 0, reset: true)
+                } else {
+                    error = "Could not update post."
+                }
+            }
+        }
+    }
+
     // MARK: Admin: Pin/Unpin Post (Bug #1 fix)
 
     func togglePin(_ post: FlockPost) {
@@ -457,6 +471,7 @@ struct FlockFeedView: View {
 
     @State private var activeCommentPostId: String? = nil
     @State private var showCreatePost = false
+    @State private var editingPost: FlockPost?
 
     var body: some View {
         ZStack {
@@ -489,8 +504,9 @@ struct FlockFeedView: View {
                                         flockVM.loadComments(postId: post.id)
                                         activeCommentPostId = post.id
                                     },
-                                    onDelete: { flockVM.deletePost(post) },
-                                    onPin: { flockVM.togglePin(post) }
+                                    onDelete: isAdmin ? { flockVM.deletePost(post) } : {},
+                                    onPin: isAdmin ? { flockVM.togglePin(post) } : {},
+                                    onEdit: isAdmin ? { editingPost = post } : nil
                                 )
                                 .padding(.horizontal, 16)
                             }
@@ -545,6 +561,11 @@ struct FlockFeedView: View {
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button { authViewModel.showProfileSheet = true } label: { Image(systemName: "person.crop.circle").font(.title3).foregroundColor(AppTheme.goldPrimary) }
+            }
+        }
+        .sheet(item: $editingPost) { post in
+            PostEditSheet(title: "Edit Flock Post", text: post.content) { newContent in
+                flockVM.updatePost(post, content: newContent)
             }
         }
         // ── Comment Bottom Sheet (Bug #4 fix: uses FlockCommentSheetContainer for live updates) ──
@@ -700,6 +721,16 @@ final class InsideTalkViewModel: ObservableObject {
         }
     }
 
+    func updatePost(tweetId: String, text: String) {
+        Task {
+            if let endpoint = try? APIEndpoint.updateInsideTalkPost(id: tweetId, text: text) {
+                if (try? await api.requestRaw(endpoint)) != nil {
+                    await fetchTweets(page: 1, limit: 20, reset: true)
+                }
+            }
+        }
+    }
+
     func deleteReply(tweetId: String, replyId: String) {
         let prior = repliesState[tweetId] ?? []
         repliesState[tweetId] = prior.filter { $0.id != replyId }
@@ -735,6 +766,7 @@ struct InsideTalkView: View {
 
     @State private var activeCommentTweetId: String? = nil
     @State private var showCreatePost = false
+    @State private var editingPost: InsideTalkContent?
 
     var body: some View {
         ZStack {
@@ -762,7 +794,8 @@ struct InsideTalkView: View {
                                     activeCommentTweetId = tweet.id
                                 },
                                 onDelete: isAdmin ? { viewModel.deletePost(tweetId: tweet.id) } : nil,
-                                onPin: isAdmin ? { viewModel.togglePin(tweet) } : nil
+                                onPin: isAdmin ? { viewModel.togglePin(tweet) } : nil,
+                                onEdit: isAdmin ? { editingPost = tweet } : nil
                             )
                             .padding(.horizontal, 16)
                         }
@@ -814,6 +847,11 @@ struct InsideTalkView: View {
                 await viewModel.createPost(text: text, mediaData: mediaData, mimeType: mediaType, fileName: fileName)
             })
         }
+        .sheet(item: $editingPost) { tweet in
+            PostEditSheet(title: "Edit Inside Talk", text: tweet.content) { newContent in
+                viewModel.updatePost(tweetId: tweet.id, text: newContent)
+            }
+        }
         // ── Reply Bottom Sheet ────────────────────────────────────────────
         // ── Reply Bottom Sheet (Bug #4 fix: uses InsideTalkCommentSheetContainer for live updates) ──
         .sheet(item: $activeCommentTweetId) { tweetId in
@@ -864,6 +902,7 @@ struct InsideTalkCard: View {
     var onComment: () -> Void = {}
     var onDelete: (() -> Void)? = nil
     var onPin: (() -> Void)? = nil
+    var onEdit: (() -> Void)? = nil
 
     // FIXED: A post is "locked" only for non-pro, non-admin users.
     // The old check (content.count < 120) was wrong — it locked short posts for everyone.
@@ -892,8 +931,13 @@ struct InsideTalkCard: View {
                             .font(.system(size: 11))
                             .foregroundStyle(AppTheme.goldGradient)
                     }
-                    if onDelete != nil || onPin != nil {
+                    if onDelete != nil || onPin != nil || onEdit != nil {
                         Menu {
+                            if let edit = onEdit {
+                                Button(action: edit) {
+                                    Label("Edit Post", systemImage: "pencil")
+                                }
+                            }
                             if let del = onDelete {
                                 Button(role: .destructive, action: del) {
                                     Label("Delete Post", systemImage: "trash")
