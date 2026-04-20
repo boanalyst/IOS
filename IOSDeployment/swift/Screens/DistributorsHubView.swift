@@ -95,9 +95,9 @@ final class DistributorsViewModel: ObservableObject {
         }
     }
 
-    func updatePost(id: String, content: String) {
+    func updatePost(id: String, content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) {
         Task {
-            if let endpoint = try? APIEndpoint.updateDistributorsPost(id: id, content: content) {
+            if let endpoint = try? APIEndpoint.updateDistributorsPost(id: id, content: content, mediaData: mediaData, mimeType: mimeType, fileName: fileName) {
                 if (try? await api.requestRaw(endpoint)) != nil {
                     await loadPosts(reset: true)
                 } else {
@@ -177,8 +177,8 @@ struct DistributorsHubView: View {
             })
         }
         .sheet(item: $editingPost) { post in
-            PostEditSheet(title: "Edit Post", text: post.content) { newContent in
-                viewModel.updatePost(id: post.id, content: newContent)
+            CreatePostSheet(title: "Edit Post", initialText: post.content) { newContent, mediaData, mediaType, fileName in
+                viewModel.updatePost(id: post.id, content: newContent, mediaData: mediaData, mimeType: mediaType, fileName: fileName)
             }
         }
         .task {
