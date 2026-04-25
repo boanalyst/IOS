@@ -64,6 +64,19 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/flock/posts", method: .POST, body: body)
     }
 
+    static func updateFlockPost(id: String, content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) throws -> APIEndpoint {
+        if let data = mediaData, let mime = mimeType, let name = fileName {
+            var multipart = MultipartFormData()
+            multipart.append(name: "content", string: content)
+            multipart.append(name: "media", data: data, filename: name, mimeType: mime)
+            var endpoint = APIEndpoint(path: "/api/flock/posts/\(id)", method: .PUT)
+            endpoint.multipartData = multipart
+            return endpoint
+        }
+        let body = try JSONSerialization.data(withJSONObject: ["content": content])
+        return APIEndpoint(path: "/api/flock/posts/\(id)", method: .PUT, body: body)
+    }
+
     static func likePost(id: String) -> APIEndpoint {
         APIEndpoint(path: "/api/flock/posts/\(id)/like", method: .POST)
     }
@@ -73,17 +86,17 @@ extension APIEndpoint {
     }
 
     static func getComments(postId: String) -> APIEndpoint {
-        APIEndpoint(path: "/api/flock/posts/\(postId)/comments", method: .GET)
+        APIEndpoint(path: "/api/flock/posts/\(postId)/replies", method: .GET)
     }
 
     static func addComment(postId: String, text: String) throws -> APIEndpoint {
         // NOTE: server expects key "content", NOT "text" — matches Android addComment body
         let body = try JSONSerialization.data(withJSONObject: ["content": text])
-        return APIEndpoint(path: "/api/flock/posts/\(postId)/comments", method: .POST, body: body)
+        return APIEndpoint(path: "/api/flock/posts/\(postId)/reply", method: .POST, body: body)
     }
 
     static func deleteComment(postId: String, commentId: String) -> APIEndpoint {
-        APIEndpoint(path: "/api/flock/posts/\(postId)/comments/\(commentId)", method: .DELETE)
+        APIEndpoint(path: "/api/flock/posts/\(postId)/replies/\(commentId)", method: .DELETE)
     }
 
     static func deleteFlockPost(id: String) -> APIEndpoint {
@@ -91,7 +104,7 @@ extension APIEndpoint {
     }
 
     static func pinFlockPost(id: String, isPinned: Bool) throws -> APIEndpoint {
-        let body = try JSONSerialization.data(withJSONObject: ["is_pinned": isPinned ? 1 : 0])
+        let body = try JSONSerialization.data(withJSONObject: ["isPinned": isPinned, "is_pinned": isPinned])
         return APIEndpoint(path: "/api/flock/posts/\(id)/pin", method: .PUT, body: body)
     }
 
@@ -121,6 +134,36 @@ extension APIEndpoint {
 
     static let getInsideTalkCount = APIEndpoint(path: "/api/twitter/inside-talk/count", method: .GET)
     static let getExclusiveContent = APIEndpoint(path: "/api/exclusive/content", method: .GET)
+    static let getFullExclusiveContent = APIEndpoint(path: "/api/exclusive/full-content", method: .GET)
+
+    /// Admin: Update exclusive content (title, description, price, optional new media files).
+    /// Uses multipart/form-data so images can be attached alongside text fields.
+    static func updateExclusiveContent(
+        title: String,
+        description: String,
+        price: Double,
+        existingMedia: [String],
+        newMediaData: [(data: Data, filename: String, mimeType: String)] = []
+    ) throws -> APIEndpoint {
+        var multipart = MultipartFormData()
+        multipart.append(name: "title", string: title)
+        multipart.append(name: "description", string: description)
+        multipart.append(name: "price", string: String(price))
+        multipart.append(name: "currency", string: "INR")
+        if !existingMedia.isEmpty {
+            if let jsonData = try? JSONSerialization.data(withJSONObject: existingMedia),
+               let jsonString = String(data: jsonData, encoding: .utf8) {
+                multipart.append(name: "existingMedia", string: jsonString)
+            }
+        }
+        for item in newMediaData {
+            multipart.append(name: "media", data: item.data, filename: item.filename, mimeType: item.mimeType)
+        }
+        var endpoint = APIEndpoint(path: "/api/exclusive/update", method: .POST)
+        endpoint.multipartData = multipart
+        return endpoint
+    }
+
 
     static func createInsideTalkPost(text: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) throws -> APIEndpoint {
         if let data = mediaData, let mime = mimeType, let name = fileName {
@@ -137,7 +180,8 @@ extension APIEndpoint {
     }
 
     static func updateInsideTalkPost(id: String, text: String) throws -> APIEndpoint {
-        let body = try JSONSerialization.data(withJSONObject: ["text": text])
+        // Backend /edit-tweet/:id expects "content" key (NOT "text") — matches twitterRoutes.js line 1353
+        let body = try JSONSerialization.data(withJSONObject: ["content": text])
         return APIEndpoint(path: "/api/twitter/edit-tweet/\(id)", method: .PUT, body: body)
     }
 
@@ -167,7 +211,7 @@ extension APIEndpoint {
     }
 
     static func pinInsideTalkPost(id: String, isPinned: Bool) throws -> APIEndpoint {
-        let body = try JSONSerialization.data(withJSONObject: ["tweetId": id, "isPinned": isPinned])
+        let body = try JSONSerialization.data(withJSONObject: ["tweetId": id, "isPinned": isPinned, "is_pinned": isPinned])
         return APIEndpoint(path: "/api/twitter/pin-tweet", method: .PUT, body: body)
     }
 
@@ -192,7 +236,15 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/distributors/posts", method: .POST, body: body)
     }
 
-    static func updateDistributorsPost(id: String, content: String) throws -> APIEndpoint {
+    static func updateDistributorsPost(id: String, content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) throws -> APIEndpoint {
+        if let data = mediaData, let mime = mimeType, let name = fileName {
+            var multipart = MultipartFormData()
+            multipart.append(name: "content", string: content)
+            multipart.append(name: "media", data: data, filename: name, mimeType: mime)
+            var endpoint = APIEndpoint(path: "/api/distributors/posts/\(id)", method: .PUT)
+            endpoint.multipartData = multipart
+            return endpoint
+        }
         let body = try JSONSerialization.data(withJSONObject: ["content": content])
         return APIEndpoint(path: "/api/distributors/posts/\(id)", method: .PUT, body: body)
     }
@@ -206,31 +258,32 @@ extension APIEndpoint {
     }
 
     static func pinDistributorsPost(id: String, isPinned: Bool) throws -> APIEndpoint {
-        let body = try JSONSerialization.data(withJSONObject: ["is_pinned": isPinned ? 1 : 0])
-        return APIEndpoint(path: "/api/distributors/posts/\(id)/pin", method: .PUT, body: body)
+        let body = try JSONSerialization.data(withJSONObject: ["pinned": isPinned])
+        return APIEndpoint(path: "/api/distributors/posts/\(id)/pin", method: .PATCH, body: body)
     }
 
-    // ── Subscription / Razorpay ───────────────────────────────────────────────
-    // SECURITY NOTE: iOS uses the Netflix/Reader strategy — subscriptions are
-    // purchased on boanalyst.com via Safari, NOT via Apple IAP / StoreKit.
-    // These endpoints exist only for displaying pricing and for future web-view support.
+    // ── Apple In-App Purchase — Receipt Verification ──────────────────────────
+    // After a successful StoreKit 2 transaction, send the transaction details
+    // to our backend so it can mark the user as Pro in the database.
+    // The backend should verify the transaction ID with Apple's /verifyReceipt
+    // or App Store Server API, then update the user's subscription_plan.
 
-    static let getAppConfig = APIEndpoint(path: "/api/config", method: .GET)
-    static let getPricing = APIEndpoint(path: "/api/pricing", method: .GET)
-
-    // FIX: planId + total_count matches Android CreateSubscriptionRequest + server expectation
-    static func createSubscription(planId: String, totalCount: Int = 12, email: String? = nil) throws -> APIEndpoint {
-        let body = try JSONEncoder().encode(CreateSubscriptionRequest(planId: planId, totalCount: totalCount, email: email))
-        return APIEndpoint(path: "/api/create-subscription", method: .POST, body: body)
-    }
-
-    static func createExclusiveOrder(amount: Int) throws -> APIEndpoint {
-        let body = try JSONEncoder().encode(ExclusiveOrderRequest(amount: amount, currency: "INR"))
-        return APIEndpoint(path: "/api/create-order", method: .POST, body: body)
-    }
-
-    static func verifyPayment(_ req: VerifyPaymentRequest) throws -> APIEndpoint {
-        let body = try JSONEncoder().encode(req)
-        return APIEndpoint(path: "/api/verify-payment", method: .POST, body: body)
+    static func verifyAppleReceipt(
+        transactionId: String,
+        originalTransactionId: String,
+        productId: String,
+        expiresDate: Date?
+    ) throws -> APIEndpoint {
+        var payload: [String: Any] = [
+            "transactionId": transactionId,
+            "originalTransactionId": originalTransactionId,
+            "productId": productId,
+            "platform": "ios"
+        ]
+        if let expires = expiresDate {
+            payload["expiresDate"] = ISO8601DateFormatter().string(from: expires)
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        return APIEndpoint(path: "/api/auth/subscription/verify-apple", method: .POST, body: body)
     }
 }
