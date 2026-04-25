@@ -635,8 +635,17 @@ struct InsideTalkMedia: Decodable {
     func resolvedUrl() -> String {
         let raw = url ?? mediaUrl ?? ""
         guard !raw.isEmpty else { return "" }
-        let fullStr = raw.hasPrefix("http") ? raw : "https://boanalyst.com" + raw
-        return fullStr.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? fullStr
+        if raw.hasPrefix("http") {
+            // Already full URL. Add encoding if Swift URL parser fails
+            if URL(string: raw) == nil {
+                return raw.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? raw
+            }
+            return raw
+        } else {
+            // Encode the path segment properly (avoid encoding / characters but encode spaces)
+            let safePath = raw.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? raw
+            return "https://boanalyst.com" + safePath
+        }
     }
 }
 
