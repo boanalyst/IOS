@@ -180,7 +180,8 @@ extension APIEndpoint {
     }
 
     static func updateInsideTalkPost(id: String, text: String) throws -> APIEndpoint {
-        let body = try JSONSerialization.data(withJSONObject: ["text": text])
+        // Backend /edit-tweet/:id expects "content" key (NOT "text") — matches twitterRoutes.js line 1353
+        let body = try JSONSerialization.data(withJSONObject: ["content": text])
         return APIEndpoint(path: "/api/twitter/edit-tweet/\(id)", method: .PUT, body: body)
     }
 

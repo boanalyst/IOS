@@ -9,9 +9,9 @@ import Foundation
 enum APIConfig {
     static let baseURL = "https://boanalyst.com"  // Same backend as Android
 
-    // SECURITY: Maximum response size accepted (4 MB).
-    // Prevents memory exhaustion from unexpectedly large server responses.
-    static let maxResponseBytes = 4 * 1024 * 1024  // 4 MB
+    // SECURITY: Maximum response size accepted (10 MB).
+    // Generous limit for media upload confirmations that may include preview URLs.
+    static let maxResponseBytes = 10 * 1024 * 1024  // 10 MB
 
     // SECURITY: Maximum token length we'll accept from OAuth deep-links or server.
     // A real JWT is ~500–900 bytes; anything larger is suspicious.
@@ -75,6 +75,18 @@ final class APIClient {
         return URLSession(configuration: config)
     }()
 
+    /// Dedicated session for multipart / media uploads — longer timeouts for large files.
+    private let uploadSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest  = 120   // 2 min to start getting response
+        config.timeoutIntervalForResource = 300   // 5 min total for large uploads
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.urlCache = nil
+        config.httpCookieAcceptPolicy = .never
+        config.httpShouldSetCookies = false
+        return URLSession(configuration: config)
+    }()
+
     // JWT token — read from Keychain on every request (never cached in memory)
     private var authToken: String? {
         KeychainManager.shared.getToken()
@@ -87,9 +99,11 @@ final class APIClient {
         responseType: T.Type
     ) async throws -> T {
         let urlRequest = try buildRequest(for: endpoint)
+        // Use the upload session (longer timeouts) when sending multipart data
+        let activeSession = endpoint.multipartData != nil ? uploadSession : session
 
         do {
-            let (data, response) = try await session.data(for: urlRequest)
+            let (data, response) = try await activeSession.data(for: urlRequest)
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw APIError.noData
             }
@@ -124,9 +138,11 @@ final class APIClient {
 
     func requestRaw(_ endpoint: APIEndpoint) async throws -> [String: Any] {
         let urlRequest = try buildRequest(for: endpoint)
+        // Use the upload session (longer timeouts) when sending multipart data
+        let activeSession = endpoint.multipartData != nil ? uploadSession : session
 
         do {
-            let (data, response) = try await session.data(for: urlRequest)
+            let (data, response) = try await activeSession.data(for: urlRequest)
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw APIError.noData
             }
