@@ -457,27 +457,24 @@ struct ExclusiveContentCard: View {
                 }
             }
 
-            let cleanDesc = exclusive.description
-                .replacingOccurrences(of: "<div>", with: "")
-                .replacingOccurrences(of: "</div>", with: "")
-                .replacingOccurrences(of: "<b>", with: "")
-                .replacingOccurrences(of: "</b>", with: "")
-                .replacingOccurrences(of: "&nbsp;", with: " ")
-
-            let cleanTitle = exclusive.title
-                .replacingOccurrences(of: "<div>", with: "")
-                .replacingOccurrences(of: "</div>", with: "")
-                .replacingOccurrences(of: "<b>", with: "")
-                .replacingOccurrences(of: "</b>", with: "")
-                .replacingOccurrences(of: "&nbsp;", with: " ")
-
-            Text(cleanTitle)
+            // ── Title — rendered with full BIU parser (matches Flock Feed) ──
+            let attrTitle = parseBoAnalystHTML(exclusive.title)
+            Text(attrTitle)
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(AppTheme.textPrimary)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
 
-            Text(cleanDesc)
+            // ── Description — rendered with full BIU parser ──────────────────
+            // ** bold, _italic_, __underline__, <b>, <i>, <u> all supported.
+            let attrDesc = parseBoAnalystHTML(exclusive.description)
+            Text(attrDesc)
+                .tint(AppTheme.goldPrimary)
                 .font(.system(size: 14))
                 .foregroundColor(AppTheme.textSecondary)
+                .lineLimit(nil)
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
 
             if let mediaUrlsString = exclusive.mediaUrl,
                let data = mediaUrlsString.data(using: .utf8),
