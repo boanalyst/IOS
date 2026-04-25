@@ -37,7 +37,19 @@ struct CachedAsyncImage<Content: View>: View {
         }
         phase = .empty
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
+            var request = URLRequest(url: url)
+            // Attach authentication token for protected media routes (e.g. Inside Talk, Distributors)
+            if let token = KeychainManager.shared.getToken() {
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
+                phase = .failure(URLError(.badServerResponse))
+                return
+            }
+            
             if let uiImage = UIImage(data: data) {
                 ImageLoaderCache.shared.setObject(uiImage, forKey: url as NSURL)
                 phase = .success(Image(uiImage: uiImage))
@@ -474,7 +486,7 @@ struct PostMediaView: View {
         if !urls.isEmpty {
             if urls.count == 1 {
                 // Single large full-width image
-                if let urlString = urls.first, let url = URL(string: urlString.hasPrefix("http") ? urlString : "https://boanalyst.com/\(urlString.hasPrefix("/") ? String(urlString.dropFirst()) : urlString)") {
+                if let urlString = urls.first, let url = URL(string: urlString) {
                     CachedAsyncImage(url: url) { phase in
                         switch phase {
                         case .empty:
@@ -499,7 +511,7 @@ struct PostMediaView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(urls, id: \.self) { urlString in
-                            if let url = URL(string: urlString.hasPrefix("http") ? urlString : "https://boanalyst.com/\(urlString.hasPrefix("/") ? String(urlString.dropFirst()) : urlString)") {
+                            if let url = URL(string: urlString) {
                                 CachedAsyncImage(url: url) { phase in
                                     switch phase {
                                     case .empty:
