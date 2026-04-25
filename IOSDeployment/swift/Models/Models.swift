@@ -213,7 +213,15 @@ struct FlockPost: Decodable, Identifiable {
         authorHandle = try? c.decode(String.self, forKey: .authorHandle)
         authorId     = try? c.decode(String.self, forKey: .authorId)
         tags  = (try? c.decode([String].self, forKey: .tags)) ?? []
-        media = (try? c.decode([FlockMedia].self, forKey: .media)) ?? []
+        if let arr = try? c.decode([FlockMedia].self, forKey: .media) {
+            media = arr
+        } else if let raw = try? c.decode(String.self, forKey: .media),
+                  let data = raw.data(using: .utf8),
+                  let arr = try? JSONDecoder().decode([FlockMedia].self, from: data) {
+            media = arr
+        } else {
+            media = []
+        }
         likeCount  = (try? c.decode(Int.self, forKey: .likeCount))  ?? 0
         replyCount = (try? c.decode(Int.self, forKey: .replyCount)) ?? 0
         createdAt  = (try? c.decode(String.self, forKey: .createdAt)) ?? ""
@@ -571,7 +579,18 @@ struct InsideTalkContent: Decodable, Identifiable {
                ?? UUID().uuidString
         content = (try? c.decode(String.self, forKey: .content)) ?? ""
         authorName = (try? c.decode(String.self, forKey: .authorName)) ?? "BoAnalyst"
-        media = (try? c.decode([InsideTalkMedia].self, forKey: .media)) ?? []
+        // media may arrive as a native JSON array (correct) OR as a JSON-string
+        // (MySQL stored it via JSON.stringify — backend fix applied but keep
+        // this fallback for cached / old records in the wild).
+        if let arr = try? c.decode([InsideTalkMedia].self, forKey: .media) {
+            media = arr
+        } else if let raw = try? c.decode(String.self, forKey: .media),
+                  let data = raw.data(using: .utf8),
+                  let arr = try? JSONDecoder().decode([InsideTalkMedia].self, from: data) {
+            media = arr
+        } else {
+            media = []
+        }
         likeCount = (try? c.decode(Int.self, forKey: .likeCount)) ?? 0
         dislikeCount = (try? c.decode(Int.self, forKey: .dislikeCount)) ?? 0
         replyCount = (try? c.decode(Int.self, forKey: .replyCount)) ?? 0
@@ -616,7 +635,8 @@ struct InsideTalkMedia: Decodable {
     func resolvedUrl() -> String {
         let raw = url ?? mediaUrl ?? ""
         guard !raw.isEmpty else { return "" }
-        return raw.hasPrefix("http") ? raw : "https://boanalyst.com" + raw
+        let fullStr = raw.hasPrefix("http") ? raw : "https://boanalyst.com" + raw
+        return fullStr.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? fullStr
     }
 }
 
