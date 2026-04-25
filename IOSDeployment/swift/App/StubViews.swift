@@ -983,7 +983,8 @@ struct InsideTalkCard: View {
                 .blur(radius: isLocked ? 3.5 : 0)
 
             // ── Uploaded Media ───────────────────────────────────────
-            let mediaUrls = content.media.compactMap { $0.resolvedUrl() }
+            // resolvedUrl() returns "" for invalid entries; filter those out.
+            let mediaUrls = content.media.map { $0.resolvedUrl() }.filter { !$0.isEmpty }
             if !mediaUrls.isEmpty && !isLocked {
                 PostMediaView(urls: mediaUrls)
             }
