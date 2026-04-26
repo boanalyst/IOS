@@ -200,7 +200,7 @@ struct FlockPostCard: View {
                     .padding(.top, 4)
 
                 // ── Uploaded Media ───────────────────────────────────────
-                let mediaUrls = post.media.map { $0.url }
+                let mediaUrls = post.media.map { $0.resolvedUrl() }.filter { !$0.isEmpty }
                 if !mediaUrls.isEmpty {
                     PostMediaView(urls: mediaUrls)
                 }
