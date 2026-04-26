@@ -258,6 +258,19 @@ struct FlockMedia: Decodable {
         case url = "media_url"
         case type = "media_type"
     }
+
+    func resolvedUrl() -> String {
+        guard !url.isEmpty else { return "" }
+        if url.hasPrefix("http") {
+            if URL(string: url) == nil {
+                return url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? url
+            }
+            return url
+        } else {
+            let safePath = url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? url
+            return "https://boanalyst.com" + (safePath.hasPrefix("/") ? safePath : "/" + safePath)
+        }
+    }
 }
 
 struct LikeResponse: Decodable {
