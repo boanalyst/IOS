@@ -390,9 +390,9 @@ final class FlockViewModel: ObservableObject {
     }
 
     // MARK: Admin: Edit Post
-    func updatePost(_ post: FlockPost, content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) {
+    func updatePost(_ post: FlockPost, content: String, existingMediaUrls: [String]? = nil, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) {
         Task {
-            if let endpoint = try? APIEndpoint.updateFlockPost(id: post.id, content: content, mediaFiles: mediaFiles) {
+            if let endpoint = try? APIEndpoint.updateFlockPost(id: post.id, content: content, existingMediaUrls: existingMediaUrls, mediaFiles: mediaFiles) {
                 if (try? await api.requestRaw(endpoint)) != nil {
                     // Success, reload posts
                     await fetchPosts(offset: 0, reset: true)
@@ -548,7 +548,7 @@ struct FlockFeedView: View {
             }
         }
         .fullScreenCover(isPresented: $showCreatePost) {
-            CreatePostSheet(title: "New Flock Post", onSubmitWithMedia: { text, mediaFiles in
+            CreatePostSheet(title: "New Flock Post", onSubmitWithMedia: { text, mediaFiles, existingUrls in
                 await flockVM.createPost(content: text, mediaFiles: mediaFiles)
             })
         }
@@ -564,8 +564,8 @@ struct FlockFeedView: View {
             }
         }
         .sheet(item: $editingPost) { post in
-            CreatePostSheet(title: "Edit Flock Post", initialText: post.content, initialMediaUrls: post.media.map { $0.resolvedUrl() }.filter { !$0.isEmpty }, onSubmitWithMedia: { newContent, mediaFiles in
-                flockVM.updatePost(post, content: newContent, mediaFiles: mediaFiles)
+            CreatePostSheet(title: "Edit Flock Post", initialText: post.content, initialMediaUrls: post.media.map { $0.resolvedUrl() }.filter { !$0.isEmpty }, onSubmitWithMedia: { newContent, mediaFiles, existingUrls in
+                flockVM.updatePost(post, content: newContent, existingMediaUrls: existingUrls, mediaFiles: mediaFiles)
             })
         }
         // ── Comment Bottom Sheet (Bug #4 fix: uses FlockCommentSheetContainer for live updates) ──
@@ -721,9 +721,9 @@ final class InsideTalkViewModel: ObservableObject {
         }
     }
 
-    func updatePost(tweetId: String, text: String) {
+    func updatePost(tweetId: String, text: String, existingMediaUrls: [String]? = nil) {
         Task {
-            if let endpoint = try? APIEndpoint.updateInsideTalkPost(id: tweetId, text: text) {
+            if let endpoint = try? APIEndpoint.updateInsideTalkPost(id: tweetId, text: text, existingMediaUrls: existingMediaUrls) {
                 if (try? await api.requestRaw(endpoint)) != nil {
                     await loadAll()
                 }
@@ -843,13 +843,13 @@ struct InsideTalkView: View {
             }
         }
         .fullScreenCover(isPresented: $showCreatePost) {
-            CreatePostSheet(title: "New Inside Talk", onSubmitWithMedia: { text, mediaFiles in
+            CreatePostSheet(title: "New Inside Talk", onSubmitWithMedia: { text, mediaFiles, existingUrls in
                 await viewModel.createPost(text: text, mediaFiles: mediaFiles)
             })
         }
         .sheet(item: $editingPost) { tweet in
-            CreatePostSheet(title: "Edit Inside Talk", initialText: tweet.content, initialMediaUrls: tweet.media.map { $0.resolvedUrl() }.filter { !$0.isEmpty }, onSubmitWithMedia: { newContent, mediaFiles in
-                viewModel.updatePost(tweetId: tweet.id, text: newContent)
+            CreatePostSheet(title: "Edit Inside Talk", initialText: tweet.content, initialMediaUrls: tweet.media.map { $0.resolvedUrl() }.filter { !$0.isEmpty }, onSubmitWithMedia: { newContent, mediaFiles, existingUrls in
+                viewModel.updatePost(tweetId: tweet.id, text: newContent, existingMediaUrls: existingUrls)
             })
         }
         // ── Reply Bottom Sheet ────────────────────────────────────────────
@@ -2095,7 +2095,7 @@ struct CreatePostSheet: View {
         isPosting = true
         if let mediaHandler = onSubmitMedia {
             let files = mediaFiles.map { (data: $0.data, mimeType: $0.mimeType, fileName: $0.fileName) }
-            await mediaHandler(trimmed, files)
+            await mediaHandler(trimmed, files, existingMediaUrls)
         } else if let textHandler = onSubmitText {
             await textHandler(trimmed)
         }
