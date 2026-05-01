@@ -538,60 +538,139 @@ struct SkeletonCard: View {
 
 struct PostMediaView: View {
     let urls: [String]
+    @State private var fullScreenIndex: Int? = nil
 
     var body: some View {
         if !urls.isEmpty {
             if urls.count == 1 {
-                // Single large full-width image
+                // Single image — aspect-fit, max 400pt tall, tappable
                 if let urlString = urls.first, let url = URL(string: urlString) {
                     CachedAsyncImage(url: url) { phase in
                         switch phase {
                         case .empty:
                             Rectangle().fill(AppTheme.surfaceVariant)
+                                .frame(maxWidth: .infinity, minHeight: 200)
                                 .overlay(ProgressView().tint(AppTheme.goldPrimary))
                         case .success(let image):
                             image.resizable()
                                 .scaledToFit()
+                                .frame(maxWidth: .infinity, maxHeight: 400)
+                                .onTapGesture { fullScreenIndex = 0 }
                         case .failure:
                             Rectangle().fill(AppTheme.surfaceVariant)
+                                .frame(maxWidth: .infinity, minHeight: 120)
                                 .overlay(Image(systemName: "photo").foregroundColor(AppTheme.textMuted))
                         @unknown default:
                             EmptyView()
                         }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: 500)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.top, 4)
                 }
             } else {
-                // Grid of multiple images (now full width per image for proper visibility)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(urls, id: \.self) { urlString in
-                            if let url = URL(string: urlString) {
-                                CachedAsyncImage(url: url) { phase in
-                                    switch phase {
-                                    case .empty:
-                                        Rectangle().fill(AppTheme.surfaceVariant)
-                                            .overlay(ProgressView().tint(AppTheme.goldPrimary))
-                                    case .success(let image):
-                                        image.resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                    case .failure:
-                                        Rectangle().fill(AppTheme.surfaceVariant)
-                                            .overlay(Image(systemName: "photo").foregroundColor(AppTheme.textMuted))
-                                    @unknown default:
-                                        EmptyView()
+                // Horizontal scroll - fixed 240pt height cards, tappable
+                VStack(spacing: 6) {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(urls.indices, id: \.self) { i in
+                                if let url = URL(string: urls[i]) {
+                                    CachedAsyncImage(url: url) { phase in
+                                        switch phase {
+                                        case .empty:
+                                            Rectangle().fill(AppTheme.surfaceVariant)
+                                                .overlay(ProgressView().tint(AppTheme.goldPrimary))
+                                        case .success(let image):
+                                            image.resizable()
+                                                .scaledToFill()
+                                                .onTapGesture { fullScreenIndex = i }
+                                        case .failure:
+                                            Rectangle().fill(AppTheme.surfaceVariant)
+                                                .overlay(Image(systemName: "photo").foregroundColor(AppTheme.textMuted))
+                                        @unknown default:
+                                            EmptyView()
+                                        }
                                     }
+                                    .frame(width: UIScreen.main.bounds.width * 0.78, height: 240)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
                                 }
-                                .frame(width: UIScreen.main.bounds.width - 64, height: 350)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
+                        }
+                        .padding(.horizontal, 2)
+                    }
+                    // Page indicator dots
+                    HStack(spacing: 5) {
+                        ForEach(urls.indices, id: \.self) { i in
+                            Circle()
+                                .fill(AppTheme.goldPrimary.opacity(i == 0 ? 1 : 0.3))
+                                .frame(width: 5, height: 5)
+                        }
+                    }
+                }
+                .padding(.top, 4)
+            }
+        }
+        // Full-screen lightbox
+        if let idx = fullScreenIndex {
+            Color.black.opacity(0.001)
+                .fullScreenCover(isPresented: Binding(
+                    get: { fullScreenIndex != nil },
+                    set: { if !$0 { fullScreenIndex = nil } }
+                )) {
+                    MediaLightboxView(urls: urls, startIndex: idx)
+                }
+        }
+    }
+}
+
+// MARK: - Full-Screen Lightbox
+struct MediaLightboxView: View {
+    let urls: [String]
+    let startIndex: Int
+    @Environment(\.dismiss) var dismiss
+    @State private var currentIndex: Int
+
+    init(urls: [String], startIndex: Int) {
+        self.urls = urls
+        self.startIndex = startIndex
+        _currentIndex = State(initialValue: startIndex)
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            TabView(selection: $currentIndex) {
+                ForEach(urls.indices, id: \.self) { i in
+                    if let url = URL(string: urls[i]) {
+                        CachedAsyncImage(url: url) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image.resizable()
+                                    .scaledToFit()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            case .empty:
+                                ProgressView().tint(.white)
+                            default:
+                                Image(systemName: "photo").foregroundColor(.gray).font(.largeTitle)
                             }
                         }
                     }
-                    .padding(.horizontal, 4)
+                    .tag(i)
                 }
-                .padding(.top, 4)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .automatic))
+            .indexViewStyle(.page(backgroundDisplayMode: .always))
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 30))
+                            .foregroundColor(.white)
+                            .padding()
+                    }
+                }
+                Spacer()
             }
         }
     }
