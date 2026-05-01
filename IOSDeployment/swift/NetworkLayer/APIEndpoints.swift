@@ -66,10 +66,13 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/flock/posts", method: .POST, body: body)
     }
 
-    static func updateFlockPost(id: String, content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) throws -> APIEndpoint {
-        if !mediaFiles.isEmpty {
+    static func updateFlockPost(id: String, content: String, existingMediaUrls: [String]? = nil, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) throws -> APIEndpoint {
+        if !mediaFiles.isEmpty || existingMediaUrls != nil {
             var multipart = MultipartFormData()
             multipart.append(name: "content", string: content)
+            if let existing = existingMediaUrls, let jsonData = try? JSONSerialization.data(withJSONObject: existing), let jsonStr = String(data: jsonData, encoding: .utf8) {
+                multipart.append(name: "existingMedia", string: jsonStr)
+            }
             for file in mediaFiles {
                 multipart.append(name: "media", data: file.data, filename: file.fileName, mimeType: file.mimeType)
             }
@@ -184,9 +187,13 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/twitter/create-post", method: .POST, body: body)
     }
 
-    static func updateInsideTalkPost(id: String, text: String) throws -> APIEndpoint {
+    static func updateInsideTalkPost(id: String, text: String, existingMediaUrls: [String]? = nil) throws -> APIEndpoint {
         // Backend /edit-tweet/:id expects "content" key (NOT "text") — matches twitterRoutes.js line 1353
-        let body = try JSONSerialization.data(withJSONObject: ["content": text])
+        var payload: [String: Any] = ["content": text]
+        if let existing = existingMediaUrls {
+            payload["existingMedia"] = existing
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
         return APIEndpoint(path: "/api/twitter/edit-tweet/\(id)", method: .PUT, body: body)
     }
 
@@ -243,10 +250,13 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/distributors/posts", method: .POST, body: body)
     }
 
-    static func updateDistributorsPost(id: String, content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) throws -> APIEndpoint {
-        if !mediaFiles.isEmpty {
+    static func updateDistributorsPost(id: String, content: String, existingMediaUrls: [String]? = nil, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) throws -> APIEndpoint {
+        if !mediaFiles.isEmpty || existingMediaUrls != nil {
             var multipart = MultipartFormData()
             multipart.append(name: "content", string: content)
+            if let existing = existingMediaUrls, let jsonData = try? JSONSerialization.data(withJSONObject: existing), let jsonStr = String(data: jsonData, encoding: .utf8) {
+                multipart.append(name: "existingMedia", string: jsonStr)
+            }
             for file in mediaFiles {
                 multipart.append(name: "media", data: file.data, filename: file.fileName, mimeType: file.mimeType)
             }
