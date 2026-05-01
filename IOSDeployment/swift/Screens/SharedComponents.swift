@@ -335,6 +335,8 @@ struct FlockPostCard: View {
 // DB stores bold as <b>...</b>, Android/Web use **...** markdown.
 // This parser handles BOTH formats uniformly.
 
+fileprivate let hashtagRegex: NSRegularExpression? = try? NSRegularExpression(pattern: "(#[\\p{L}\\p{N}_]+)")
+
 func parseBoAnalystHTML(_ text: String) -> AttributedString {
     // ── Step 1: Normalise line endings ───────────────────────────────────────
     var clean = text
