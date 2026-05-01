@@ -640,18 +640,22 @@ struct MediaLightboxView: View {
             Color.black.ignoresSafeArea()
             TabView(selection: $currentIndex) {
                 ForEach(urls.indices, id: \.self) { i in
-                    if let url = URL(string: urls[i]) {
-                        CachedAsyncImage(url: url) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image.resizable()
-                                    .scaledToFit()
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            case .empty:
-                                ProgressView().tint(.white)
-                            default:
-                                Image(systemName: "photo").foregroundColor(.gray).font(.largeTitle)
+                    Group {
+                        if let url = URL(string: urls[i]) {
+                            CachedAsyncImage(url: url) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image.resizable()
+                                        .scaledToFit()
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                case .empty:
+                                    ProgressView().tint(.white)
+                                default:
+                                    Image(systemName: "photo").foregroundColor(.gray).font(.largeTitle)
+                                }
                             }
+                        } else {
+                            Image(systemName: "photo").foregroundColor(.gray).font(.largeTitle)
                         }
                     }
                     .tag(i)
