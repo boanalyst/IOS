@@ -5,6 +5,56 @@
 
 import SwiftUI
 
+// MARK: - Relative Date Formatter
+// Converts ISO-8601 date strings to human-readable relative time
+// e.g. "2 min ago", "3h ago", "Yesterday", "Apr 28"
+
+func formatRelativeDate(_ isoString: String) -> String {
+    let trimmed = isoString.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return "" }
+    
+    // Try multiple ISO-8601 date formats
+    let iso = ISO8601DateFormatter()
+    iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    var date = iso.date(from: trimmed)
+    if date == nil {
+        iso.formatOptions = [.withInternetDateTime]
+        date = iso.date(from: trimmed)
+    }
+    if date == nil {
+        // Fallback: try DateFormatter for "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        date = df.date(from: trimmed)
+        if date == nil {
+            df.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+            date = df.date(from: trimmed)
+        }
+        if date == nil {
+            df.dateFormat = "yyyy-MM-dd HH:mm:ss"
+            date = df.date(from: trimmed)
+        }
+    }
+    guard let parsed = date else {
+        // Last resort: return first 10 chars (date portion)
+        return String(trimmed.prefix(10))
+    }
+    
+    let now = Date()
+    let diff = now.timeIntervalSince(parsed)
+    
+    if diff < 60 { return "Just now" }
+    if diff < 3600 { return "\(Int(diff / 60)) min ago" }
+    if diff < 86400 { return "\(Int(diff / 3600))h ago" }
+    if diff < 172800 { return "Yesterday" }
+    if diff < 604800 { return "\(Int(diff / 86400))d ago" }
+    
+    let formatter = DateFormatter()
+    formatter.dateFormat = "MMM d, yyyy"
+    return formatter.string(from: parsed)
+}
+
 class ImageLoaderCache {
     static let shared = NSCache<NSURL, UIImage>()
 }
@@ -144,7 +194,7 @@ struct FlockPostCard: View {
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundColor(AppTheme.textPrimary)
                         }
-                        Text(post.createdAt.prefix(10).description)
+                        Text(formatRelativeDate(post.createdAt))
                             .font(.system(size: 11))
                             .foregroundColor(AppTheme.textMuted)
                     }
@@ -230,6 +280,13 @@ struct FlockPostCard: View {
 
                     Button { onComment() } label: {
                         Label("\(post.replyCount)", systemImage: "bubble.left")
+                            .font(.system(size: 12))
+                            .foregroundColor(AppTheme.textMuted)
+                    }
+                    .buttonStyle(.plain)
+
+                    ShareLink(item: post.content) {
+                        Label("Share", systemImage: "square.and.arrow.up")
                             .font(.system(size: 12))
                             .foregroundColor(AppTheme.textMuted)
                     }
@@ -507,7 +564,7 @@ struct PostMediaView: View {
                     .padding(.top, 4)
                 }
             } else {
-                // Grid of multiple images
+                // Grid of multiple images (now full width per image for proper visibility)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(urls, id: \.self) { urlString in
@@ -527,11 +584,12 @@ struct PostMediaView: View {
                                         EmptyView()
                                     }
                                 }
-                                .frame(width: 220, height: 280)
+                                .frame(width: UIScreen.main.bounds.width - 64, height: 350)
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                             }
                         }
                     }
+                    .padding(.horizontal, 4)
                 }
                 .padding(.top, 4)
             }

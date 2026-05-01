@@ -32,8 +32,8 @@ final class DistributorsViewModel: ObservableObject {
         }
         isLoading = false
     }
-    func createPost(content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) async {
-        guard let endpoint = try? APIEndpoint.createDistributorsPost(content: content, mediaData: mediaData, mimeType: mimeType, fileName: fileName) else { return }
+    func createPost(content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) async {
+        guard let endpoint = try? APIEndpoint.createDistributorsPost(content: content, mediaFiles: mediaFiles) else { return }
         _ = try? await api.request(endpoint, responseType: MessageResponse.self)
         await loadPosts(reset: true)
     }
@@ -95,9 +95,9 @@ final class DistributorsViewModel: ObservableObject {
         }
     }
 
-    func updatePost(id: String, content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) {
+    func updatePost(id: String, content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) {
         Task {
-            if let endpoint = try? APIEndpoint.updateDistributorsPost(id: id, content: content, mediaData: mediaData, mimeType: mimeType, fileName: fileName) {
+            if let endpoint = try? APIEndpoint.updateDistributorsPost(id: id, content: content, mediaFiles: mediaFiles) {
                 if (try? await api.requestRaw(endpoint)) != nil {
                     await loadPosts(reset: true)
                 } else {
@@ -172,13 +172,13 @@ struct DistributorsHubView: View {
             }
         }
         .fullScreenCover(isPresented: $showCreatePost) {
-            CreatePostSheet(title: "New Distributors Hub Post", onSubmitWithMedia: { text, mediaData, mediaType, fileName in
-                await viewModel.createPost(content: text, mediaData: mediaData, mimeType: mediaType, fileName: fileName)
+            CreatePostSheet(title: "New Distributors Hub Post", onSubmitWithMedia: { text, mediaFiles in
+                await viewModel.createPost(content: text, mediaFiles: mediaFiles)
             })
         }
         .sheet(item: $editingPost) { post in
-            CreatePostSheet(title: "Edit Post", initialText: post.content, onSubmitWithMedia: { newContent, mediaData, mediaType, fileName in
-                viewModel.updatePost(id: post.id, content: newContent, mediaData: mediaData, mimeType: mediaType, fileName: fileName)
+            CreatePostSheet(title: "Edit Post", initialText: post.content, initialMediaUrls: post.mediaUrls?.map { $0.hasPrefix("http") ? $0 : "https://boanalyst.com\($0)" } ?? [], onSubmitWithMedia: { newContent, mediaFiles in
+                viewModel.updatePost(id: post.id, content: newContent, mediaFiles: mediaFiles)
             })
         }
         .task {
@@ -307,7 +307,7 @@ struct DistributorsPostCard: View {
                                 .clipShape(Capsule())
                         }
                     }
-                    Text(post.createdAt.prefix(10).description)
+                    Text(formatRelativeDate(post.createdAt))
                         .font(.system(size: 11))
                         .foregroundColor(AppTheme.textMuted)
                 }
@@ -405,6 +405,13 @@ struct DistributorsPostCard: View {
                 Label("\(post.viewCount)", systemImage: "eye")
                     .font(.system(size: 12))
                     .foregroundColor(AppTheme.textMuted)
+
+                ShareLink(item: post.content) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                        .font(.system(size: 12))
+                        .foregroundColor(AppTheme.textMuted)
+                }
+                .buttonStyle(.plain)
 
                 Spacer()
             }
