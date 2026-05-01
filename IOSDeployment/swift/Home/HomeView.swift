@@ -512,17 +512,23 @@ struct ExclusiveContentCard: View {
 // MARK: - Exclusive Content Admin Edit Sheet
 import PhotosUI
 
-struct ExclusiveContentEditSheet: View {
-    @ObservedObject var viewModel: HomeViewModel
-    @Environment(\.dismiss) private var dismiss
+struct EditableImage: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
 
-    @State private var title: String = ""
-    @State private var description: String = ""
-    @State private var price: String = ""
+struct ExclusiveContentEditSheet: View {
+    @Environment(\.dismiss) var dismiss
+    @EnvironmentObject private var authViewModel: AuthViewModel
+    @StateObject private var viewModel = HomeViewModel()
+
+    @State private var title = ""
+    @State private var description = ""
+    @State private var price = ""
     @State private var existingMediaUrls: [String] = []
-    @State private var newImages: [UIImage] = []
-    @State private var selectedItems: [PhotosPickerItem] = []
-    @State private var isLoadingContent = true
+    @State private var newImages: [EditableImage] = []
+    @State private var showImagePicker = false
+    @State private var isLoadingContent = false
     @State private var loadError: String? = nil
 
     private let api = APIClient.shared
@@ -599,7 +605,7 @@ struct ExclusiveContentEditSheet: View {
                                                 for item in items {
                                                     if let data = try? await item.loadTransferable(type: Data.self),
                                                        let img = UIImage(data: data) {
-                                                        newImages.append(img)
+                                                        newImages.append(EditableImage(image: img))
                                                     }
                                                 }
                                             }
@@ -612,8 +618,7 @@ struct ExclusiveContentEditSheet: View {
                                     Text("Existing images").font(.system(size: 11)).foregroundColor(AppTheme.textMuted)
                                     ScrollView(.horizontal, showsIndicators: false) {
                                         HStack(spacing: 8) {
-                                            ForEach(existingMediaUrls.indices, id: \.self) { i in
-                                                let urlStr = existingMediaUrls[i]
+                                            ForEach(existingMediaUrls, id: \.self) { urlStr in
                                                 let fullUrl = URL(string: urlStr.hasPrefix("http") ? urlStr : "https://boanalyst.com" + urlStr)
                                                 ZStack(alignment: .topTrailing) {
                                                     AsyncImage(url: fullUrl) { phase in
@@ -627,7 +632,11 @@ struct ExclusiveContentEditSheet: View {
                                                     .frame(width: 80, height: 80)
                                                     .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                                                    Button { existingMediaUrls.remove(at: i) } label: {
+                                                    Button {
+                                                        if let idx = existingMediaUrls.firstIndex(of: urlStr) {
+                                                            existingMediaUrls.remove(at: idx)
+                                                        }
+                                                    } label: {
                                                         Image(systemName: "xmark.circle.fill")
                                                             .foregroundColor(.white)
                                                             .background(Color.black.opacity(0.6), in: Circle())
@@ -645,13 +654,17 @@ struct ExclusiveContentEditSheet: View {
                                     Text("New images to upload").font(.system(size: 11)).foregroundColor(AppTheme.textMuted)
                                     ScrollView(.horizontal, showsIndicators: false) {
                                         HStack(spacing: 8) {
-                                            ForEach(newImages.indices, id: \.self) { i in
+                                            ForEach(newImages) { editableImg in
                                                 ZStack(alignment: .topTrailing) {
-                                                    Image(uiImage: newImages[i])
+                                                    Image(uiImage: editableImg.image)
                                                         .resizable().scaledToFill()
                                                         .frame(width: 80, height: 80)
                                                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                                                    Button { newImages.remove(at: i) } label: {
+                                                    Button {
+                                                        if let idx = newImages.firstIndex(where: { $0.id == editableImg.id }) {
+                                                            newImages.remove(at: idx)
+                                                        }
+                                                    } label: {
                                                         Image(systemName: "xmark.circle.fill")
                                                             .foregroundColor(.white)
                                                             .background(Color.black.opacity(0.6), in: Circle())
@@ -680,7 +693,7 @@ struct ExclusiveContentEditSheet: View {
                                         description: description,
                                         price: Double(price) ?? 0,
                                         existingMediaUrls: existingMediaUrls,
-                                        newImages: newImages
+                                        newImages: newImages.map { $0.image }
                                     )
                                 }
                             } label: {
