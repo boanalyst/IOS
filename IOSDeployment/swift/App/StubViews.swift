@@ -1789,7 +1789,16 @@ struct CreatePostSheet: View {
     @State private var text = ""
     @State private var isPosting = false
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
-    @State private var mediaFiles: [(data: Data, mimeType: String, fileName: String, preview: SwiftUI.Image?)] = []
+    
+    struct PostMediaFile: Identifiable {
+        let id = UUID()
+        let data: Data
+        let mimeType: String
+        let fileName: String
+        let preview: SwiftUI.Image?
+    }
+    
+    @State private var mediaFiles: [PostMediaFile] = []
     @State private var existingMediaUrls: [String] = []  // seeded from initialMediaUrls on appear; mutable so user can delete
     @State private var showAudioPicker = false
 
@@ -1901,9 +1910,9 @@ struct CreatePostSheet: View {
 
                                     ScrollView(.horizontal, showsIndicators: false) {
                                         HStack(spacing: 12) {
-                                            ForEach(existingMediaUrls.indices, id: \.self) { i in
+                                            ForEach(existingMediaUrls, id: \.self) { urlStr in
                                                 ZStack(alignment: .topTrailing) {
-                                                    if let url = URL(string: existingMediaUrls[i]) {
+                                                    if let url = URL(string: urlStr) {
                                                         CachedAsyncImage(url: url) { phase in
                                                             switch phase {
                                                             case .success(let image):
@@ -1917,7 +1926,9 @@ struct CreatePostSheet: View {
                                                         .clipShape(RoundedRectangle(cornerRadius: 10))
                                                     }
                                                     Button {
-                                                        existingMediaUrls.remove(at: i)
+                                                        if let idx = existingMediaUrls.firstIndex(of: urlStr) {
+                                                            existingMediaUrls.remove(at: idx)
+                                                        }
                                                     } label: {
                                                         Image(systemName: "xmark.circle.fill")
                                                             .font(.system(size: 22))
@@ -1965,8 +1976,7 @@ struct CreatePostSheet: View {
                             if !mediaFiles.isEmpty {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 12) {
-                                        ForEach(mediaFiles.indices, id: \.self) { i in
-                                            let file = mediaFiles[i]
+                                        ForEach(mediaFiles) { file in
                                             ZStack(alignment: .topTrailing) {
                                                 if let img = file.preview {
                                                     img
@@ -1989,7 +1999,9 @@ struct CreatePostSheet: View {
                                                 }
                                                 
                                                 Button {
-                                                    mediaFiles.remove(at: i)
+                                                    if let idx = mediaFiles.firstIndex(where: { $0.id == file.id }) {
+                                                        mediaFiles.remove(at: idx)
+                                                    }
                                                 } label: {
                                                     Image(systemName: "xmark.circle")
                                                         .font(.system(size: 20))
@@ -2042,7 +2054,7 @@ struct CreatePostSheet: View {
                url.startAccessingSecurityScopedResource() {
                 defer { url.stopAccessingSecurityScopedResource() }
                 if let data = try? Data(contentsOf: url) {
-                    mediaFiles.append((data: data, mimeType: "audio/mpeg", fileName: url.lastPathComponent, preview: nil))
+                    mediaFiles.append(PostMediaFile(data: data, mimeType: "audio/mpeg", fileName: url.lastPathComponent, preview: nil))
                 }
             }
         }
@@ -2068,10 +2080,10 @@ struct CreatePostSheet: View {
         for item in items {
             if let data = try? await item.loadTransferable(type: Data.self) {
                 if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) || $0.conforms(to: .video) }) {
-                    mediaFiles.append((data: data, mimeType: "video/mp4", fileName: "video_\(UUID().uuidString.prefix(6)).mp4", preview: nil))
+                    mediaFiles.append(PostMediaFile(data: data, mimeType: "video/mp4", fileName: "video_\(UUID().uuidString.prefix(6)).mp4", preview: nil))
                 } else {
                     let preview = UIImage(data: data).map { SwiftUI.Image(uiImage: $0) }
-                    mediaFiles.append((data: data, mimeType: "image/jpeg", fileName: "photo_\(UUID().uuidString.prefix(6)).jpg", preview: preview))
+                    mediaFiles.append(PostMediaFile(data: data, mimeType: "image/jpeg", fileName: "photo_\(UUID().uuidString.prefix(6)).jpg", preview: preview))
                 }
             }
         }
