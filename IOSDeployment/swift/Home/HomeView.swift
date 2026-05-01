@@ -217,7 +217,7 @@ struct HomeView: View {
         }
         .navigationBarHidden(true)
         .sheet(isPresented: $viewModel.showExclusiveEditor) {
-            ExclusiveContentEditSheet(viewModel: viewModel)
+            ExclusiveContentEditSheet()
         }
     }
 
@@ -522,12 +522,12 @@ struct ExclusiveContentEditSheet: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
     @StateObject private var viewModel = HomeViewModel()
 
-    @State private var title = ""
-    @State private var description = ""
-    @State private var price = ""
+    @State private var title: String = ""
+    @State private var description: String = ""
+    @State private var price: String = ""
     @State private var existingMediaUrls: [String] = []
     @State private var newImages: [EditableImage] = []
-    @State private var showImagePicker = false
+    @State private var selectedItems: [PhotosPickerItem] = []
     @State private var isLoadingContent = false
     @State private var loadError: String? = nil
 
