@@ -95,9 +95,9 @@ final class DistributorsViewModel: ObservableObject {
         }
     }
 
-    func updatePost(id: String, content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) {
+    func updatePost(id: String, content: String, existingMediaUrls: [String]? = nil, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) {
         Task {
-            if let endpoint = try? APIEndpoint.updateDistributorsPost(id: id, content: content, mediaFiles: mediaFiles) {
+            if let endpoint = try? APIEndpoint.updateDistributorsPost(id: id, content: content, existingMediaUrls: existingMediaUrls, mediaFiles: mediaFiles) {
                 if (try? await api.requestRaw(endpoint)) != nil {
                     await loadPosts(reset: true)
                 } else {
@@ -172,13 +172,13 @@ struct DistributorsHubView: View {
             }
         }
         .fullScreenCover(isPresented: $showCreatePost) {
-            CreatePostSheet(title: "New Distributors Hub Post", onSubmitWithMedia: { text, mediaFiles in
+            CreatePostSheet(title: "New Distributors Hub Post", onSubmitWithMedia: { text, mediaFiles, existingUrls in
                 await viewModel.createPost(content: text, mediaFiles: mediaFiles)
             })
         }
         .sheet(item: $editingPost) { post in
-            CreatePostSheet(title: "Edit Post", initialText: post.content, initialMediaUrls: post.mediaUrls?.map { $0.hasPrefix("http") ? $0 : "https://boanalyst.com\($0)" } ?? [], onSubmitWithMedia: { newContent, mediaFiles in
-                viewModel.updatePost(id: post.id, content: newContent, mediaFiles: mediaFiles)
+            CreatePostSheet(title: "Edit Post", initialText: post.content, initialMediaUrls: post.mediaUrls?.map { $0.hasPrefix("http") ? $0 : "https://boanalyst.com\($0)" } ?? [], onSubmitWithMedia: { newContent, mediaFiles, existingUrls in
+                viewModel.updatePost(id: post.id, content: newContent, existingMediaUrls: existingUrls, mediaFiles: mediaFiles)
             })
         }
         .task {
