@@ -146,7 +146,7 @@ struct CommentBottomSheet: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(AppTheme.textPrimary)
                     Spacer()
-                    Text(String(c.createdAt.prefix(10)))
+                    Text(formatRelativeDate(c.createdAt))
                         .font(.system(size: 10))
                         .foregroundColor(AppTheme.textMuted)
                     if isAdmin || c.userId == currentUserId {
@@ -319,8 +319,8 @@ final class FlockViewModel: ObservableObject {
         }
     }
 
-    func createPost(content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) async {
-        guard let endpoint = try? APIEndpoint.createFlockPost(content: content, mediaData: mediaData, mimeType: mimeType, fileName: fileName) else { return }
+    func createPost(content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) async {
+        guard let endpoint = try? APIEndpoint.createFlockPost(content: content, mediaFiles: mediaFiles) else { return }
         _ = try? await api.request(endpoint, responseType: MessageResponse.self)
         await loadFeed()
     }
@@ -390,9 +390,9 @@ final class FlockViewModel: ObservableObject {
     }
 
     // MARK: Admin: Edit Post
-    func updatePost(_ post: FlockPost, content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) {
+    func updatePost(_ post: FlockPost, content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) {
         Task {
-            if let endpoint = try? APIEndpoint.updateFlockPost(id: post.id, content: content, mediaData: mediaData, mimeType: mimeType, fileName: fileName) {
+            if let endpoint = try? APIEndpoint.updateFlockPost(id: post.id, content: content, mediaFiles: mediaFiles) {
                 if (try? await api.requestRaw(endpoint)) != nil {
                     // Success, reload posts
                     await fetchPosts(offset: 0, reset: true)
@@ -548,8 +548,8 @@ struct FlockFeedView: View {
             }
         }
         .fullScreenCover(isPresented: $showCreatePost) {
-            CreatePostSheet(title: "New Flock Post", onSubmitWithMedia: { text, mediaData, mediaType, fileName in
-                await flockVM.createPost(content: text, mediaData: mediaData, mimeType: mediaType, fileName: fileName)
+            CreatePostSheet(title: "New Flock Post", onSubmitWithMedia: { text, mediaFiles in
+                await flockVM.createPost(content: text, mediaFiles: mediaFiles)
             })
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -564,8 +564,8 @@ struct FlockFeedView: View {
             }
         }
         .sheet(item: $editingPost) { post in
-            CreatePostSheet(title: "Edit Flock Post", initialText: post.content, onSubmitWithMedia: { newContent, mediaData, mediaType, fileName in
-                flockVM.updatePost(post, content: newContent, mediaData: mediaData, mimeType: mediaType, fileName: fileName)
+            CreatePostSheet(title: "Edit Flock Post", initialText: post.content, initialMediaUrls: post.media.map { $0.resolvedUrl() }.filter { !$0.isEmpty }, onSubmitWithMedia: { newContent, mediaFiles in
+                flockVM.updatePost(post, content: newContent, mediaFiles: mediaFiles)
             })
         }
         // ── Comment Bottom Sheet (Bug #4 fix: uses FlockCommentSheetContainer for live updates) ──
@@ -654,8 +654,8 @@ final class InsideTalkViewModel: ObservableObject {
         }
     }
 
-    func createPost(text: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) async {
-        guard let endpoint = try? APIEndpoint.createInsideTalkPost(text: text, mediaData: mediaData, mimeType: mimeType, fileName: fileName) else { return }
+    func createPost(text: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) async {
+        guard let endpoint = try? APIEndpoint.createInsideTalkPost(text: text, mediaFiles: mediaFiles) else { return }
         _ = try? await api.request(endpoint, responseType: MessageResponse.self) // Optimistic, we just reload
         await loadAll() // Reload to fetch the new post
     }
@@ -843,12 +843,12 @@ struct InsideTalkView: View {
             }
         }
         .fullScreenCover(isPresented: $showCreatePost) {
-            CreatePostSheet(title: "New Inside Talk", onSubmitWithMedia: { text, mediaData, mediaType, fileName in
-                await viewModel.createPost(text: text, mediaData: mediaData, mimeType: mediaType, fileName: fileName)
+            CreatePostSheet(title: "New Inside Talk", onSubmitWithMedia: { text, mediaFiles in
+                await viewModel.createPost(text: text, mediaFiles: mediaFiles)
             })
         }
         .sheet(item: $editingPost) { tweet in
-            CreatePostSheet(title: "Edit Inside Talk", initialText: tweet.content, onSubmitWithMedia: { newContent, _, _, _ in
+            CreatePostSheet(title: "Edit Inside Talk", initialText: tweet.content, initialMediaUrls: tweet.media.map { $0.resolvedUrl() }.filter { !$0.isEmpty }, onSubmitWithMedia: { newContent, mediaFiles in
                 viewModel.updatePost(tweetId: tweet.id, text: newContent)
             })
         }
@@ -920,7 +920,7 @@ struct InsideTalkCard: View {
                     Text(content.authorName)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(AppTheme.textPrimary)
-                    Text(content.createdAt.prefix(10).description)
+                    Text(formatRelativeDate(content.createdAt))
                         .font(.system(size: 10))
                         .foregroundColor(AppTheme.textMuted)
                 }
@@ -1019,6 +1019,13 @@ struct InsideTalkCard: View {
 
                     Button { onComment() } label: {
                         Label("\(content.replyCount)", systemImage: "bubble.left")
+                            .font(.system(size: 12))
+                            .foregroundColor(AppTheme.textMuted)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    ShareLink(item: content.content) {
+                        Label("Share", systemImage: "square.and.arrow.up")
                             .font(.system(size: 12))
                             .foregroundColor(AppTheme.textMuted)
                     }
@@ -1756,19 +1763,22 @@ struct CreatePostSheet: View {
     @Environment(\.dismiss) var dismiss
     let title: String
     let initialText: String
+    let initialMediaUrls: [String]
     let onSubmitText: ((String) async -> Void)?           // plain-text only (legacy)
-    let onSubmitMedia: ((String, Data?, String?, String?) async -> Void)?  // text + media
+    let onSubmitMedia: ((String, [(data: Data, mimeType: String, fileName: String)]) async -> Void)?  // text + media
 
-    init(title: String, initialText: String = "", onSubmit: @escaping (String) async -> Void) {
+    init(title: String, initialText: String = "", initialMediaUrls: [String] = [], onSubmit: @escaping (String) async -> Void) {
         self.title = title
         self.initialText = initialText
+        self.initialMediaUrls = initialMediaUrls
         self.onSubmitText = onSubmit
         self.onSubmitMedia = nil
     }
 
-    init(title: String, initialText: String = "", onSubmitWithMedia: @escaping (String, Data?, String?, String?) async -> Void) {
+    init(title: String, initialText: String = "", initialMediaUrls: [String] = [], onSubmitWithMedia: @escaping (String, [(data: Data, mimeType: String, fileName: String)]) async -> Void) {
         self.title = title
         self.initialText = initialText
+        self.initialMediaUrls = initialMediaUrls
         self.onSubmitText = nil
         self.onSubmitMedia = onSubmitWithMedia
     }
@@ -1778,16 +1788,13 @@ struct CreatePostSheet: View {
 
     @State private var text = ""
     @State private var isPosting = false
-    @State private var selectedPhotoItem: PhotosPickerItem? = nil
-    @State private var selectedImageData: Data? = nil
-    @State private var selectedMediaType: String? = nil  // "image/jpeg", "video/mp4", "audio/mpeg"
-    @State private var selectedFileName: String? = nil
-    @State private var previewImage: SwiftUI.Image? = nil
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
+    @State private var mediaFiles: [(data: Data, mimeType: String, fileName: String, preview: SwiftUI.Image?)] = []
     @State private var showAudioPicker = false
 
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var isOverLimit: Bool { text.count > maxLength }
-    private var canPost: Bool { (!trimmed.isEmpty || selectedImageData != nil) && !isOverLimit && !isPosting }
+    private var canPost: Bool { (!trimmed.isEmpty || !mediaFiles.isEmpty) && !isOverLimit && !isPosting }
 
     var body: some View {
         NavigationView {
@@ -1883,65 +1890,87 @@ struct CreatePostSheet: View {
 
                         // Media attachment area
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("Attach Media")
+                            if !initialMediaUrls.isEmpty {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("Existing Media")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(AppTheme.textMuted)
+                                    PostMediaView(urls: initialMediaUrls)
+                                        .disabled(true)
+                                }
+                                .padding(.horizontal, 20)
+                            }
+                            
+                            Text("Attach Media (\(mediaFiles.count)/4)")
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(AppTheme.textMuted)
                                 .padding(.horizontal, 20)
 
                             HStack(spacing: 12) {
                                 // Image / Video picker
-                                PhotosPicker(
-                                    selection: $selectedPhotoItem,
-                                    matching: .any(of: [.images, .videos]),
-                                    photoLibrary: .shared()
-                                ) {
-                                    attachmentButton(icon: "photo.on.rectangle", label: "Photo/Video")
-                                }
-                                .onChange(of: selectedPhotoItem) { item in
-                                    Task { await loadPhoto(item) }
-                                }
+                                if mediaFiles.count < 4 {
+                                    PhotosPicker(
+                                        selection: $selectedPhotoItems,
+                                        maxSelectionCount: 4 - mediaFiles.count,
+                                        matching: .any(of: [.images, .videos]),
+                                        photoLibrary: .shared()
+                                    ) {
+                                        attachmentButton(icon: "photo.on.rectangle", label: "Photo/Video")
+                                    }
+                                    .onChange(of: selectedPhotoItems) { items in
+                                        Task { await loadPhotos(items) }
+                                    }
 
-                                // Audio / document picker
-                                Button { showAudioPicker = true } label: {
-                                    attachmentButton(icon: "waveform", label: "Audio")
-                                }
-
-                                // Clear attachment
-                                if selectedImageData != nil {
-                                    Button {
-                                        selectedPhotoItem = nil
-                                        selectedImageData = nil
-                                        selectedMediaType = nil
-                                        selectedFileName = nil
-                                        previewImage = nil
-                                    } label: {
-                                        attachmentButton(icon: "xmark.circle", label: "Remove", tint: AppTheme.error)
+                                    // Audio / document picker
+                                    Button { showAudioPicker = true } label: {
+                                        attachmentButton(icon: "waveform", label: "Audio")
                                     }
                                 }
                             }
                             .padding(.horizontal, 20)
 
-                            // Preview thumbnail
-                            if let img = previewImage {
-                                img
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(maxHeight: 200)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                            // Preview thumbnails
+                            if !mediaFiles.isEmpty {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 12) {
+                                        ForEach(mediaFiles.indices, id: \.self) { i in
+                                            let file = mediaFiles[i]
+                                            ZStack(alignment: .topTrailing) {
+                                                if let img = file.preview {
+                                                    img
+                                                        .resizable()
+                                                        .scaledToFill()
+                                                        .frame(width: 100, height: 100)
+                                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                                } else {
+                                                    VStack(spacing: 8) {
+                                                        Image(systemName: file.mimeType.contains("video") ? "video.fill" : "waveform")
+                                                            .foregroundStyle(AppTheme.goldGradient)
+                                                        Text(file.fileName)
+                                                            .font(.system(size: 10))
+                                                            .foregroundColor(AppTheme.textSecondary)
+                                                            .lineLimit(1)
+                                                    }
+                                                    .frame(width: 100, height: 100)
+                                                    .background(AppTheme.surfaceVariant.opacity(0.5))
+                                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                                }
+                                                
+                                                Button {
+                                                    mediaFiles.remove(at: i)
+                                                } label: {
+                                                    Image(systemName: "xmark.circle")
+                                                        .font(.system(size: 20))
+                                                        .foregroundColor(AppTheme.error)
+                                                        .background(Color.black.opacity(0.6), in: Circle())
+                                                }
+                                                .padding(4)
+                                                .offset(x: 4, y: -4)
+                                            }
+                                        }
+                                    }
                                     .padding(.horizontal, 20)
-                            } else if let name = selectedFileName {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "waveform")
-                                        .foregroundStyle(AppTheme.goldGradient)
-                                    Text(name)
-                                        .font(.system(size: 13))
-                                        .foregroundColor(AppTheme.textSecondary)
-                                        .lineLimit(1)
                                 }
-                                .padding(12)
-                                .background(AppTheme.surfaceVariant.opacity(0.5))
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                .padding(.horizontal, 20)
                             }
                         }
 
@@ -1978,10 +2007,7 @@ struct CreatePostSheet: View {
                url.startAccessingSecurityScopedResource() {
                 defer { url.stopAccessingSecurityScopedResource() }
                 if let data = try? Data(contentsOf: url) {
-                    selectedImageData = data
-                    selectedMediaType = "audio/mpeg"
-                    selectedFileName = url.lastPathComponent
-                    previewImage = nil
+                    mediaFiles.append((data: data, mimeType: "audio/mpeg", fileName: url.lastPathComponent, preview: nil))
                 }
             }
         }
@@ -2003,28 +2029,26 @@ struct CreatePostSheet: View {
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(tint.opacity(0.3), lineWidth: 1))
     }
 
-    private func loadPhoto(_ item: PhotosPickerItem?) async {
-        guard let item else { return }
-        if let data = try? await item.loadTransferable(type: Data.self) {
-            selectedImageData = data
-            if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) || $0.conforms(to: .video) }) {
-                selectedMediaType = "video/mp4"
-                selectedFileName = "video.mp4"
-                previewImage = nil
-            } else {
-                selectedMediaType = "image/jpeg"
-                selectedFileName = "photo.jpg"
-                if let uiImage = UIImage(data: data) {
-                    previewImage = SwiftUI.Image(uiImage: uiImage)
+    private func loadPhotos(_ items: [PhotosPickerItem]) async {
+        for item in items {
+            if let data = try? await item.loadTransferable(type: Data.self) {
+                if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) || $0.conforms(to: .video) }) {
+                    mediaFiles.append((data: data, mimeType: "video/mp4", fileName: "video_\(UUID().uuidString.prefix(6)).mp4", preview: nil))
+                } else {
+                    let preview = UIImage(data: data).map { SwiftUI.Image(uiImage: $0) }
+                    mediaFiles.append((data: data, mimeType: "image/jpeg", fileName: "photo_\(UUID().uuidString.prefix(6)).jpg", preview: preview))
                 }
             }
         }
+        // Reset selections to allow more
+        selectedPhotoItems = []
     }
 
     private func submitPost() async {
         isPosting = true
         if let mediaHandler = onSubmitMedia {
-            await mediaHandler(trimmed, selectedImageData, selectedMediaType, selectedFileName)
+            let files = mediaFiles.map { (data: $0.data, mimeType: $0.mimeType, fileName: $0.fileName) }
+            await mediaHandler(trimmed, files)
         } else if let textHandler = onSubmitText {
             await textHandler(trimmed)
         }
