@@ -51,11 +51,13 @@ extension APIEndpoint {
 
     static let getTrendingTopics = APIEndpoint(path: "/api/flock/trending", method: .GET)
 
-    static func createFlockPost(content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) throws -> APIEndpoint {
-        if let data = mediaData, let mime = mimeType, let name = fileName {
+    static func createFlockPost(content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) throws -> APIEndpoint {
+        if !mediaFiles.isEmpty {
             var multipart = MultipartFormData()
             multipart.append(name: "content", string: content)
-            multipart.append(name: "media", data: data, filename: name, mimeType: mime)
+            for file in mediaFiles {
+                multipart.append(name: "media", data: file.data, filename: file.fileName, mimeType: file.mimeType)
+            }
             var endpoint = APIEndpoint(path: "/api/flock/posts", method: .POST)
             endpoint.multipartData = multipart
             return endpoint
@@ -64,11 +66,13 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/flock/posts", method: .POST, body: body)
     }
 
-    static func updateFlockPost(id: String, content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) throws -> APIEndpoint {
-        if let data = mediaData, let mime = mimeType, let name = fileName {
+    static func updateFlockPost(id: String, content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) throws -> APIEndpoint {
+        if !mediaFiles.isEmpty {
             var multipart = MultipartFormData()
             multipart.append(name: "content", string: content)
-            multipart.append(name: "media", data: data, filename: name, mimeType: mime)
+            for file in mediaFiles {
+                multipart.append(name: "media", data: file.data, filename: file.fileName, mimeType: file.mimeType)
+            }
             var endpoint = APIEndpoint(path: "/api/flock/posts/\(id)", method: .PUT)
             endpoint.multipartData = multipart
             return endpoint
@@ -165,12 +169,13 @@ extension APIEndpoint {
     }
 
 
-    static func createInsideTalkPost(text: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) throws -> APIEndpoint {
-        if let data = mediaData, let mime = mimeType, let name = fileName {
+    static func createInsideTalkPost(text: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) throws -> APIEndpoint {
+        if !mediaFiles.isEmpty {
             var multipart = MultipartFormData()
             multipart.append(name: "text", string: text)
-            // Ensure media is received perfectly by sending as array syntax if node expects it just in case, but keep standard 'media' first. 
-            multipart.append(name: "media", data: data, filename: name, mimeType: mime)
+            for file in mediaFiles {
+                multipart.append(name: "media", data: file.data, filename: file.fileName, mimeType: file.mimeType)
+            }
             var endpoint = APIEndpoint(path: "/api/twitter/create-post-with-media", method: .POST)
             endpoint.multipartData = multipart
             return endpoint
@@ -223,11 +228,13 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/distributors/posts", method: .GET, queryItems: items)
     }
 
-    static func createDistributorsPost(content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) throws -> APIEndpoint {
-        if let data = mediaData, let mime = mimeType, let name = fileName {
+    static func createDistributorsPost(content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) throws -> APIEndpoint {
+        if !mediaFiles.isEmpty {
             var multipart = MultipartFormData()
             multipart.append(name: "content", string: content)
-            multipart.append(name: "media", data: data, filename: name, mimeType: mime)
+            for file in mediaFiles {
+                multipart.append(name: "media", data: file.data, filename: file.fileName, mimeType: file.mimeType)
+            }
             var endpoint = APIEndpoint(path: "/api/distributors/posts", method: .POST)
             endpoint.multipartData = multipart
             return endpoint
@@ -236,11 +243,13 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/distributors/posts", method: .POST, body: body)
     }
 
-    static func updateDistributorsPost(id: String, content: String, mediaData: Data? = nil, mimeType: String? = nil, fileName: String? = nil) throws -> APIEndpoint {
-        if let data = mediaData, let mime = mimeType, let name = fileName {
+    static func updateDistributorsPost(id: String, content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) throws -> APIEndpoint {
+        if !mediaFiles.isEmpty {
             var multipart = MultipartFormData()
             multipart.append(name: "content", string: content)
-            multipart.append(name: "media", data: data, filename: name, mimeType: mime)
+            for file in mediaFiles {
+                multipart.append(name: "media", data: file.data, filename: file.fileName, mimeType: file.mimeType)
+            }
             var endpoint = APIEndpoint(path: "/api/distributors/posts/\(id)", method: .PUT)
             endpoint.multipartData = multipart
             return endpoint
