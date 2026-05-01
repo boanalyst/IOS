@@ -1790,11 +1790,12 @@ struct CreatePostSheet: View {
     @State private var isPosting = false
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var mediaFiles: [(data: Data, mimeType: String, fileName: String, preview: SwiftUI.Image?)] = []
+    @State private var existingMediaUrls: [String] = []  // seeded from initialMediaUrls on appear; mutable so user can delete
     @State private var showAudioPicker = false
 
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var isOverLimit: Bool { text.count > maxLength }
-    private var canPost: Bool { (!trimmed.isEmpty || !mediaFiles.isEmpty) && !isOverLimit && !isPosting }
+    private var canPost: Bool { (!trimmed.isEmpty || !mediaFiles.isEmpty || !existingMediaUrls.isEmpty) && !isOverLimit && !isPosting }
 
     var body: some View {
         NavigationView {
@@ -1890,18 +1891,49 @@ struct CreatePostSheet: View {
 
                         // Media attachment area
                         VStack(alignment: .leading, spacing: 10) {
-                            if !initialMediaUrls.isEmpty {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("Existing Media")
-                                        .font(.system(size: 13, weight: .semibold))
+                            // ── Existing media (from server) — deletable thumbnails ──
+                            if !existingMediaUrls.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Existing Media (tap ✕ to remove)")
+                                        .font(.system(size: 12, weight: .semibold))
                                         .foregroundColor(AppTheme.textMuted)
-                                    PostMediaView(urls: initialMediaUrls)
-                                        .disabled(true)
+                                        .padding(.horizontal, 20)
+
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 12) {
+                                            ForEach(existingMediaUrls.indices, id: \.self) { i in
+                                                ZStack(alignment: .topTrailing) {
+                                                    if let url = URL(string: existingMediaUrls[i]) {
+                                                        CachedAsyncImage(url: url) { phase in
+                                                            switch phase {
+                                                            case .success(let image):
+                                                                image.resizable().scaledToFill()
+                                                            default:
+                                                                Rectangle().fill(AppTheme.surfaceVariant)
+                                                                    .overlay(Image(systemName: "photo").foregroundColor(AppTheme.textMuted))
+                                                            }
+                                                        }
+                                                        .frame(width: 100, height: 100)
+                                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                                    }
+                                                    Button {
+                                                        existingMediaUrls.remove(at: i)
+                                                    } label: {
+                                                        Image(systemName: "xmark.circle.fill")
+                                                            .font(.system(size: 22))
+                                                            .foregroundColor(.white)
+                                                            .background(Color.red.opacity(0.8), in: Circle())
+                                                    }
+                                                    .padding(4)
+                                                }
+                                            }
+                                        }
+                                        .padding(.horizontal, 20)
+                                    }
                                 }
-                                .padding(.horizontal, 20)
                             }
-                            
-                            Text("Attach Media (\(mediaFiles.count)/4)")
+
+                            Text("Attach New Media (\(mediaFiles.count)/4)")
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(AppTheme.textMuted)
                                 .padding(.horizontal, 20)
@@ -1997,6 +2029,9 @@ struct CreatePostSheet: View {
         }
         .onAppear {
             text = initialText
+            if existingMediaUrls.isEmpty {
+                existingMediaUrls = initialMediaUrls
+            }
         }
         .fileImporter(
             isPresented: $showAudioPicker,
