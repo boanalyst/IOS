@@ -9,31 +9,55 @@ import SwiftUI
 // Converts ISO-8601 date strings to human-readable relative time
 // e.g. "2 min ago", "3h ago", "Yesterday", "Apr 28"
 
+fileprivate let iso8601Formatter1: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return f
+}()
+
+fileprivate let iso8601Formatter2: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime]
+    return f
+}()
+
+fileprivate let fallbackDF1: DateFormatter = {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+    return f
+}()
+
+fileprivate let fallbackDF2: DateFormatter = {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+    return f
+}()
+
+fileprivate let fallbackDF3: DateFormatter = {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.dateFormat = "yyyy-MM-dd HH:mm:ss"
+    return f
+}()
+
 func formatRelativeDate(_ isoString: String) -> String {
     let trimmed = isoString.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else { return "" }
     
-    // Try multiple ISO-8601 date formats
-    let iso = ISO8601DateFormatter()
-    iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    var date = iso.date(from: trimmed)
+    // Try multiple statically cached formats
+    var date = iso8601Formatter1.date(from: trimmed)
     if date == nil {
-        iso.formatOptions = [.withInternetDateTime]
-        date = iso.date(from: trimmed)
+        date = iso8601Formatter2.date(from: trimmed)
     }
     if date == nil {
-        // Fallback: try DateFormatter for "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        let df = DateFormatter()
-        df.locale = Locale(identifier: "en_US_POSIX")
-        df.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        date = df.date(from: trimmed)
+        date = fallbackDF1.date(from: trimmed)
         if date == nil {
-            df.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-            date = df.date(from: trimmed)
+            date = fallbackDF2.date(from: trimmed)
         }
         if date == nil {
-            df.dateFormat = "yyyy-MM-dd HH:mm:ss"
-            date = df.date(from: trimmed)
+            date = fallbackDF3.date(from: trimmed)
         }
     }
     guard let parsed = date else {
@@ -340,20 +364,14 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
                  .replacingOccurrences(of: "&lt;", with: "<")
                  .replacingOccurrences(of: "&gt;", with: ">")
 
-    // ── Step 6: Bullets (Android compatibility) ──
     clean = clean.replacingOccurrences(of: "(?m)^\\s*\\*\\*\\*(?!\\*)\\s+", with: "**• ", options: .regularExpression)
     clean = clean.replacingOccurrences(of: "(?m)^\\s*\\*(?!\\*)\\s+", with: "• ", options: .regularExpression)
-
-    // ── Step 7: Fix bad bold markers ──
-    // CRITICAL FIX: \s+ matches newlines in Swift regex! We must use [ \t]+ to only strip spaces
     clean = clean.replacingOccurrences(
         of: "\\*\\*[ \\t]+(.*?)[ \\t]+\\*\\*",
         with: "**$1**",
         options: .regularExpression
     )
 
-    // ── NATIVE ANNOTATION PARSING ──
-    // Completely bypasses Apple's buggy Markdown API and replicates Android's loop renderer 1:1.
     var attrResult = AttributedString()
     let boldParts = clean.components(separatedBy: "**")
     
@@ -390,25 +408,17 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
         }
     }
     
-    // Fallback if parsing completely stripped string visually
     if attrResult.characters.isEmpty {
         attrResult = AttributedString(clean.replacingOccurrences(of: "**", with: ""))
     }
 
-    // ── Step 10: Apply HashTag Links Natively ──
-    let plainText = String(attrResult.characters)
-    if let regex = try? NSRegularExpression(pattern: "(#[\\p{L}\\p{N}_]+)") {
+    if let regex = hashtagRegex {
+        let plainText = String(attrResult.characters)
         let matches = regex.matches(in: plainText, range: NSRange(location: 0, length: plainText.utf16.count))
-        for match in matches {
-            if let strRange = Range(match.range, in: plainText) {
-                // Safely translate String UTF-index bounds to AttributedString bounds
-                let startOffset = plainText.distance(from: plainText.startIndex, to: strRange.lowerBound)
-                let lengthOffset = plainText.distance(from: strRange.lowerBound, to: strRange.upperBound)
-                
-                let startIdx = attrResult.index(attrResult.startIndex, offsetByCharacters: startOffset)
-                let endIdx = attrResult.index(startIdx, offsetByCharacters: lengthOffset)
-                
-                if startIdx < endIdx {
+        for match in matches.reversed() {
+            if let swiftRange = Range(match.range, in: plainText) {
+                if let startIdx = AttributedString.Index(swiftRange.lowerBound, within: attrResult),
+                   let endIdx = AttributedString.Index(swiftRange.upperBound, within: attrResult) {
                     attrResult[startIdx..<endIdx].link = URL(string: "boanalyst://hashtag")
                 }
             }
@@ -582,7 +592,6 @@ struct PostMediaView: View {
                                         case .success(let image):
                                             image.resizable()
                                                 .scaledToFill()
-                                                .onTapGesture { fullScreenIndex = i }
                                         case .failure:
                                             Rectangle().fill(AppTheme.surfaceVariant)
                                                 .overlay(Image(systemName: "photo").foregroundColor(AppTheme.textMuted))
@@ -590,7 +599,9 @@ struct PostMediaView: View {
                                             EmptyView()
                                         }
                                     }
-                                    .frame(width: UIScreen.main.bounds.width * 0.78, height: 240)
+                                    .frame(width: UIScreen.main.bounds.width * 0.82, height: 320)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { fullScreenIndex = i }
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                 }
                             }
