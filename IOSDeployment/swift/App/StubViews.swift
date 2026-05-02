@@ -1931,11 +1931,13 @@ struct CreatePostSheet: View {
                                                         }
                                                     } label: {
                                                         Image(systemName: "xmark.circle.fill")
-                                                            .font(.system(size: 22))
+                                                            .font(.system(size: 26))
                                                             .foregroundColor(.white)
                                                             .background(Color.red.opacity(0.8), in: Circle())
+                                                            .padding(10)
+                                                            .contentShape(Rectangle())
                                                     }
-                                                    .padding(4)
+                                                    .buttonStyle(PlainButtonStyle())
                                                 }
                                             }
                                         }
