@@ -1765,7 +1765,7 @@ struct CreatePostSheet: View {
     let initialText: String
     let initialMediaUrls: [String]
     let onSubmitText: ((String) async -> Void)?           // plain-text only (legacy)
-    let onSubmitMedia: ((String, [(data: Data, mimeType: String, fileName: String)]) async -> Void)?  // text + media
+    let onSubmitMedia: ((String, [(data: Data, mimeType: String, fileName: String)], [String]) async -> Void)?  // text + media + existingUrls
 
     init(title: String, initialText: String = "", initialMediaUrls: [String] = [], onSubmit: @escaping (String) async -> Void) {
         self.title = title
@@ -1775,7 +1775,7 @@ struct CreatePostSheet: View {
         self.onSubmitMedia = nil
     }
 
-    init(title: String, initialText: String = "", initialMediaUrls: [String] = [], onSubmitWithMedia: @escaping (String, [(data: Data, mimeType: String, fileName: String)]) async -> Void) {
+    init(title: String, initialText: String = "", initialMediaUrls: [String] = [], onSubmitWithMedia: @escaping (String, [(data: Data, mimeType: String, fileName: String)], [String]) async -> Void) {
         self.title = title
         self.initialText = initialText
         self.initialMediaUrls = initialMediaUrls
