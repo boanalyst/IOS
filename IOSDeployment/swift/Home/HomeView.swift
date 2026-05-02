@@ -640,9 +640,11 @@ struct ExclusiveContentEditSheet: View {
                                                         Image(systemName: "xmark.circle.fill")
                                                             .foregroundColor(.white)
                                                             .background(Color.black.opacity(0.6), in: Circle())
-                                                            .font(.system(size: 18))
+                                                            .font(.system(size: 24))
+                                                            .padding(10)
+                                                            .contentShape(Rectangle())
                                                     }
-                                                    .padding(4)
+                                                    .buttonStyle(PlainButtonStyle())
                                                 }
                                             }
                                         }
