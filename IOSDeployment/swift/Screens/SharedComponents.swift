@@ -42,41 +42,73 @@ fileprivate let fallbackDF3: DateFormatter = {
     return f
 }()
 
+// Static cached formatters for the display output — never instantiated per-call
+fileprivate let timeOnlyFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "h:mm a"   // e.g. "3:45 PM"
+    return f
+}()
+
+fileprivate let monthDayFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "MMM d"    // e.g. "May 1"
+    return f
+}()
+
 func formatRelativeDate(_ isoString: String) -> String {
     let trimmed = isoString.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else { return "" }
-    
-    // Try multiple statically cached formats
+
+    // Try multiple statically cached parse formats
     var date = iso8601Formatter1.date(from: trimmed)
-    if date == nil {
-        date = iso8601Formatter2.date(from: trimmed)
-    }
-    if date == nil {
-        date = fallbackDF1.date(from: trimmed)
-        if date == nil {
-            date = fallbackDF2.date(from: trimmed)
-        }
-        if date == nil {
-            date = fallbackDF3.date(from: trimmed)
-        }
-    }
+    if date == nil { date = iso8601Formatter2.date(from: trimmed) }
+    if date == nil { date = fallbackDF1.date(from: trimmed) }
+    if date == nil { date = fallbackDF2.date(from: trimmed) }
+    if date == nil { date = fallbackDF3.date(from: trimmed) }
+
     guard let parsed = date else {
-        // Last resort: return first 10 chars (date portion)
-        return String(trimmed.prefix(10))
+        return String(trimmed.prefix(10))  // fallback: raw date portion
     }
-    
+
     let now = Date()
     let diff = now.timeIntervalSince(parsed)
-    
+    let calendar = Calendar.current
+
+    // Under 1 minute
     if diff < 60 { return "Just now" }
+
+    // Under 1 hour → "5 min ago"
     if diff < 3600 { return "\(Int(diff / 60)) min ago" }
-    if diff < 86400 { return "\(Int(diff / 3600))h ago" }
-    if diff < 172800 { return "Yesterday" }
-    if diff < 604800 { return "\(Int(diff / 86400))d ago" }
-    
-    let formatter = DateFormatter()
-    formatter.dateFormat = "MMM d, yyyy"
-    return formatter.string(from: parsed)
+
+    let timeStr = timeOnlyFormatter.string(from: parsed)
+
+    // Same calendar day → "Today at 3:45 PM"
+    if calendar.isDateInToday(parsed) {
+        return "Today at \(timeStr)"
+    }
+
+    // Yesterday → "Yesterday at 3:45 PM"
+    if calendar.isDateInYesterday(parsed) {
+        return "Yesterday at \(timeStr)"
+    }
+
+    // Within the last 7 days → "May 1 at 3:45 PM"
+    if diff < 604800 {
+        return "\(monthDayFormatter.string(from: parsed)) at \(timeStr)"
+    }
+
+    // Older: check if same year
+    let postYear = calendar.component(.year, from: parsed)
+    let nowYear  = calendar.component(.year, from: now)
+    if postYear == nowYear {
+        // "May 1 at 3:45 PM"
+        return "\(monthDayFormatter.string(from: parsed)) at \(timeStr)"
+    }
+
+    // Different year → "May 1, 2024 at 3:45 PM"
+    let yearFormatter = DateFormatter()
+    yearFormatter.dateFormat = "MMM d, yyyy"
+    return "\(yearFormatter.string(from: parsed)) at \(timeStr)"
 }
 
 class ImageLoaderCache {
