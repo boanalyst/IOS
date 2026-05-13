@@ -103,64 +103,90 @@ struct MainTabView: View {
     private var isAdmin: Bool       { authViewModel.currentUser?.isAdmin ?? false }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        VStack(spacing: 0) {
+            ZStack {
+                NavigationStack {
+                    HomeView(onSubscribeRequired: { selectedTab = 5 })
+                }
+                .opacity(selectedTab == 0 ? 1 : 0)
+                .allowsHitTesting(selectedTab == 0)
 
-            // ── Tab 1: Home ────────────────────────────────────
-            NavigationStack {
-                HomeView(onSubscribeRequired: { selectedTab = 4 })
-            }
-            .navigationBarHidden(true)
-            .tabItem { Label("Home", systemImage: "house.fill") }
-            .tag(0)
+                NavigationStack {
+                    FlockFeedView()
+                }
+                .opacity(selectedTab == 2 ? 1 : 0)
+                .allowsHitTesting(selectedTab == 2)
 
-            // ── Tab 2: Flock Feed ──────────────────────────────────────────
-            // Box Office tab DISABLED per product decision (bug #4).
-            // Flock is now Tab 2.
-            NavigationStack {
-                FlockFeedView()
-            }
-            .tabItem { Label("Flock", systemImage: "bubble.left.and.bubble.right.fill") }
-            .tag(1)
+                NavigationStack {
+                    InsideTalkView(onSubscribeRequired: { selectedTab = 5 })
+                }
+                .opacity(selectedTab == 3 ? 1 : 0)
+                .allowsHitTesting(selectedTab == 3)
+                
+                NavigationStack {
+                    DistributorsHubView(
+                        isUserDistributor: isDistributor,
+                        onSubscribeRequired: { selectedTab = 5 }
+                    )
+                }
+                .opacity(selectedTab == 4 ? 1 : 0)
+                .allowsHitTesting(selectedTab == 4)
 
-            // ── Tab 3: Inside Talk ─────────────────────────────────────────
-            NavigationStack {
-                InsideTalkView(onSubscribeRequired: { selectedTab = 4 })
+                NavigationStack {
+                    SubscriptionView()
+                }
+                .opacity(selectedTab == 5 ? 1 : 0)
+                .allowsHitTesting(selectedTab == 5)
             }
-            .tabItem { Label("Inside Talk", systemImage: "eye.fill") }
-            .tag(2)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            // ── Tab 4: Distributors Hub ────────────────────────────────────
-            NavigationStack {
-                DistributorsHubView(
-                    isUserDistributor: isDistributor,
-                    onSubscribeRequired: { selectedTab = 4 }
-                )
+            // Custom Scrollable Tab Bar
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 24) {
+                    TabBarItem(icon: "house.fill", title: "Home", isSelected: selectedTab == 0) { selectedTab = 0 }
+                    TabBarItem(icon: "bubble.left.and.bubble.right.fill", title: "Flock", isSelected: selectedTab == 2) { selectedTab = 2 }
+                    TabBarItem(icon: "eye.fill", title: "Inside Talk", isSelected: selectedTab == 3) { selectedTab = 3 }
+                    TabBarItem(icon: "briefcase.fill", title: "Hub", isSelected: selectedTab == 4) { selectedTab = 4 }
+                    TabBarItem(icon: "star.fill", title: "Subscribe", isSelected: selectedTab == 5) { selectedTab = 5 }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
             }
-            .tabItem { Label("Hub", systemImage: "briefcase.fill") }
-            .tag(3)
-
-            // ── Tab 5: Subscription ────────────────────────────────────────
-            NavigationStack {
-                SubscriptionView()
-            }
-            .tabItem { Label("Subscribe", systemImage: "star.fill") }
-            .tag(4)
-
+            .background(AppTheme.surface)
+            .overlay(Rectangle().frame(height: 1).foregroundColor(AppTheme.surfaceVariant), alignment: .top)
         }
-        .accentColor(AppTheme.goldPrimary)
         .environmentObject(flockVM)
         .sheet(isPresented: $authViewModel.showProfileSheet) {
             NavigationStack {
                 ProfileView(
                     onSubscribeRequired: {
                         authViewModel.showProfileSheet = false
-                        selectedTab = 4
+                        selectedTab = 5
                     },
                     isDistributor: isDistributor,
                     isPro: isPro,
                     isAdmin: isAdmin
                 )
             }
+        }
+    }
+}
+
+struct TabBarItem: View {
+    let icon: String
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                Text(title)
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .foregroundColor(isSelected ? AppTheme.goldPrimary : AppTheme.textSecondary)
         }
     }
 }
