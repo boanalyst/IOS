@@ -1090,6 +1090,12 @@ struct AnalyticsView: View {
 struct BoxOfficeRow: View {
     let entry: BoxOfficeEntry
 
+    private func cleanGross(_ value: String?) -> String {
+        guard let value = value else { return "—" }
+        return value.replacingOccurrences(of: "cr", with: "", options: .caseInsensitive)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
@@ -1097,13 +1103,13 @@ struct BoxOfficeRow: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(AppTheme.textPrimary)
                     .lineLimit(1)
-                Text("India: ₹\(entry.indiaGross) Cr  •  OS: ₹\(entry.overseasGross) Cr")
+                Text("India: ₹\(cleanGross(entry.indiaGross)) Cr  •  OS: ₹\(cleanGross(entry.overseasGross)) Cr")
                     .font(.system(size: 11))
                     .foregroundColor(AppTheme.textMuted)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text("₹\(entry.worldwideGross) Cr")
+                Text("₹\(cleanGross(entry.worldwideGross)) Cr")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(AppTheme.goldGradient)
                 Text("#\(entry.rankNum) Rank")
