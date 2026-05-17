@@ -112,6 +112,12 @@ struct MainTabView: View {
                 .allowsHitTesting(selectedTab == 0)
 
                 NavigationStack {
+                    BuzzBoardView()
+                }
+                .opacity(selectedTab == 1 ? 1 : 0)
+                .allowsHitTesting(selectedTab == 1)
+
+                NavigationStack {
                     FlockFeedView()
                 }
                 .opacity(selectedTab == 2 ? 1 : 0)
@@ -145,6 +151,7 @@ struct MainTabView: View {
                 HStack(spacing: 24) {
                     TabBarItem(icon: "house.fill", title: "Home", isSelected: selectedTab == 0) { selectedTab = 0 }
                     TabBarItem(icon: "bubble.left.and.bubble.right.fill", title: "Flock", isSelected: selectedTab == 2) { selectedTab = 2 }
+                    TabBarItem(icon: "flame.fill", title: "Buzz", isSelected: selectedTab == 1) { selectedTab = 1 }
                     TabBarItem(icon: "eye.fill", title: "Inside Talk", isSelected: selectedTab == 3) { selectedTab = 3 }
                     TabBarItem(icon: "briefcase.fill", title: "Hub", isSelected: selectedTab == 4) { selectedTab = 4 }
                     TabBarItem(icon: "star.fill", title: "Subscribe", isSelected: selectedTab == 5) { selectedTab = 5 }
