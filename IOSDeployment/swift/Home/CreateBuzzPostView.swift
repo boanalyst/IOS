@@ -377,7 +377,8 @@ struct CreateBuzzPostView: View {
                 category: selectedCategory.rawValue,
                 tags: tags
             )
-            var request = URLRequest(url: endpoint.url)
+            guard let url = URL(string: APIConfig.baseURL + endpoint.path) else { return }
+            var request = URLRequest(url: url)
             request.httpMethod = endpoint.method.rawValue
             request.setValue("Bearer \(userToken)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")

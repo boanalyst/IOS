@@ -348,7 +348,8 @@ struct BuzzPostDetailView: View {
     private func loadComments() {
         isLoadingComments = true
         let endpoint = APIEndpoint.getBuzzComments(postId: post.id, offset: 0, limit: 100)
-        var request = URLRequest(url: endpoint.url)
+        guard let url = URL(string: APIConfig.baseURL + endpoint.path) else { return }
+        var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
         if !userToken.isEmpty { request.setValue("Bearer \(userToken)", forHTTPHeaderField: "Authorization") }
 
@@ -375,7 +376,8 @@ struct BuzzPostDetailView: View {
         onUpdate(post)
 
         let endpoint = APIEndpoint.toggleBuzzLike(postId: post.id)
-        var request = URLRequest(url: endpoint.url)
+        guard let url = URL(string: APIConfig.baseURL + endpoint.path) else { return }
+        var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
         request.setValue("Bearer \(userToken)", forHTTPHeaderField: "Authorization")
 
@@ -400,7 +402,8 @@ struct BuzzPostDetailView: View {
 
         do {
             let endpoint = try APIEndpoint.addBuzzComment(postId: post.id, content: trimmed)
-            var request = URLRequest(url: endpoint.url)
+            guard let url = URL(string: APIConfig.baseURL + endpoint.path) else { return }
+            var request = URLRequest(url: url)
             request.httpMethod = endpoint.method.rawValue
             request.setValue("Bearer \(userToken)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -436,7 +439,8 @@ struct BuzzPostDetailView: View {
         isDeletingPost = true
 
         let endpoint = APIEndpoint.deleteBuzzPost(postId: post.id)
-        var request = URLRequest(url: endpoint.url)
+        guard let url = URL(string: APIConfig.baseURL + endpoint.path) else { return }
+        var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
         request.setValue("Bearer \(userToken)", forHTTPHeaderField: "Authorization")
 
@@ -457,7 +461,8 @@ struct BuzzPostDetailView: View {
         guard !userToken.isEmpty else { return }
 
         let endpoint = APIEndpoint.deleteBuzzComment(postId: post.id, commentId: comment.id)
-        var request = URLRequest(url: endpoint.url)
+        guard let url = URL(string: APIConfig.baseURL + endpoint.path) else { return }
+        var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
         request.setValue("Bearer \(userToken)", forHTTPHeaderField: "Authorization")
 
