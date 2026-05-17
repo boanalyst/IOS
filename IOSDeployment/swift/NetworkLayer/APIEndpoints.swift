@@ -227,6 +227,49 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/twitter/pin-tweet", method: .PUT, body: body)
     }
 
+    // ── Buzz Board ────────────────────────────────────────────────────────────
+
+    static func getBuzzPosts(category: String = "all", offset: Int = 0, limit: Int = 20) -> APIEndpoint {
+        let items = [URLQueryItem(name: "category", value: category),
+                     URLQueryItem(name: "offset", value: "\(offset)"),
+                     URLQueryItem(name: "limit", value: "\(limit)")]
+        return APIEndpoint(path: "/api/buzz/posts", method: .GET, queryItems: items)
+    }
+
+    static func getBuzzPost(id: String) -> APIEndpoint {
+        return APIEndpoint(path: "/api/buzz/posts/\(id)", method: .GET)
+    }
+
+    static func createBuzzPost(title: String, content: String, category: String, tags: [String] = []) throws -> APIEndpoint {
+        let body = try JSONSerialization.data(withJSONObject: [
+            "title": title, "content": content, "category": category, "tags": tags
+        ])
+        return APIEndpoint(path: "/api/buzz/posts", method: .POST, body: body)
+    }
+
+    static func toggleBuzzLike(postId: String) -> APIEndpoint {
+        return APIEndpoint(path: "/api/buzz/posts/\(postId)/like", method: .POST)
+    }
+
+    static func getBuzzComments(postId: String, offset: Int = 0, limit: Int = 50) -> APIEndpoint {
+        let items = [URLQueryItem(name: "offset", value: "\(offset)"),
+                     URLQueryItem(name: "limit", value: "\(limit)")]
+        return APIEndpoint(path: "/api/buzz/posts/\(postId)/comments", method: .GET, queryItems: items)
+    }
+
+    static func addBuzzComment(postId: String, content: String) throws -> APIEndpoint {
+        let body = try JSONSerialization.data(withJSONObject: ["content": content])
+        return APIEndpoint(path: "/api/buzz/posts/\(postId)/comments", method: .POST, body: body)
+    }
+
+    static func deleteBuzzPost(postId: String) -> APIEndpoint {
+        return APIEndpoint(path: "/api/buzz/posts/\(postId)", method: .DELETE)
+    }
+
+    static func deleteBuzzComment(postId: String, commentId: String) -> APIEndpoint {
+        return APIEndpoint(path: "/api/buzz/posts/\(postId)/comments/\(commentId)", method: .DELETE)
+    }
+
     // ── Distributors Hub ──────────────────────────────────────────────────────
 
     static func getDistributorsHub(offset: Int = 0, limit: Int = 10) -> APIEndpoint {
