@@ -1050,8 +1050,8 @@ struct BuzzPost: Decodable, Identifiable {
         userId      = (try? c.decode(String.self, forKey: .userId)) ?? ""
         authorName  = (try? c.decode(String.self, forKey: .authorName)) ?? "User"
         category    = (try? c.decode(String.self, forKey: .category)) ?? "general"
-        title       = (try? c.decode(String.self, forKey: .title)) ?? ""
-        content     = (try? c.decode(String.self, forKey: .content)) ?? ""
+        title       = ((try? c.decode(String.self, forKey: .title)) ?? "").replacingOccurrences(of: "\u{FFFC}", with: "").replacingOccurrences(of: "\u{FFFD}", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        content     = ((try? c.decode(String.self, forKey: .content)) ?? "").replacingOccurrences(of: "\u{FFFC}", with: "").replacingOccurrences(of: "\u{FFFD}", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
         // Tags may be a JSON array or a JSON-string
         if let arr = try? c.decode([String].self, forKey: .tags) {
             tags = arr
@@ -1164,7 +1164,7 @@ struct BuzzComment: Decodable, Identifiable {
         postId     = (try? c.decode(String.self, forKey: .postId))     ?? ""
         userId     = (try? c.decode(String.self, forKey: .userId))     ?? ""
         authorName = (try? c.decode(String.self, forKey: .authorName)) ?? "User"
-        content    = (try? c.decode(String.self, forKey: .content))    ?? ""
+        content    = ((try? c.decode(String.self, forKey: .content)) ?? "").replacingOccurrences(of: "\u{FFFC}", with: "").replacingOccurrences(of: "\u{FFFD}", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
         createdAt  = (try? c.decode(String.self, forKey: .createdAt))  ?? ""
     }
 }
