@@ -427,16 +427,29 @@ struct Movie: Decodable, Identifiable {
 
 struct BoxOfficeResponse: Decodable {
     let success: Bool
-    let data: [BoxOfficeEntry]  // server key is "data" — matches Android BoxOfficeResponse
+    let language: String?
+    let movies: [BoxOfficeEntry]?
+    var data: [BoxOfficeEntry] { movies ?? [] }
 }
 
 struct BoxOfficeEntry: Decodable, Identifiable {
-    var id: String { title }
+    let id: Int
     let title: String
-    let collection: String
-    let budget: String
-    let verdict: String
-    let verdictColor: String
+    let language: String
+    let worldwideGross: String
+    let indiaGross: String
+    let overseasGross: String
+    let rankNum: Int
+    let releaseYear: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, language
+        case worldwideGross = "worldwide_gross"
+        case indiaGross = "india_gross"
+        case overseasGross = "overseas_gross"
+        case rankNum = "rank_num"
+        case releaseYear = "release_year"
+    }
 }
 
 struct BmsLiveResponse: Decodable {
