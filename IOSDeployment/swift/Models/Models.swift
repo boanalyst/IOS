@@ -975,3 +975,219 @@ struct VerifyPaymentResponse: Decodable {
     let success: Bool
     let message: String?
 }
+
+// MARK: - Buzz Board
+
+enum BuzzCategory: String, CaseIterable, Identifiable {
+    case all       = "all"
+    case movies    = "movies"
+    case boxOffice = "box_office"
+    case rumors    = "rumors"
+    case reviews   = "reviews"
+    case general   = "general"
+
+    var id: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .all:       return "All"
+        case .movies:    return "Movies"
+        case .boxOffice: return "Box Office"
+        case .rumors:    return "Rumors"
+        case .reviews:   return "Reviews"
+        case .general:   return "General"
+        }
+    }
+    var icon: String {
+        switch self {
+        case .all:       return "square.grid.2x2.fill"
+        case .movies:    return "film"
+        case .boxOffice: return "chart.bar.fill"
+        case .rumors:    return "megaphone.fill"
+        case .reviews:   return "star.fill"
+        case .general:   return "bubble.left.fill"
+        }
+    }
+}
+
+
+struct BuzzPost: Decodable, Identifiable {
+    let id: String
+    let userId: String
+    let authorName: String
+    let category: String
+    let title: String
+    let content: String
+    let tags: [String]
+    let likeCount: Int
+    let commentCount: Int
+    let viewCount: Int
+    let isPinned: Bool
+    var userLiked: Bool
+    let createdAt: String
+
+    var buzzCategory: BuzzCategory { BuzzCategory(rawValue: category) ?? .general }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId      = "user_id"
+        case authorName  = "author_name"
+        case category
+        case title, content
+        case tags
+        case likeCount   = "like_count"
+        case commentCount = "comment_count"
+        case viewCount   = "view_count"
+        case isPinned    = "is_pinned"
+        case userLiked   = "user_liked"
+        case createdAt   = "created_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id          = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        userId      = (try? c.decode(String.self, forKey: .userId)) ?? ""
+        authorName  = (try? c.decode(String.self, forKey: .authorName)) ?? "User"
+        category    = (try? c.decode(String.self, forKey: .category)) ?? "general"
+        title       = (try? c.decode(String.self, forKey: .title)) ?? ""
+        content     = (try? c.decode(String.self, forKey: .content)) ?? ""
+        // Tags may be a JSON array or a JSON-string
+        if let arr = try? c.decode([String].self, forKey: .tags) {
+            tags = arr
+        } else if let raw = try? c.decode(String.self, forKey: .tags),
+                  let data = raw.data(using: .utf8),
+                  let arr = try? JSONDecoder().decode([String].self, from: data) {
+            tags = arr
+        } else {
+            tags = []
+        }
+        likeCount    = (try? c.decode(Int.self, forKey: .likeCount))    ?? 0
+        commentCount = (try? c.decode(Int.self, forKey: .commentCount)) ?? 0
+        viewCount    = (try? c.decode(Int.self, forKey: .viewCount))    ?? 0
+        createdAt    = (try? c.decode(String.self, forKey: .createdAt)) ?? ""
+        func decodeBool(_ key: CodingKeys) -> Bool {
+            if let b = try? c.decode(Bool.self, forKey: key) { return b }
+            if let i = try? c.decode(Int.self, forKey: key) { return i != 0 }
+            return false
+        }
+        isPinned  = decodeBool(.isPinned)
+        userLiked = decodeBool(.userLiked)
+    }
+
+    // Copy initializer for optimistic updates
+    init(from existing: BuzzPost, likeCount: Int? = nil, commentCount: Int? = nil, userLiked: Bool? = nil) {
+        self.id           = existing.id
+        self.userId       = existing.userId
+        self.authorName   = existing.authorName
+        self.category     = existing.category
+        self.title        = existing.title
+        self.content      = existing.content
+        self.tags         = existing.tags
+        self.likeCount    = likeCount    ?? existing.likeCount
+        self.commentCount = commentCount ?? existing.commentCount
+        self.viewCount    = existing.viewCount
+        self.isPinned     = existing.isPinned
+        self.userLiked    = userLiked    ?? existing.userLiked
+        self.createdAt    = existing.createdAt
+    }
+}
+
+struct BuzzPostsResponse: Decodable {
+    let success: Bool
+    let posts: [BuzzPost]
+    let total: Int?
+    let hasMore: Bool?
+    enum CodingKeys: String, CodingKey {
+        case success, posts, total
+        case hasMore = "hasMore"
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        success = (try? c.decode(Bool.self, forKey: .success)) ?? false
+        posts   = (try? c.decode([BuzzPost].self, forKey: .posts)) ?? []
+        total   = try? c.decode(Int.self, forKey: .total)
+        if let b = try? c.decode(Bool.self, forKey: .hasMore) { hasMore = b }
+        else if let i = try? c.decode(Int.self, forKey: .hasMore) { hasMore = (i != 0) }
+        else { hasMore = nil }
+    }
+}
+
+struct BuzzComment: Decodable, Identifiable {
+    let id: String
+    let postId: String
+    let userId: String
+    let authorName: String
+    let content: String
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case postId     = "post_id"
+        case userId     = "user_id"
+        case authorName = "author_name"
+        case content
+        case createdAt  = "created_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id         = (try? c.decode(String.self, forKey: .id))         ?? UUID().uuidString
+        postId     = (try? c.decode(String.self, forKey: .postId))     ?? ""
+        userId     = (try? c.decode(String.self, forKey: .userId))     ?? ""
+        authorName = (try? c.decode(String.self, forKey: .authorName)) ?? "User"
+        content    = (try? c.decode(String.self, forKey: .content))    ?? ""
+        createdAt  = (try? c.decode(String.self, forKey: .createdAt))  ?? ""
+    }
+}
+
+struct BuzzCommentsResponse: Decodable {
+    let success: Bool
+    let comments: [BuzzComment]
+    enum CodingKeys: String, CodingKey { case success, comments }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        success  = (try? c.decode(Bool.self, forKey: .success)) ?? false
+        comments = (try? c.decode([BuzzComment].self, forKey: .comments)) ?? []
+    }
+}
+
+struct BuzzToggleLikeResponse: Decodable {
+    let success: Bool
+    let liked: Bool?
+    let action: String?
+    enum CodingKeys: String, CodingKey { case success, liked, action }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        success = (try? c.decode(Bool.self, forKey: .success)) ?? false
+        if let b = try? c.decode(Bool.self, forKey: .liked) { liked = b }
+        else if let i = try? c.decode(Int.self, forKey: .liked) { liked = (i != 0) }
+        else { liked = nil }
+        action = try? c.decode(String.self, forKey: .action)
+    }
+}
+
+struct BuzzCreatePostResponse: Decodable {
+    let success: Bool
+    let post: BuzzPost?
+    let message: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success, post, data, message
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        success = (try? c.decode(Bool.self, forKey: .success)) ?? false
+        message = try? c.decode(String.self, forKey: .message)
+        // Server returns created post under "data", not "post"
+        post = (try? c.decode(BuzzPost.self, forKey: .data))
+            ?? (try? c.decode(BuzzPost.self, forKey: .post))
+    }
+}
+
+
+struct BuzzAddCommentResponse: Decodable {
+    let success: Bool
+    let comment: BuzzComment?
+    let message: String?
+}
+
