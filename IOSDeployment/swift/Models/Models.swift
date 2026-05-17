@@ -1018,7 +1018,7 @@ struct BuzzPost: Decodable, Identifiable {
     let title: String
     let content: String
     let tags: [String]
-    let media: [String]
+    let media: [BuzzMedia]
     let likeCount: Int
     let commentCount: Int
     let viewCount: Int
@@ -1063,11 +1063,11 @@ struct BuzzPost: Decodable, Identifiable {
             tags = []
         }
         // Media may be a JSON array or a JSON-string
-        if let arr = try? c.decode([String].self, forKey: .media) {
+        if let arr = try? c.decode([BuzzMedia].self, forKey: .media) {
             media = arr
         } else if let raw = try? c.decode(String.self, forKey: .media),
                   let data = raw.data(using: .utf8),
-                  let arr = try? JSONDecoder().decode([String].self, from: data) {
+                  let arr = try? JSONDecoder().decode([BuzzMedia].self, from: data) {
             media = arr
         } else {
             media = []
@@ -1104,7 +1104,8 @@ struct BuzzPost: Decodable, Identifiable {
     }
 
     func resolvedMediaUrls() -> [String] {
-        return media.map { path in
+        return media.map { m in
+            let path = m.url
             if path.hasPrefix("http") {
                 return path
             } else {
@@ -1113,6 +1114,11 @@ struct BuzzPost: Decodable, Identifiable {
             }
         }
     }
+}
+
+struct BuzzMedia: Decodable {
+    let url: String
+    let type: String?
 }
 
 struct BuzzPostsResponse: Decodable {
