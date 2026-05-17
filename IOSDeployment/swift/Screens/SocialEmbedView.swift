@@ -41,12 +41,16 @@ private func parseSocialEmbed(url: String) -> SocialEmbed? {
 
     // ── Twitter / X ──────────────────────────────────────────────────────
     if let pat = try? NSRegularExpression(
-        pattern: #"(?:https?://)?(?:www\.)?(?:twitter\.com|x\.com)/\w+/status/(\d+)"#,
+        pattern: #"(?:https?://)?(?:www\.)?(?:twitter\.com|x\.com)/(\w+)/status/(\d+)"#,
         options: .caseInsensitive
     ), let m = pat.firstMatch(in: url, range: fullRange) {
-        let r = m.range(at: 1)
-        if r.location != NSNotFound, let swiftRange = Range(r, in: url) {
-            return SocialEmbed(id: String(url[swiftRange]), originalUrl: url, type: .twitter)
+        let userRange = m.range(at: 1)
+        let idRange = m.range(at: 2)
+        if userRange.location != NSNotFound, let swiftUserRange = Range(userRange, in: url),
+           idRange.location != NSNotFound, let swiftIdRange = Range(idRange, in: url) {
+            let username = String(url[swiftUserRange])
+            let tweetId = String(url[swiftIdRange])
+            return SocialEmbed(id: "\(username)|\(tweetId)", originalUrl: url, type: .twitter)
         }
     }
 
@@ -228,7 +232,11 @@ private struct TwitterWebView: UIViewRepresentable {
         wv.scrollView.bounces = false
         
         wv.navigationDelegate = context.coordinator
-        let html = twitterHTML(tweetId: tweetId)
+        let parts = tweetId.components(separatedBy: "|")
+        let username = parts.count == 2 ? parts[0] : "x"
+        let actualId = parts.count == 2 ? parts[1] : tweetId
+        
+        let html = twitterHTML(username: username, tweetId: actualId)
         wv.loadHTMLString(html, baseURL: URL(string: "https://twitter.com"))
         return wv
     }
@@ -236,7 +244,7 @@ private struct TwitterWebView: UIViewRepresentable {
     func updateUIView(_ wv: WKWebView, context: Context) {}
 }
 
-private func twitterHTML(tweetId: String) -> String {
+private func twitterHTML(username: String, tweetId: String) -> String {
     """
     <!DOCTYPE html>
     <html>
@@ -252,7 +260,7 @@ private func twitterHTML(tweetId: String) -> String {
     <div class="wrap">
       <blockquote class="twitter-tweet" data-conversation="none" data-theme="dark"
                   data-cards="visible" data-media="visible" data-dnt="true" data-width="480">
-        <a href="https://twitter.com/x/status/\(tweetId)"></a>
+        <a href="https://twitter.com/\(username)/status/\(tweetId)"></a>
       </blockquote>
     </div>
     <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
