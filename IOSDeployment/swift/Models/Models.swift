@@ -1018,6 +1018,7 @@ struct BuzzPost: Decodable, Identifiable {
     let title: String
     let content: String
     let tags: [String]
+    let media: [String]
     let likeCount: Int
     let commentCount: Int
     let viewCount: Int
@@ -1034,6 +1035,7 @@ struct BuzzPost: Decodable, Identifiable {
         case category
         case title, content
         case tags
+        case media
         case likeCount   = "like_count"
         case commentCount = "comment_count"
         case viewCount   = "view_count"
@@ -1060,6 +1062,16 @@ struct BuzzPost: Decodable, Identifiable {
         } else {
             tags = []
         }
+        // Media may be a JSON array or a JSON-string
+        if let arr = try? c.decode([String].self, forKey: .media) {
+            media = arr
+        } else if let raw = try? c.decode(String.self, forKey: .media),
+                  let data = raw.data(using: .utf8),
+                  let arr = try? JSONDecoder().decode([String].self, from: data) {
+            media = arr
+        } else {
+            media = []
+        }
         likeCount    = (try? c.decode(Int.self, forKey: .likeCount))    ?? 0
         commentCount = (try? c.decode(Int.self, forKey: .commentCount)) ?? 0
         viewCount    = (try? c.decode(Int.self, forKey: .viewCount))    ?? 0
@@ -1082,12 +1094,24 @@ struct BuzzPost: Decodable, Identifiable {
         self.title        = existing.title
         self.content      = existing.content
         self.tags         = existing.tags
+        self.media        = existing.media
         self.likeCount    = likeCount    ?? existing.likeCount
         self.commentCount = commentCount ?? existing.commentCount
         self.viewCount    = existing.viewCount
         self.isPinned     = existing.isPinned
         self.userLiked    = userLiked    ?? existing.userLiked
         self.createdAt    = existing.createdAt
+    }
+
+    func resolvedMediaUrls() -> [String] {
+        return media.map { path in
+            if path.hasPrefix("http") {
+                return path
+            } else {
+                let safePath = path.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? path
+                return APIConfig.baseURL + (safePath.hasPrefix("/") ? safePath : "/" + safePath)
+            }
+        }
     }
 }
 
