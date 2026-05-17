@@ -25,8 +25,9 @@ struct BuzzPostDetailView: View {
     @State private var isDeletingPost = false
 
     private var userToken: String { KeychainManager.shared.getToken() ?? "" }
-    @AppStorage("currentUserId") private var currentUserId: String = ""
-    @AppStorage("isAdmin") private var isAdmin: Bool = false
+    @EnvironmentObject private var authViewModel: AuthViewModel
+    private var currentUserId: String { authViewModel.currentUser?.id ?? "" }
+    private var isAdmin: Bool { authViewModel.currentUser?.isAdmin ?? false }
 
     @Environment(\.presentationMode) var presentationMode
 
@@ -149,6 +150,12 @@ struct BuzzPostDetailView: View {
 
             // Content — full markdown rendering
             BuzzFormattedText(text: post.content, color: Color(hex: "E0E0E0"), fontSize: 16)
+
+            // Render uploaded images
+            let mediaUrls = post.resolvedMediaUrls()
+            if !mediaUrls.isEmpty {
+                PostMediaView(urls: mediaUrls)
+            }
 
             // Tags
             if !post.tags.isEmpty {

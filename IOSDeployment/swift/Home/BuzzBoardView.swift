@@ -258,6 +258,12 @@ struct BuzzPostCard: View {
             // Content — markdown-aware, 3-line preview
             BuzzFormattedText(text: post.content, color: .gray, fontSize: 15, lineLimit: 3)
 
+            // Render uploaded images in feed card
+            let mediaUrls = post.resolvedMediaUrls()
+            if !mediaUrls.isEmpty {
+                PostMediaView(urls: mediaUrls)
+            }
+
             // Tags
             if !post.tags.isEmpty {
                 HStack(spacing: 8) {
