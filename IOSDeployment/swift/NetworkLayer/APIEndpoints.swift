@@ -119,7 +119,10 @@ extension APIEndpoint {
 
     static let getNowPlaying = APIEndpoint(path: "/api/movies/now-playing", method: .GET)
     static let getUpcoming = APIEndpoint(path: "/api/movies/upcoming", method: .GET)  // ADD: was missing
-    static let getBoxOfficeEntries = APIEndpoint(path: "/api/box-office/entries", method: .GET)
+    static func getBoxOfficeEntries(language: String = "all") -> APIEndpoint {
+        let items = [URLQueryItem(name: "language", value: language)]
+        return APIEndpoint(path: "/api/box-office/top-grossers", method: .GET, queryItems: items)
+    }
     static let getBmsLiveTickets = APIEndpoint(path: "/api/box-office/live", method: .GET)
 
     // ── Polls ─────────────────────────────────────────────────────────────────
