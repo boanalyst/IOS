@@ -375,7 +375,7 @@ struct BoxOfficeListRow: View {
             .frame(width: 28)
 
             // Film Details
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 // Join Title and Year using a single Text flow with the '+' operator to prevent any alignment breaks!
                 (
                     Text(entry.title)
@@ -386,28 +386,31 @@ struct BoxOfficeListRow: View {
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(AppTheme.textPrimary.opacity(0.6))
                 )
-                .lineLimit(3) // Allows 3 lines wrapping for extremely long titles like Dhurandhar T2 The Revenge!
+                .lineLimit(2) // Allows 2 lines wrapping for movie titles
                 
-                Spacer().frame(height: 2)
+                Spacer().frame(height: 1)
 
-                // Highlight India & Overseas in dynamic Google Blue with a readable font size of 12!
-                (
-                    Text("India: ")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(highlightColor)
-                    +
-                    Text("₹\(cleanGross(entry.indiaGross)) Cr  •  ")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(AppTheme.textPrimary.opacity(0.85))
-                    +
-                    Text("Overseas: ")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(highlightColor)
-                    +
-                    Text("₹\(cleanGross(entry.overseasGross)) Cr")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(AppTheme.textPrimary.opacity(0.85))
-                )
+                // Aligned stacked layout with fixed-width headers to prevent awkward wrapping glitches!
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text("India:")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(highlightColor)
+                            .frame(width: 62, alignment: .leading)
+                        Text("₹\(cleanGross(entry.indiaGross)) Cr")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(AppTheme.textPrimary.opacity(0.85))
+                    }
+                    HStack(spacing: 4) {
+                        Text("Overseas:")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(highlightColor)
+                            .frame(width: 62, alignment: .leading)
+                        Text("₹\(cleanGross(entry.overseasGross)) Cr")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(AppTheme.textPrimary.opacity(0.85))
+                    }
+                }
             }
             
             Spacer()
