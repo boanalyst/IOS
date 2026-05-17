@@ -1,15 +1,23 @@
 // BoxOfficeView.swift
-// iOS port of Android's BoxOfficeScreen.kt
-// Displays live BMS ticket data + box office collection table
+// Displays a classy, simple, yet futuristic Box Office Leaderboard with Language Filtering and Search.
 
 import SwiftUI
+
+// MARK: - String Formatting Utility
+
+// Helper utility to safely strip any pre-appended "Cr" from the database to prevent duplicate "Cr Cr"
+func cleanGross(_ value: String?) -> String {
+    guard let value = value else { return "—" }
+    return value.replacingOccurrences(of: "cr", with: "", options: .caseInsensitive)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+}
 
 // MARK: - BoxOfficeViewModel
 
 @MainActor
 final class BoxOfficeViewModel: ObservableObject {
     @Published var boxOfficeEntries: [BoxOfficeEntry] = []
-    @Published var bmsLive: BmsLiveData? = nil
+    @Published var selectedLanguage: String = "all"
     @Published var isLoading = false
     @Published var error: String? = nil
 
@@ -19,15 +27,21 @@ final class BoxOfficeViewModel: ObservableObject {
         isLoading = true
         error = nil
 
-        async let entriesTask = api.request(.getBoxOfficeEntries, responseType: BoxOfficeResponse.self)
-        async let bmsTask     = api.request(.getBmsLiveTickets,   responseType: BmsLiveResponse.self)
-
-        if let r = try? await entriesTask { boxOfficeEntries = r.data }
-        if let r = try? await bmsTask     { bmsLive = r.data }
-
-        if boxOfficeEntries.isEmpty {
-            error = "Could not load box office data."
+        do {
+            let r = try await api.request(
+                .getBoxOfficeEntries(language: selectedLanguage),
+                responseType: BoxOfficeResponse.self
+            )
+            // Backend returns movies already sorted and ranked by backend!
+            self.boxOfficeEntries = r.data
+            if self.boxOfficeEntries.isEmpty {
+                self.error = "No box office collections found."
+            }
+        } catch {
+            self.error = "Could not load box office data. Please check your connection."
+            print("Error loading box office entries: \(error)")
         }
+        
         isLoading = false
     }
 }
@@ -36,89 +50,231 @@ final class BoxOfficeViewModel: ObservableObject {
 
 struct BoxOfficeView: View {
     @StateObject private var viewModel = BoxOfficeViewModel()
+    @State private var isSearching = false
+    @State private var searchQuery = ""
+
+    let languages = [
+        ("all", "Global (All)"),
+        ("hindi", "Hindi"),
+        ("tamil", "Tamil"),
+        ("telugu", "Telugu"),
+        ("kannada", "Kannada"),
+        ("malayalam", "Malayalam")
+    ]
+
+    var filteredEntries: [BoxOfficeEntry] {
+        if searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return viewModel.boxOfficeEntries
+        } else {
+            return viewModel.boxOfficeEntries.filter { $0.title.localizedCaseInsensitiveContains(searchQuery) }
+        }
+    }
 
     var body: some View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
 
-            if viewModel.isLoading && viewModel.boxOfficeEntries.isEmpty {
-                LoadingView()
-            } else {
-                ScrollView {
-                    VStack(spacing: 20) {
-
-                        // ── BMS Live Ticket Counter ───────────────────────
-                        if let live = viewModel.bmsLive {
-                            BMSLiveCard(data: live)
-                                .padding(.horizontal, 16)
-                        }
-
-                        // ── Collection Table ──────────────────────────────
-                        SectionHeader(title: "Box Office Collection", icon: "indianrupeesign.circle.fill")
-
-                        if viewModel.boxOfficeEntries.isEmpty {
-                            emptyState
-                        } else {
-                            VStack(spacing: 0) {
-                                // Header row
-                                HStack {
-                                    Text("FILM")
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    Text("COLLECTION")
-                                        .frame(width: 100, alignment: .trailing)
-                                    Text("VERDICT")
-                                        .frame(width: 80, alignment: .trailing)
-                                }
-                                .font(.system(size: 10, weight: .bold))
-                                .tracking(1)
-                                .foregroundColor(AppTheme.textMuted)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 10)
-                                .background(AppTheme.surface)
-
-                                ForEach(viewModel.boxOfficeEntries) { entry in
-                                    BoxOfficeTableRow(entry: entry)
-                                    Divider()
-                                        .background(Color.white.opacity(0.05))
-                                        .padding(.horizontal, 16)
-                                }
+            VStack(spacing: 0) {
+                // ── Search Field in View body (Classy and simple!) ──
+                if isSearching {
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(AppTheme.goldPrimary)
+                        TextField("Search movie...", text: $searchQuery)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(AppTheme.textPrimary)
+                        
+                        if !searchQuery.isEmpty {
+                            Button {
+                                searchQuery = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(AppTheme.textPrimary.opacity(0.6))
                             }
-                            .background(AppTheme.card)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(AppTheme.goldPrimary.opacity(0.12), lineWidth: 1)
-                            )
-                            .padding(.horizontal, 16)
                         }
-
-                        Spacer(minLength: 32)
+                        
+                        Button {
+                            withAnimation {
+                                searchQuery = ""
+                                isSearching = false
+                            }
+                        } label: {
+                            Text("Cancel")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(AppTheme.goldPrimary)
+                        }
                     }
-                    .padding(.top, 12)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(AppTheme.surface)
+                    .overlay(Rectangle().frame(height: 1).foregroundColor(AppTheme.surfaceVariant), alignment: .bottom)
                 }
-                .refreshable { await viewModel.load() }
+
+                // ── Horizontal Language Picker ─────────────────────────────
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(languages, id: \.0) { item in
+                            let isSelected = viewModel.selectedLanguage == item.0
+                            Button {
+                                viewModel.selectedLanguage = item.0
+                                searchQuery = ""
+                                isSearching = false
+                                Task { await viewModel.load() }
+                            } label: {
+                                Text(item.1)
+                                    .font(.system(size: 13, weight: .bold))
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        isSelected ? AnyView(AppTheme.goldGradient) : AnyView(AppTheme.surfaceVariant)
+                                    )
+                                    .foregroundColor(isSelected ? .black : AppTheme.textPrimary)
+                                    .clipShape(Capsule())
+                                    .overlay(
+                                        Capsule()
+                                            .stroke(isSelected ? Color.clear : AppTheme.goldPrimary.opacity(0.12), lineWidth: 1)
+                                    )
+                             }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                }
+                .background(AppTheme.surface)
+                .overlay(Rectangle().frame(height: 1).foregroundColor(AppTheme.surfaceVariant), alignment: .bottom)
+
+                // ── Main Content Area ─────────────────────────────────────
+                if viewModel.isLoading {
+                    Spacer()
+                    ProgressView()
+                        .tint(AppTheme.goldPrimary)
+                        .scaleEffect(1.2)
+                    Spacer()
+                } else if let error = viewModel.error {
+                    Spacer()
+                    emptyState(message: error, icon: "exclamationmark.triangle.fill")
+                    Spacer()
+                } else {
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            
+                            // ── Top 3 Podium Showcase (Only when not searching) ────
+                            if filteredEntries.count >= 3 && searchQuery.isEmpty {
+                                podiumShowcase
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 16)
+                                    .padding(.bottom, 8)
+                            } else if !filteredEntries.isEmpty {
+                                Spacer().frame(height: 8)
+                            }
+
+                            // ── Detailed Table Section ─────────────────────────────
+                            if !filteredEntries.isEmpty {
+                                // Section Header
+                                HStack {
+                                    Text(filteredEntries.count >= 3 && searchQuery.isEmpty ? "ALL RANKINGS" : "LEADERBOARD")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .tracking(1)
+                                        .foregroundColor(AppTheme.goldPrimary)
+                                    Spacer()
+                                    Text("WW GROSS")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .tracking(1)
+                                        .foregroundColor(AppTheme.textPrimary.opacity(0.6))
+                                }
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 8)
+
+                                ForEach(filteredEntries) { entry in
+                                    BoxOfficeListRow(entry: entry)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .fill(entry.rankNum == 1 ? AppTheme.goldPrimary.opacity(0.04) : AppTheme.card)
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(entry.rankNum == 1 ? AppTheme.goldPrimary.opacity(0.3) : AppTheme.goldPrimary.opacity(0.08), lineWidth: 1)
+                                        )
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 4)
+                                }
+                            } else {
+                                emptyState(message: "No matching movies found.", icon: "film.stack")
+                            }
+
+                            Spacer(minLength: 40)
+                        }
+                    }
+                    .refreshable { await viewModel.load() }
+                }
             }
         }
         .task { await viewModel.load() }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Text("BOX OFFICE")
-                    .font(.custom("Cinzel-Regular", size: 14))
-                    .foregroundStyle(AppTheme.goldGradient)
+                if !isSearching {
+                    Text("BOX OFFICE LEADERBOARD")
+                        .font(.custom("Cinzel-Regular", size: 14))
+                        .foregroundStyle(AppTheme.goldGradient)
+                }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if !isSearching {
+                    HStack(spacing: 8) {
+                        Button {
+                            withAnimation {
+                                isSearching = true
+                            }
+                        } label: {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(AppTheme.textPrimary)
+                        }
+
+                        Button {
+                            Task { await viewModel.load() }
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                                .foregroundColor(AppTheme.textPrimary)
+                        }
+                    }
+                }
             }
         }
     }
 
-    private var emptyState: some View {
+    // ── Top 3 Podium Visual Component ──
+    private var podiumShowcase: some View {
+        HStack(alignment: .bottom, spacing: 10) {
+            let entries = viewModel.boxOfficeEntries
+            
+            // #2 Silver (Placed on Left)
+            if entries.count > 1 {
+                PodiumCol(entry: entries[1], rank: 2, height: 110, color: Color(hex: "A6A6A6"), iconName: "2.circle.fill")
+            }
+            
+            // #1 Gold (Placed in Center, Tallest)
+            if entries.count > 0 {
+                PodiumCol(entry: entries[0], rank: 1, height: 140, color: Color(hex: "FFD700"), iconName: "crown.fill")
+            }
+            
+            // #3 Bronze (Placed on Right)
+            if entries.count > 2 {
+                PodiumCol(entry: entries[2], rank: 3, height: 95, color: Color(hex: "CD7F32"), iconName: "3.circle.fill")
+            }
+        }
+    }
+
+    private func emptyState(message: String, icon: String) -> some View {
         VStack(spacing: 12) {
-            Image(systemName: "film.stack")
+            Image(systemName: icon)
                 .font(.system(size: 40))
                 .foregroundStyle(AppTheme.goldGradient)
-            Text("No data available")
+            Text(message)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundColor(AppTheme.textPrimary)
-            Text("Box office data will appear here once available.")
+            Text("Try choosing a different language or refresh.")
                 .font(.system(size: 13))
                 .foregroundColor(AppTheme.textMuted)
                 .multilineTextAlignment(.center)
@@ -127,88 +283,141 @@ struct BoxOfficeView: View {
     }
 }
 
-// MARK: - BMS Live Card
+// MARK: - Podium Column Component
 
-struct BMSLiveCard: View {
-    let data: BmsLiveData
+struct PodiumCol: View {
+    let entry: BoxOfficeEntry
+    let rank: Int
+    let height: CGFloat
+    let color: Color
+    let iconName: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(AppTheme.success)
-                    .frame(width: 8, height: 8)
-                    .overlay(Circle().stroke(AppTheme.success.opacity(0.3), lineWidth: 4))
-                Text("LIVE — BookMyShow Tickets")
-                    .font(.system(size: 12, weight: .bold))
-                    .tracking(1)
-                    .foregroundColor(AppTheme.success)
-                Spacer()
-                Text("\(data.total) total")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(AppTheme.goldGradient)
-            }
+        VStack(spacing: 8) {
+            // Crown/Number Icon
+            Image(systemName: iconName)
+                .font(.system(size: rank == 1 ? 26 : 20, weight: .bold))
+                .foregroundColor(color)
+                .shadow(color: color.opacity(0.3), radius: 4)
 
-            // Top shows
-            VStack(spacing: 8) {
-                ForEach(data.shows.prefix(5)) { show in
-                    HStack {
-                        Text(show.movie)
-                            .font(.system(size: 13))
-                            .foregroundColor(AppTheme.textPrimary)
-                            .lineLimit(1)
-                        Spacer()
-                        Text("\(show.tickets) 🎟")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(AppTheme.goldGradient)
-                    }
-                }
+            VStack(spacing: 2) {
+                // Set lineLimit = 2 to ensure movie names display fully and beautifully without truncation!
+                Text(entry.title)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(AppTheme.textPrimary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                
+                Text("₹\(cleanGross(entry.worldwideGross)) Cr")
+                    .font(.system(size: 13, weight: .black))
+                    .foregroundColor(rank == 1 ? AppTheme.goldPrimary : color)
+                    .lineLimit(1)
             }
+            .padding(.horizontal, 2)
+
+            // Podium Pillar
+            VStack {
+                Text("#\(rank)")
+                    .font(.system(size: 20, weight: .black))
+                    .foregroundColor(.white.opacity(0.7))
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .background(
+                LinearGradient(
+                    colors: [color.opacity(0.25), color.opacity(0.05)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(color.opacity(0.3), lineWidth: 1.5)
+            )
         }
-        .padding(16)
-        .cardStyle()
+        .frame(maxWidth: .infinity)
     }
 }
 
-// MARK: - Box Office Table Row
+// MARK: - Box Office List Row
 
-struct BoxOfficeTableRow: View {
+struct BoxOfficeListRow: View {
     let entry: BoxOfficeEntry
 
-    private var verdictColor: Color {
-        switch entry.verdictColor.lowercased() {
-        case "green":  return AppTheme.success
-        case "red":    return AppTheme.error
-        case "yellow": return AppTheme.warning
-        default:       return AppTheme.goldPrimary
+    private var rankColor: Color {
+        switch entry.rankNum {
+        case 1: return Color(hex: "FFD700")
+        case 2: return Color(hex: "A6A6A6")
+        case 3: return Color(hex: "CD7F32")
+        default: return AppTheme.textMuted
         }
     }
 
+    private var highlightColor: Color {
+        return Color(hex: "4285F4") // Elegant Google Blue for both Light and Dark backdrops
+    }
+
     var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(entry.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(AppTheme.textPrimary)
-                    .lineLimit(1)
-                Text("Budget: ₹\(entry.budget) Cr")
-                    .font(.system(size: 10))
-                    .foregroundColor(AppTheme.textMuted)
+        HStack(alignment: .center, spacing: 12) {
+            // Rank Number Bubble
+            ZStack {
+                if entry.rankNum <= 3 {
+                    Circle()
+                        .fill(rankColor.opacity(0.15))
+                        .frame(width: 28, height: 28)
+                        .overlay(Circle().stroke(rankColor.opacity(0.4), lineWidth: 1))
+                }
+                Text("\(entry.rankNum)")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(entry.rankNum <= 3 ? rankColor : AppTheme.textPrimary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(width: 28)
 
-            Text("₹\(entry.collection) Cr")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(AppTheme.goldGradient)
-                .frame(width: 100, alignment: .trailing)
+            // Film Details
+            VStack(alignment: .leading, spacing: 2) {
+                // Join Title and Year using a single Text flow with the '+' operator to prevent any alignment breaks!
+                (
+                    Text(entry.title)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(entry.rankNum == 1 ? AppTheme.goldPrimary : AppTheme.textPrimary)
+                    +
+                    Text(entry.releaseYear != nil ? " (\(String(entry.releaseYear!)))" : "")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(AppTheme.textPrimary.opacity(0.6))
+                )
+                .lineLimit(3) // Allows 3 lines wrapping for extremely long titles like Dhurandhar T2 The Revenge!
+                
+                Spacer().frame(height: 2)
 
-            Text(entry.verdict)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(verdictColor)
-                .frame(width: 80, alignment: .trailing)
-                .lineLimit(1)
+                // Highlight India & Overseas in dynamic Google Blue with a readable font size of 12!
+                (
+                    Text("India: ")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(highlightColor)
+                    +
+                    Text("₹\(cleanGross(entry.indiaGross)) Cr  •  ")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(AppTheme.textPrimary.opacity(0.85))
+                    +
+                    Text("Overseas: ")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(highlightColor)
+                    +
+                    Text("₹\(cleanGross(entry.overseasGross)) Cr")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(AppTheme.textPrimary.opacity(0.85))
+                )
+            }
+            
+            Spacer()
+
+            // Worldwide Gross
+            Text("₹\(cleanGross(entry.worldwideGross)) Cr")
+                .font(.system(size: 16, weight: .black))
+                .foregroundColor(entry.rankNum == 1 ? AppTheme.goldPrimary : AppTheme.textPrimary)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
     }
 }
