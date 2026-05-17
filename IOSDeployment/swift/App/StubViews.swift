@@ -1080,7 +1080,7 @@ struct AnalyticsView: View {
     private func load() async {
         isLoading = true
         // BoxOfficeResponse.data — matches server schema and Models.swift
-        if let result = try? await api.request(.getBoxOfficeEntries, responseType: BoxOfficeResponse.self) {
+        if let result = try? await api.request(.getBoxOfficeEntries(language: "all"), responseType: BoxOfficeResponse.self) {
             entries = result.data
         }
         isLoading = false
@@ -1090,15 +1090,6 @@ struct AnalyticsView: View {
 struct BoxOfficeRow: View {
     let entry: BoxOfficeEntry
 
-    private var verdictColor: Color {
-        switch entry.verdictColor.lowercased() {
-        case "green":  return AppTheme.success
-        case "red":    return AppTheme.error
-        case "yellow": return AppTheme.warning
-        default:       return AppTheme.goldPrimary
-        }
-    }
-
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
@@ -1106,18 +1097,18 @@ struct BoxOfficeRow: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(AppTheme.textPrimary)
                     .lineLimit(1)
-                Text("Budget: ₹\(entry.budget) Cr")
+                Text("India: ₹\(entry.indiaGross) Cr  •  OS: ₹\(entry.overseasGross) Cr")
                     .font(.system(size: 11))
                     .foregroundColor(AppTheme.textMuted)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text("₹\(entry.collection) Cr")
+                Text("₹\(entry.worldwideGross) Cr")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(AppTheme.goldGradient)
-                Text(entry.verdict)
+                Text("#\(entry.rankNum) Rank")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(verdictColor)
+                    .foregroundColor(AppTheme.goldPrimary)
             }
         }
         .padding(14)

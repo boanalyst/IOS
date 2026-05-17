@@ -124,6 +124,12 @@ struct MainTabView: View {
                 .allowsHitTesting(selectedTab == 2)
 
                 NavigationStack {
+                    BoxOfficeView()
+                }
+                .opacity(selectedTab == 6 ? 1 : 0)
+                .allowsHitTesting(selectedTab == 6)
+
+                NavigationStack {
                     InsideTalkView(onSubscribeRequired: { selectedTab = 5 })
                 }
                 .opacity(selectedTab == 3 ? 1 : 0)
@@ -152,6 +158,8 @@ struct MainTabView: View {
                 TabBarItem(icon: "house.fill", title: "Home", isSelected: selectedTab == 0) { selectedTab = 0 }
                 Spacer()
                 TabBarItem(icon: "bubble.left.and.bubble.right.fill", title: "Flock", isSelected: selectedTab == 2) { selectedTab = 2 }
+                Spacer()
+                TabBarItem(icon: "chart.bar.fill", title: "Box Office", isSelected: selectedTab == 6) { selectedTab = 6 }
                 Spacer()
                 TabBarItem(icon: "flame.fill", title: "Buzz", isSelected: selectedTab == 1) { selectedTab = 1 }
                 Spacer()
