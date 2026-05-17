@@ -129,7 +129,7 @@ struct BuzzBoardView: View {
 
     private func loadPosts() {
         isLoading = true
-        let endpoint = APIEndpoints.getBuzzPosts(category: selectedCategory.rawValue, offset: offset)
+        let endpoint = APIEndpoint.getBuzzPosts(category: selectedCategory.rawValue, offset: offset)
         var request = URLRequest(url: endpoint.url)
         request.httpMethod = endpoint.method.rawValue
         if !userToken.isEmpty {

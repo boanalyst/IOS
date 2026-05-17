@@ -347,7 +347,7 @@ struct BuzzPostDetailView: View {
 
     private func loadComments() {
         isLoadingComments = true
-        let endpoint = APIEndpoints.getBuzzComments(postId: post.id, offset: 0, limit: 100)
+        let endpoint = APIEndpoint.getBuzzComments(postId: post.id, offset: 0, limit: 100)
         var request = URLRequest(url: endpoint.url)
         request.httpMethod = endpoint.method.rawValue
         if !userToken.isEmpty { request.setValue("Bearer \(userToken)", forHTTPHeaderField: "Authorization") }
@@ -374,7 +374,7 @@ struct BuzzPostDetailView: View {
                         userLiked: !wasLiked)
         onUpdate(post)
 
-        let endpoint = APIEndpoints.toggleBuzzLike(postId: post.id)
+        let endpoint = APIEndpoint.toggleBuzzLike(postId: post.id)
         var request = URLRequest(url: endpoint.url)
         request.httpMethod = endpoint.method.rawValue
         request.setValue("Bearer \(userToken)", forHTTPHeaderField: "Authorization")
@@ -399,7 +399,7 @@ struct BuzzPostDetailView: View {
         isSubmitting = true
 
         do {
-            let endpoint = try APIEndpoints.addBuzzComment(postId: post.id, content: trimmed)
+            let endpoint = try APIEndpoint.addBuzzComment(postId: post.id, content: trimmed)
             var request = URLRequest(url: endpoint.url)
             request.httpMethod = endpoint.method.rawValue
             request.setValue("Bearer \(userToken)", forHTTPHeaderField: "Authorization")
@@ -435,7 +435,7 @@ struct BuzzPostDetailView: View {
         guard !userToken.isEmpty else { return }
         isDeletingPost = true
 
-        let endpoint = APIEndpoints.deleteBuzzPost(postId: post.id)
+        let endpoint = APIEndpoint.deleteBuzzPost(postId: post.id)
         var request = URLRequest(url: endpoint.url)
         request.httpMethod = endpoint.method.rawValue
         request.setValue("Bearer \(userToken)", forHTTPHeaderField: "Authorization")
@@ -456,7 +456,7 @@ struct BuzzPostDetailView: View {
     private func deleteComment(_ comment: BuzzComment) {
         guard !userToken.isEmpty else { return }
 
-        let endpoint = APIEndpoints.deleteBuzzComment(postId: post.id, commentId: comment.id)
+        let endpoint = APIEndpoint.deleteBuzzComment(postId: post.id, commentId: comment.id)
         var request = URLRequest(url: endpoint.url)
         request.httpMethod = endpoint.method.rawValue
         request.setValue("Bearer \(userToken)", forHTTPHeaderField: "Authorization")

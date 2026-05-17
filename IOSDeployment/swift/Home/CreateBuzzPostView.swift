@@ -27,20 +27,7 @@ extension String {
     func asBuzzAttributedString(baseColor: UIColor = .white) -> AttributedString {
         var result = AttributedString()
         let goldUIColor = UIColor(red: 0.831, green: 0.686, blue: 0.216, alpha: 1)
-        let patterns: [(pattern: String, apply: (inout AttributedString) -> Void)] = [
-            ("\\*\\*(.*?)\\*\\*", { str in
-                str.font = .boldSystemFont(ofSize: 15)
-            }),
-            ("__(.*?)__", { str in
-                str.underlineStyle = .single
-            }),
-            ("_(.*?)_", { str in
-                str.font = .italicSystemFont(ofSize: 15)
-            })
-        ]
-
         // Build segments
-        var remaining = self
         var segments: [(text: String, style: String)] = [] // (text, "bold"/"italic"/"underline"/"hashtag"/"plain")
 
         let combined = "\\*\\*(.*?)\\*\\*|__(.*?)__|_(.*?)_"
@@ -384,7 +371,7 @@ struct CreateBuzzPostView: View {
 
     private func submitJSON(tags: [String]) {
         do {
-            let endpoint = try APIEndpoints.createBuzzPost(
+            let endpoint = try APIEndpoint.createBuzzPost(
                 title: title.trimmingCharacters(in: .whitespaces),
                 content: content.trimmingCharacters(in: .whitespaces),
                 category: selectedCategory.rawValue,
