@@ -146,19 +146,23 @@ struct MainTabView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            // Custom Scrollable Tab Bar
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 24) {
-                    TabBarItem(icon: "house.fill", title: "Home", isSelected: selectedTab == 0) { selectedTab = 0 }
-                    TabBarItem(icon: "bubble.left.and.bubble.right.fill", title: "Flock", isSelected: selectedTab == 2) { selectedTab = 2 }
-                    TabBarItem(icon: "flame.fill", title: "Buzz", isSelected: selectedTab == 1) { selectedTab = 1 }
-                    TabBarItem(icon: "eye.fill", title: "Inside Talk", isSelected: selectedTab == 3) { selectedTab = 3 }
-                    TabBarItem(icon: "briefcase.fill", title: "Hub", isSelected: selectedTab == 4) { selectedTab = 4 }
-                    TabBarItem(icon: "star.fill", title: "Subscribe", isSelected: selectedTab == 5) { selectedTab = 5 }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
+            // Custom Tab Bar (Responsive, No empty space)
+            HStack(spacing: 0) {
+                Spacer()
+                TabBarItem(icon: "house.fill", title: "Home", isSelected: selectedTab == 0) { selectedTab = 0 }
+                Spacer()
+                TabBarItem(icon: "bubble.left.and.bubble.right.fill", title: "Flock", isSelected: selectedTab == 2) { selectedTab = 2 }
+                Spacer()
+                TabBarItem(icon: "flame.fill", title: "Buzz", isSelected: selectedTab == 1) { selectedTab = 1 }
+                Spacer()
+                TabBarItem(icon: "eye.fill", title: "Inside", isSelected: selectedTab == 3) { selectedTab = 3 }
+                Spacer()
+                TabBarItem(icon: "briefcase.fill", title: "Hub", isSelected: selectedTab == 4) { selectedTab = 4 }
+                Spacer()
+                TabBarItem(icon: "star.fill", title: "Pro", isSelected: selectedTab == 5) { selectedTab = 5 }
+                Spacer()
             }
+            .padding(.vertical, 12)
             .background(AppTheme.surface)
             .overlay(Rectangle().frame(height: 1).foregroundColor(AppTheme.surfaceVariant), alignment: .top)
         }
