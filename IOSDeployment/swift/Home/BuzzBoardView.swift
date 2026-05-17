@@ -255,13 +255,21 @@ struct BuzzPostCard: View {
                 .foregroundColor(.white)
                 .lineLimit(2)
 
-            // Content — markdown-aware, 3-line preview
-            BuzzFormattedText(text: post.content, color: .gray, fontSize: 15, lineLimit: 3)
+            // Content — extract embeds
+            let socialEmbeds = extractSocialEmbeds(from: post.content)
+            let cleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
+            
+            BuzzFormattedText(text: cleanContent, color: .gray, fontSize: 15, lineLimit: 3)
 
             // Render uploaded images in feed card
             let mediaUrls = post.resolvedMediaUrls()
             if !mediaUrls.isEmpty {
                 PostMediaView(urls: mediaUrls)
+            }
+            
+            if !socialEmbeds.isEmpty {
+                SocialEmbedsSection(embeds: socialEmbeds)
+                    .padding(.top, 4)
             }
 
             // Tags

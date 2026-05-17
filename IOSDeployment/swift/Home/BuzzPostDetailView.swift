@@ -148,13 +148,21 @@ struct BuzzPostDetailView: View {
                 .font(.system(size: 22, weight: .bold))
                 .foregroundColor(.white)
 
-            // Content — full markdown rendering
-            BuzzFormattedText(text: post.content, color: Color(hex: "E0E0E0"), fontSize: 16)
+            // Content — extract social embeds
+            let socialEmbeds = extractSocialEmbeds(from: post.content)
+            let cleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
+
+            BuzzFormattedText(text: cleanContent, color: Color(hex: "E0E0E0"), fontSize: 16)
 
             // Render uploaded images
             let mediaUrls = post.resolvedMediaUrls()
             if !mediaUrls.isEmpty {
                 PostMediaView(urls: mediaUrls)
+            }
+            
+            if !socialEmbeds.isEmpty {
+                SocialEmbedsSection(embeds: socialEmbeds)
+                    .padding(.top, 4)
             }
 
             // Tags
@@ -291,8 +299,17 @@ struct BuzzPostDetailView: View {
                 }
             }
 
-            BuzzFormattedText(text: comment.content, color: Color(hex: "D0D0D0"), fontSize: 14)
+            let commentEmbeds = extractSocialEmbeds(from: comment.content)
+            let cleanComment = stripEmbedUrls(from: comment.content, embeds: commentEmbeds)
+
+            BuzzFormattedText(text: cleanComment, color: Color(hex: "D0D0D0"), fontSize: 14)
                 .padding(.leading, 36)
+                
+            if !commentEmbeds.isEmpty {
+                SocialEmbedsSection(embeds: commentEmbeds)
+                    .padding(.leading, 36)
+                    .padding(.top, 4)
+            }
         }
         .padding(12)
         .background(Color(hex: "222222"))
