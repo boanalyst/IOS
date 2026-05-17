@@ -125,7 +125,7 @@ struct CreateBuzzPostView: View {
     // Keep a reference to the UITextView via a coordinator so we can insert text at cursor
     @State private var textViewCoordinator = TextViewCoordinator()
 
-    @AppStorage("userToken") private var userToken: String = ""
+    private var userToken: String { KeychainManager.shared.getToken() ?? "" }
 
     var body: some View {
         NavigationView {

@@ -16,7 +16,7 @@ struct BuzzBoardView: View {
     @State private var showCreatePost = false
     @State private var showError = false
     @State private var errorMessage = ""
-    @AppStorage("userToken") private var userToken: String = ""
+    private var userToken: String { KeychainManager.shared.getToken() ?? "" }
 
     var body: some View {
         ZStack {

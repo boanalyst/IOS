@@ -24,7 +24,7 @@ struct BuzzPostDetailView: View {
     @State private var showDeleteCommentAlert = false
     @State private var isDeletingPost = false
 
-    @AppStorage("userToken") private var userToken: String = ""
+    private var userToken: String { KeychainManager.shared.getToken() ?? "" }
     @AppStorage("currentUserId") private var currentUserId: String = ""
     @AppStorage("isAdmin") private var isAdmin: Bool = false
 
