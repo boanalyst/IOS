@@ -1002,11 +1002,8 @@ struct InsideTalkCard: View {
             // Content — extract social embeds, strip raw URLs, render markdown
             let isRewardedContent = content.content.lowercased().contains("#boanalystexclusive")
             let socialEmbeds = (isLocked || isRewardedContent) ? [] : extractSocialEmbeds(from: content.content)
-            var cleanText = stripEmbedUrls(from: content.content, embeds: socialEmbeds)
-            
-            if isRewardedContent && cleanText.count > 15 {
-                cleanText = String(cleanText.prefix(15)) + "... See more"
-            }
+            let baseCleanText = stripEmbedUrls(from: content.content, embeds: socialEmbeds)
+            let cleanText = (isRewardedContent && baseCleanText.count > 15) ? String(baseCleanText.prefix(15)) + "... See more" : baseCleanText
             
             let attrText = parseBoAnalystHTML(cleanText)
 
