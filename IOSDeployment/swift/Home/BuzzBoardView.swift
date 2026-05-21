@@ -254,9 +254,13 @@ struct BuzzPostCard: View {
             // Author & Time
             HStack {
                 Circle()
-                    .fill(LinearGradient(gradient: Gradient(colors: [Color(hex: "D4AF37"), Color(hex: "FFDF00")]), startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .fill(AppTheme.goldGradient)
                     .frame(width: 36, height: 36)
-                    .overlay(Text(String(post.authorName.prefix(1).uppercased())).font(.system(size: 16, weight: .bold)).foregroundColor(.black))
+                    .overlay(
+                        Text(String(post.authorName.prefix(1).uppercased()))
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.black)
+                    )
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
