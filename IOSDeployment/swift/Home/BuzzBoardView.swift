@@ -302,11 +302,10 @@ struct BuzzPostCard: View {
             // Content — extract embeds
             let isRewardedContent = post.showRewarded || post.content.lowercased().contains("#boanalystexclusive")
             let socialEmbeds = isRewardedContent ? [] : extractSocialEmbeds(from: post.content)
-            var cleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
-            
-            if isRewardedContent && cleanContent.count > 15 {
-                cleanContent = String(cleanContent.prefix(15)) + "... See more"
-            }
+            let rawCleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
+            let cleanContent: String = (isRewardedContent && rawCleanContent.count > 15)
+                ? String(rawCleanContent.prefix(15)) + "... See more"
+                : rawCleanContent
             
             BuzzFormattedText(text: cleanContent, color: isRewardedContent ? Color(hex: "D4AF37") : .gray, fontSize: 15, lineLimit: 3)
 
