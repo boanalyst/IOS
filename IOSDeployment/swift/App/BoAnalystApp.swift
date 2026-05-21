@@ -4,6 +4,7 @@
 // DistributorsHub is accessed via Profile tab (drawer-style, same as some Android nav patterns)
 
 import SwiftUI
+import GoogleMobileAds
 
 // MARK: - ThemeManager
 class ThemeManager: ObservableObject {
@@ -20,6 +21,9 @@ struct BoAnalystApp: App {
     init() {
         let cache = URLCache(memoryCapacity: 50_000_000, diskCapacity: 200_000_000, diskPath: "BoAnalystImageCache")
         URLCache.shared = cache
+        
+        // ── Initialize Google Mobile Ads SDK ───────────────────────────
+        GADMobileAds.sharedInstance().start(completionHandler: nil)
     }
 
     var body: some Scene {

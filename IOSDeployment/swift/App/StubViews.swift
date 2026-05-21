@@ -477,6 +477,7 @@ struct FlockFeedView: View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
 
+            VStack(spacing: 0) {
             if flockVM.isLoading && flockVM.posts.isEmpty {
                 LoadingView()
             } else {
@@ -529,6 +530,13 @@ struct FlockFeedView: View {
                 }
                 .refreshable { await flockVM.loadFeed() }
             }
+
+            // Anchored AdMob Banner — separated from scrollable content (Google recommended)
+            SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
+                .frame(height: 50)
+                .padding(.vertical, 4)
+                .background(AppTheme.surface)
+            } // end VStack
         }
         .task { if flockVM.posts.isEmpty { await flockVM.loadFeed() } }
         .overlay(alignment: .bottomTrailing) {
@@ -771,6 +779,7 @@ struct InsideTalkView: View {
     var body: some View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
+            VStack(spacing: 0) {
             if viewModel.isLoading && viewModel.tweets.isEmpty {
                 LoadingView()
             } else {
@@ -813,6 +822,13 @@ struct InsideTalkView: View {
                 }
                 .refreshable { await viewModel.loadAll() }
             }
+
+            // Anchored AdMob Banner — separated from scrollable content (Google recommended)
+            SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
+                .frame(height: 50)
+                .padding(.vertical, 4)
+                .background(AppTheme.surface)
+            } // end VStack
         }
         .task { if viewModel.tweets.isEmpty { await viewModel.loadAll() } }
         .navigationBarTitleDisplayMode(.inline)
@@ -1049,6 +1065,7 @@ struct AnalyticsView: View {
     var body: some View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
+            VStack(spacing: 0) {
             if isLoading && entries.isEmpty {
                 LoadingView()
             } else {
@@ -1064,6 +1081,13 @@ struct AnalyticsView: View {
                 }
                 .refreshable { await load() }
             }
+
+            // Anchored AdMob Banner — separated from scrollable content (Google recommended)
+            SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
+                .frame(height: 50)
+                .padding(.vertical, 4)
+                .background(AppTheme.surface)
+            } // end VStack
         }
         .task { await load() }
         .navigationTitle("Analytics")
