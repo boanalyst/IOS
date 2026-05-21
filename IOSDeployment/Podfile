@@ -1,32 +1,14 @@
 # Podfile — BoAnalyst iOS
-# Run `pod install` then ALWAYS open BoAnalyst.xcworkspace (not .xcodeproj)
-# Requires CocoaPods: sudo gem install cocoapods
+# ═══════════════════════════════════════════════════════════════════════
+# NOTE: All dependencies have been migrated to Swift Package Manager.
+# SPM packages are defined in project.yml and resolved natively by Xcode.
+# This Podfile is kept as a reference only.
+# ═══════════════════════════════════════════════════════════════════════
 
 platform :ios, '16.0'
-use_frameworks!
 
 target 'BoAnalyst' do
-
-  # ── Lottie Animations ──────────────────────────────────────────────────
-  # Same .json files from Android res/raw/ work on iOS
-  pod 'lottie-ios', '~> 4.5'
-
-  # ── Razorpay (Only needed for future direct payment flows)
-  # NOTE: The current implementation uses the Netflix/Reader strategy:
-  # payments happen on boanalyst.com in Safari — Razorpay SDK is NOT needed
-  # for the initial iOS release. Uncomment only if moving to native SDK.
-  #
-  # pod 'Razorpay-Swift'
-
-end
-
-# ── Workaround for M1/M2 Mac architectures ────────────────────────────────
-post_install do |installer|
-  installer.pods_project.targets.each do |target|
-    target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
-      # Fix for Xcode 15 + arm64 simulator builds
-      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = ''
-    end
-  end
+  # All pods moved to SPM in project.yml:
+  #   Lottie        → https://github.com/airbnb/lottie-spm.git
+  #   GoogleMobileAds → https://github.com/googleads/swift-package-manager-google-mobile-ads.git
 end
