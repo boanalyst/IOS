@@ -12,6 +12,7 @@ struct BuzzBoardView: View {
     @State private var isLoading = true
     @State private var offset = 0
     @State private var hasMore = true
+    @State private var unlockedRewardedPosts: Set<String> = []
     @State private var selectedCategory: BuzzCategory = .all
     @State private var showCreatePost = false
     @State private var showError = false
@@ -94,10 +95,11 @@ struct BuzzBoardView: View {
                                     // Check if this post is flagged for an ad via hashtag
                                     let contentLower = post.content.lowercased()
                                     let hasAdTag = post.showInterstitial || contentLower.contains("#boad") || contentLower.contains("#interstitial")
-                                    let hasRewardedTag = post.showRewarded || contentLower.contains("#rewarded")
+                                    let hasRewardedTag = post.showRewarded || contentLower.contains("#boanalystexclusive")
 
-                                    if hasRewardedTag {
+                                    if hasRewardedTag && !unlockedRewardedPosts.contains(post.id) {
                                         RewardedAdController.showAd(manager: rewardedAdManager) {
+                                            self.unlockedRewardedPosts.insert(post.id)
                                             self.selectedPost = post
                                             self.isNavigatingToPost = true
                                         }
@@ -112,7 +114,8 @@ struct BuzzBoardView: View {
                                         self.isNavigatingToPost = true
                                     }
                                 }) {
-                                    BuzzPostCard(post: post)
+                                    let isUnlocked = unlockedRewardedPosts.contains(post.id)
+                                    BuzzPostCard(post: post, isUnlocked: isUnlocked)
                                 }
                                 .buttonStyle(PlainButtonStyle())
                                 .onAppear {
@@ -248,6 +251,7 @@ struct CategoryPill: View {
 
 struct BuzzPostCard: View {
     let post: BuzzPost
+    var isUnlocked: Bool = false
 
     var avatarInitial: String {
         String(post.authorName.prefix(1)).uppercased()
@@ -301,15 +305,16 @@ struct BuzzPostCard: View {
 
             // Content — extract embeds
             let isRewardedContent = post.showRewarded || post.content.lowercased().contains("#boanalystexclusive")
-            let socialEmbeds = isRewardedContent ? [] : extractSocialEmbeds(from: post.content)
+            let shouldObscure = isRewardedContent && !isUnlocked
+            let socialEmbeds = shouldObscure ? [] : extractSocialEmbeds(from: post.content)
             let rawCleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
-            let cleanContent: String = (isRewardedContent && rawCleanContent.count > 15)
+            let cleanContent: String = (shouldObscure && rawCleanContent.count > 15)
                 ? String(rawCleanContent.prefix(15)) + "... See more"
                 : rawCleanContent
             
-            BuzzFormattedText(text: cleanContent, color: isRewardedContent ? Color(hex: "D4AF37") : .gray, fontSize: 15, lineLimit: 3)
+            BuzzFormattedText(text: cleanContent, color: shouldObscure ? Color(hex: "D4AF37") : .gray, fontSize: 15, lineLimit: 3)
 
-            if !isRewardedContent {
+            if !shouldObscure {
                 // Render uploaded images in feed card
                 let mediaUrls = post.resolvedMediaUrls()
                 if !mediaUrls.isEmpty {
