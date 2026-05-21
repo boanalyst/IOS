@@ -11,7 +11,8 @@ target 'BoAnalyst' do
   # Same .json files from Android res/raw/ work on iOS
   pod 'lottie-ios', '~> 4.5'
 
-
+  # ── Google Mobile Ads SDK ──────────────────────────────────────────────
+  pod 'Google-Mobile-Ads-SDK'
   # ── Razorpay (Only needed for future direct payment flows)
   # NOTE: The current implementation uses the Netflix/Reader strategy:
   # payments happen on boanalyst.com in Safari — Razorpay SDK is NOT needed
