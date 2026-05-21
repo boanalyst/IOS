@@ -10,8 +10,7 @@
 #
 # After running:
 #   cd BoAnalystXcode
-#   pod install
-#   open BoAnalyst.xcworkspace   ← ALWAYS open .xcworkspace after pod install
+#   open BoAnalyst.xcodeproj   ← Xcode resolves SPM packages automatically
 # =============================================================================
 
 set -euo pipefail
@@ -53,10 +52,6 @@ done
 # ── Copy Info.plist ────────────────────────────────────────────────────────
 echo "📋  Copying Info.plist..."
 cp "$SCRIPT_DIR/Info.plist" "$PROJECT_DIR/$PROJECT_NAME/Info.plist"
-
-# ── Copy Podfile ───────────────────────────────────────────────────────────
-echo "📋  Copying Podfile..."
-cp "$SCRIPT_DIR/Podfile" "$PROJECT_DIR/Podfile"
 
 # ── Copy ExportOptions plists ──────────────────────────────────────────────
 cp "$SCRIPT_DIR/ExportOptions-AppStore.plist" "$PROJECT_DIR/"
@@ -123,10 +118,9 @@ cat > "$ASSETS_DIR/AccentColor.colorset/Contents.json" <<'JSON'
 }
 JSON
 
-# ── Generate .xcodeproj via xcodegen or xcode-build-server ────────────────
-# We use a project.yml for XcodeGen (easiest cross-platform tool)
+# ── Generate project.yml with SPM packages (no CocoaPods) ────────────────
 echo ""
-echo "⚙️   Generating project.yml for XcodeGen..."
+echo "⚙️   Generating project.yml for XcodeGen (with SPM packages)..."
 
 cat > "$PROJECT_DIR/project.yml" <<YAML
 name: $PROJECT_NAME
@@ -134,8 +128,14 @@ options:
   bundleIdPrefix: com.boanalyst
   deploymentTarget:
     iOS: "$DEPLOYMENT_TARGET"
-  xcodeVersion: "15.4"
   createIntermediateGroups: true
+packages:
+  Lottie:
+    url: https://github.com/airbnb/lottie-spm.git
+    from: 4.5.0
+  GoogleMobileAds:
+    url: https://github.com/googleads/swift-package-manager-google-mobile-ads.git
+    from: 11.0.0
 settings:
   base:
     PRODUCT_BUNDLE_IDENTIFIER: $BUNDLE_ID
@@ -146,11 +146,8 @@ settings:
     CODE_SIGN_STYLE: Automatic
     INFOPLIST_FILE: $PROJECT_NAME/Info.plist
     ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-    SWIFT_ENABLE_EXPLICIT_MODULES: NO
-    CLANG_ENABLE_EXPLICIT_MODULES: NO
-    DEVELOPMENT_TEAM: ""   # ← Fill in your Team ID
+    DEVELOPMENT_TEAM: ""
     DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
-
 targets:
   $PROJECT_NAME:
     type: application
@@ -159,14 +156,18 @@ targets:
       - path: $PROJECT_NAME
         excludes:
           - "**/*.md"
+          - "**/*.plist"
     resources:
       - path: $PROJECT_NAME/Assets.xcassets
       - path: $PROJECT_NAME/Info.plist
+    dependencies:
+      - package: Lottie
+      - package: GoogleMobileAds
     settings:
       base:
         PRODUCT_NAME: $PROJECT_NAME
-        SWIFT_ENABLE_EXPLICIT_MODULES: NO
-        CLANG_ENABLE_EXPLICIT_MODULES: NO
+        OTHER_LDFLAGS:
+          - -ObjC
     entitlements:
       path: $PROJECT_NAME/$PROJECT_NAME.entitlements
 YAML
@@ -204,39 +205,21 @@ if command -v xcodegen &> /dev/null; then
     cd "$PROJECT_DIR"
     xcodegen generate
     echo "✅  $PROJECT_NAME.xcodeproj generated!"
-else
-    echo ""
-    echo "⚠️   XcodeGen not found. Install it with:"
-    echo "     brew install xcodegen"
-    echo "     Then run: xcodegen generate"
-    echo ""
-    echo "     OR create the Xcode project manually:"
-    echo "     1. Open Xcode → File → New → Project → iOS → App"
-    echo "     2. Product Name: BoAnalyst"
-    echo "     3. Bundle ID: com.boanalyst.app"
-    echo "     4. Interface: SwiftUI, Language: Swift"
-    echo "     5. Move all .swift files from $PROJECT_DIR/$PROJECT_NAME/ into the project"
-fi
-
-# ── Install CocoaPods ──────────────────────────────────────────────────────
-echo ""
-echo "📦  Installing CocoaPods dependencies..."
-cd "$PROJECT_DIR"
-if command -v pod &> /dev/null; then
-    pod install --repo-update
-    echo "✅  CocoaPods installed!"
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo " ✅  Setup complete!"
     echo ""
     echo " Next steps:"
-    echo " 1. open $PROJECT_DIR/BoAnalyst.xcworkspace"
+    echo " 1. open $PROJECT_DIR/$PROJECT_NAME.xcodeproj"
+    echo "    (Xcode will resolve SPM packages automatically)"
     echo " 2. Add your 1024×1024 AppIcon to Assets.xcassets"
     echo " 3. Add Cinzel-Regular.ttf & Cinzel-Bold.ttf to the project"
     echo " 4. Set your Team ID in Signing & Capabilities"
     echo " 5. Build & Run on Simulator (Cmd+R)"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 else
-    echo "⚠️   CocoaPods not found. Install with: sudo gem install cocoapods"
-    echo "     Then run: cd $PROJECT_DIR && pod install"
+    echo ""
+    echo "⚠️   XcodeGen not found. Install it with:"
+    echo "     brew install xcodegen"
+    echo "     Then run: xcodegen generate"
 fi
