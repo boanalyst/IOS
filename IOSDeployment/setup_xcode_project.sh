@@ -137,7 +137,7 @@ options:
   xcodeVersion: "15.4"
   createIntermediateGroups: true
 packages:
-  GoogleMobileAds:
+  swift-package-manager-google-mobile-ads:
     url: https://github.com/googleads/swift-package-manager-google-mobile-ads.git
     from: 11.0.0
 
@@ -172,7 +172,7 @@ targets:
       - path: $PROJECT_NAME/Assets.xcassets
       - path: $PROJECT_NAME/Info.plist
     dependencies:
-      - package: GoogleMobileAds
+      - package: swift-package-manager-google-mobile-ads
         product: GoogleMobileAds
     settings:
       base:
