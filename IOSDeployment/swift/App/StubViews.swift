@@ -472,6 +472,7 @@ struct FlockFeedView: View {
     @State private var activeCommentPostId: String? = nil
     @State private var showCreatePost = false
     @State private var editingPost: FlockPost?
+    @StateObject private var adManager = InterstitialAdManager()
 
     var body: some View {
         ZStack {
@@ -499,7 +500,15 @@ struct FlockFeedView: View {
                                     post: post,
                                     isAdmin: isAdmin,
                                     isLiked: flockVM.likedPostIds.contains(post.id),
-                                    onTap: {},
+                                    onTap: {
+                                        let contentLower = post.content.lowercased()
+                                        if contentLower.contains("#boad") || contentLower.contains("#interstitial") {
+                                            InterstitialAdController.showAd(manager: adManager) {
+                                                // Handle navigation if needed, right now onTap is empty
+                                                // Just reload for next use
+                                            }
+                                        }
+                                    },
                                     onLike: { flockVM.toggleLike(post) },
                                     onComment: {
                                         flockVM.loadComments(postId: post.id)
