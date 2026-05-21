@@ -3,13 +3,16 @@
 # Requires CocoaPods: sudo gem install cocoapods
 
 platform :ios, '16.0'
-use_frameworks!
+use_frameworks! :linkage => :static
 
 target 'BoAnalyst' do
 
   # ── Lottie Animations ──────────────────────────────────────────────────
   # Same .json files from Android res/raw/ work on iOS
   pod 'lottie-ios', '~> 4.5'
+
+  # ── Google Mobile Ads SDK ──────────────────────────────────────────────
+  pod 'Google-Mobile-Ads-SDK'
 
   # ── Razorpay (Only needed for future direct payment flows)
   # NOTE: The current implementation uses the Netflix/Reader strategy:
