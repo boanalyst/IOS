@@ -208,6 +208,14 @@ struct BoxOfficeView: View {
                     }
                     .refreshable { await viewModel.load() }
                 }
+
+                // Anchored AdMob Banner at the bottom (persistent across scroll, matches Android exactly)
+                if !viewModel.isLoading && viewModel.error == nil && !viewModel.boxOfficeEntries.isEmpty {
+                    SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
+                        .frame(height: 50)
+                        .padding(.vertical, 4)
+                        .background(AppTheme.surface)
+                }
             }
         }
         .task { await viewModel.load() }
