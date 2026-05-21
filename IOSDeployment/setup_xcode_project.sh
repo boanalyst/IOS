@@ -136,11 +136,6 @@ options:
     iOS: "$DEPLOYMENT_TARGET"
   xcodeVersion: "15.4"
   createIntermediateGroups: true
-packages:
-  swift-package-manager-google-mobile-ads:
-    url: https://github.com/googleads/swift-package-manager-google-mobile-ads.git
-    from: 11.0.0
-
 settings:
   base:
     PRODUCT_BUNDLE_IDENTIFIER: $BUNDLE_ID
@@ -151,10 +146,6 @@ settings:
     CODE_SIGN_STYLE: Automatic
     INFOPLIST_FILE: $PROJECT_NAME/Info.plist
     ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-    OTHER_LDFLAGS: ["$(inherited)", "-ObjC"]
-    FRAMEWORK_SEARCH_PATHS: ["$(inherited)"]
-    HEADER_SEARCH_PATHS: ["$(inherited)"]
-    SWIFT_INCLUDE_PATHS: ["$(inherited)"]
     SWIFT_ENABLE_EXPLICIT_MODULES: NO
     CLANG_ENABLE_EXPLICIT_MODULES: NO
     DEVELOPMENT_TEAM: ""   # ← Fill in your Team ID
@@ -171,9 +162,6 @@ targets:
     resources:
       - path: $PROJECT_NAME/Assets.xcassets
       - path: $PROJECT_NAME/Info.plist
-    dependencies:
-      - package: swift-package-manager-google-mobile-ads
-        product: GoogleMobileAds
     settings:
       base:
         PRODUCT_NAME: $PROJECT_NAME
