@@ -229,6 +229,7 @@ struct FlockPostCard: View {
     let post: FlockPost
     let isAdmin: Bool
     var isLiked: Bool = false
+    var isUnlocked: Bool = false
     var onTap: () -> Void = {}
     var onLike: () -> Void = {}
     var onComment: () -> Void = {}
@@ -291,13 +292,20 @@ struct FlockPostCard: View {
                 }
 
                 // Content — extract social embeds first, strip their URLs from text
-                let socialEmbeds = extractSocialEmbeds(from: post.content)
-                let cleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
+                let isRewardedContent = post.showRewarded || post.content.lowercased().contains("#boanalystexclusive")
+                let shouldObscure = isRewardedContent && !isUnlocked
+                let socialEmbeds = shouldObscure ? [] : extractSocialEmbeds(from: post.content)
+                let rawCleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
+                
+                let cleanContent: String = (shouldObscure && rawCleanContent.count > 15)
+                    ? String(rawCleanContent.prefix(15)) + "... See more"
+                    : rawCleanContent
 
                 let attrString = parseBoAnalystHTML(cleanContent)
                 Text(attrString)
                     .tint(AppTheme.goldPrimary)
                     .font(.system(size: 14))
+                    .foregroundColor(shouldObscure ? AppTheme.goldPrimary : AppTheme.textPrimary)
                     .foregroundColor(AppTheme.textSecondary)
                     .lineLimit(nil)
                     .lineSpacing(6)
