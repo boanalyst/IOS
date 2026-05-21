@@ -16,6 +16,9 @@ struct BuzzBoardView: View {
     @State private var showCreatePost = false
     @State private var showError = false
     @State private var errorMessage = ""
+    @StateObject private var adManager = InterstitialAdManager()
+    @State private var selectedPost: BuzzPost?
+    @State private var isNavigatingToPost = false
     private var userToken: String { KeychainManager.shared.getToken() ?? "" }
 
     var body: some View {
@@ -86,8 +89,19 @@ struct BuzzBoardView: View {
                     ScrollView {
                         LazyVStack(spacing: 16) {
                             ForEach(posts) { post in
-                                NavigationLink(destination: BuzzPostDetailView(post: post) { updatedPost in
-                                    updatePostInList(updatedPost)
+                                Button(action: {
+                                    // Check if this post is flagged for an ad via hashtag
+                                    let contentLower = post.content.lowercased()
+                                    if contentLower.contains("#boad") || contentLower.contains("#interstitial") {
+                                        InterstitialAdController.showAd(manager: adManager) {
+                                            self.selectedPost = post
+                                            self.isNavigatingToPost = true
+                                        }
+                                    } else {
+                                        // No ad required, navigate immediately
+                                        self.selectedPost = post
+                                        self.isNavigatingToPost = true
+                                    }
                                 }) {
                                     BuzzPostCard(post: post)
                                 }
@@ -108,6 +122,13 @@ struct BuzzBoardView: View {
                     }
                     .refreshable {
                         refreshPosts()
+                    }
+                    .navigationDestination(isPresented: $isNavigatingToPost) {
+                        if let post = selectedPost {
+                            BuzzPostDetailView(post: post) { updatedPost in
+                                updatePostInList(updatedPost)
+                            }
+                        }
                     }
                 }
 
