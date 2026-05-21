@@ -474,6 +474,7 @@ struct FlockFeedView: View {
     @State private var editingPost: FlockPost?
     @StateObject private var adManager = InterstitialAdManager()
     @StateObject private var rewardedAdManager = RewardedAdManager()
+    @State private var unlockedRewardedPosts: Set<String> = []
 
     var body: some View {
         ZStack {
@@ -501,14 +502,15 @@ struct FlockFeedView: View {
                                     post: post,
                                     isAdmin: isAdmin,
                                     isLiked: flockVM.likedPostIds.contains(post.id),
+                                    isUnlocked: unlockedRewardedPosts.contains(post.id),
                                     onTap: {
                                         let contentLower = post.content.lowercased()
                                         let hasAdTag = post.showInterstitial || contentLower.contains("#boad") || contentLower.contains("#interstitial")
                                         let hasRewardedTag = post.showRewarded || contentLower.contains("#boanalystexclusive")
                                         
-                                        if hasRewardedTag {
+                                        if hasRewardedTag && !unlockedRewardedPosts.contains(post.id) {
                                             RewardedAdController.showAd(manager: rewardedAdManager) {
-                                                // Reward earned, allow post access
+                                                unlockedRewardedPosts.insert(post.id)
                                             }
                                         } else if hasAdTag {
                                             InterstitialAdController.showAd(manager: adManager) {
