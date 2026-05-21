@@ -17,6 +17,7 @@ struct BuzzBoardView: View {
     @State private var showError = false
     @State private var errorMessage = ""
     @StateObject private var adManager = InterstitialAdManager()
+    @StateObject private var rewardedAdManager = RewardedAdManager()
     @State private var selectedPost: BuzzPost?
     @State private var isNavigatingToPost = false
     private var userToken: String { KeychainManager.shared.getToken() ?? "" }
@@ -92,7 +93,15 @@ struct BuzzBoardView: View {
                                 Button(action: {
                                     // Check if this post is flagged for an ad via hashtag
                                     let contentLower = post.content.lowercased()
-                                    if contentLower.contains("#boad") || contentLower.contains("#interstitial") {
+                                    let hasAdTag = post.showInterstitial || contentLower.contains("#boad") || contentLower.contains("#interstitial")
+                                    let hasRewardedTag = post.showRewarded || contentLower.contains("#rewarded")
+
+                                    if hasRewardedTag {
+                                        RewardedAdController.showAd(manager: rewardedAdManager) {
+                                            self.selectedPost = post
+                                            self.isNavigatingToPost = true
+                                        }
+                                    } else if hasAdTag {
                                         InterstitialAdController.showAd(manager: adManager) {
                                             self.selectedPost = post
                                             self.isNavigatingToPost = true
@@ -283,20 +292,27 @@ struct BuzzPostCard: View {
                 .lineLimit(2)
 
             // Content — extract embeds
-            let socialEmbeds = extractSocialEmbeds(from: post.content)
-            let cleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
+            let isRewardedContent = post.showRewarded || post.content.lowercased().contains("#boanalystexclusive")
+            let socialEmbeds = isRewardedContent ? [] : extractSocialEmbeds(from: post.content)
+            var cleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
             
-            BuzzFormattedText(text: cleanContent, color: .gray, fontSize: 15, lineLimit: 3)
-
-            // Render uploaded images in feed card
-            let mediaUrls = post.resolvedMediaUrls()
-            if !mediaUrls.isEmpty {
-                PostMediaView(urls: mediaUrls)
+            if isRewardedContent && cleanContent.count > 15 {
+                cleanContent = String(cleanContent.prefix(15)) + "... See more"
             }
             
-            if !socialEmbeds.isEmpty {
-                SocialEmbedsSection(embeds: socialEmbeds)
-                    .padding(.top, 4)
+            BuzzFormattedText(text: cleanContent, color: isRewardedContent ? Color(hex: "D4AF37") : .gray, fontSize: 15, lineLimit: 3)
+
+            if !isRewardedContent {
+                // Render uploaded images in feed card
+                let mediaUrls = post.resolvedMediaUrls()
+                if !mediaUrls.isEmpty {
+                    PostMediaView(urls: mediaUrls)
+                }
+                
+                if !socialEmbeds.isEmpty {
+                    SocialEmbedsSection(embeds: socialEmbeds)
+                        .padding(.top, 4)
+                }
             }
 
             // Tags
