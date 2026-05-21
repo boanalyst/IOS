@@ -253,14 +253,14 @@ struct BuzzPostCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Author & Time
             HStack {
-                Circle()
-                    .fill(AppTheme.goldGradient)
-                    .frame(width: 36, height: 36)
-                    .overlay(
-                        Text(String(post.authorName.prefix(1).uppercased()))
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.black)
-                    )
+                ZStack {
+                    Circle()
+                        .fill(AppTheme.goldGradient)
+                        .frame(width: 36, height: 36)
+                    Text(String(post.authorName.prefix(1).uppercased()))
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.black)
+                }
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
