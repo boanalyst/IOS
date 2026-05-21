@@ -163,11 +163,11 @@ struct MainTabView: View {
                 Spacer()
                 TabBarItem(icon: "bubble.left.and.bubble.right.fill", title: "Flock", isSelected: selectedTab == 2) { selectedTab = 2 }
                 Spacer()
+                TabBarItem(icon: "eye.fill", title: "Inside", isSelected: selectedTab == 3) { selectedTab = 3 }
+                Spacer()
                 TabBarItem(icon: "chart.bar.fill", title: "Box Office", isSelected: selectedTab == 6) { selectedTab = 6 }
                 Spacer()
                 TabBarItem(icon: "flame.fill", title: "Buzz", isSelected: selectedTab == 1) { selectedTab = 1 }
-                Spacer()
-                TabBarItem(icon: "eye.fill", title: "Inside", isSelected: selectedTab == 3) { selectedTab = 3 }
                 Spacer()
                 TabBarItem(icon: "briefcase.fill", title: "Hub", isSelected: selectedTab == 4) { selectedTab = 4 }
                 Spacer()

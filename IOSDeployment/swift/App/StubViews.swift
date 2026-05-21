@@ -473,6 +473,7 @@ struct FlockFeedView: View {
     @State private var showCreatePost = false
     @State private var editingPost: FlockPost?
     @StateObject private var adManager = InterstitialAdManager()
+    @StateObject private var rewardedAdManager = RewardedAdManager()
 
     var body: some View {
         ZStack {
@@ -502,7 +503,14 @@ struct FlockFeedView: View {
                                     isLiked: flockVM.likedPostIds.contains(post.id),
                                     onTap: {
                                         let contentLower = post.content.lowercased()
-                                        if contentLower.contains("#boad") || contentLower.contains("#interstitial") {
+                                        let hasAdTag = post.showInterstitial || contentLower.contains("#boad") || contentLower.contains("#interstitial")
+                                        let hasRewardedTag = post.showRewarded || contentLower.contains("#boanalystexclusive")
+                                        
+                                        if hasRewardedTag {
+                                            RewardedAdController.showAd(manager: rewardedAdManager) {
+                                                // Reward earned, allow post access
+                                            }
+                                        } else if hasAdTag {
                                             InterstitialAdController.showAd(manager: adManager) {
                                                 // Handle navigation if needed, right now onTap is empty
                                                 // Just reload for next use
@@ -992,14 +1000,20 @@ struct InsideTalkCard: View {
             }
 
             // Content — extract social embeds, strip raw URLs, render markdown
-            let socialEmbeds = isLocked ? [] : extractSocialEmbeds(from: content.content)
-            let cleanText = stripEmbedUrls(from: content.content, embeds: socialEmbeds)
+            let isRewardedContent = content.showRewarded || content.content.lowercased().contains("#boanalystexclusive")
+            let socialEmbeds = (isLocked || isRewardedContent) ? [] : extractSocialEmbeds(from: content.content)
+            var cleanText = stripEmbedUrls(from: content.content, embeds: socialEmbeds)
+            
+            if isRewardedContent && cleanText.count > 15 {
+                cleanText = String(cleanText.prefix(15)) + "... See more"
+            }
+            
             let attrText = parseBoAnalystHTML(cleanText)
 
             Text(attrText)
                 .tint(AppTheme.goldPrimary)
                 .font(.system(size: 14))
-                .foregroundColor(isLocked ? AppTheme.textMuted : AppTheme.textPrimary)
+                .foregroundColor((isLocked || isRewardedContent) ? AppTheme.goldPrimary : AppTheme.textPrimary)
                 .lineLimit(isLocked ? 3 : nil)
                 .lineSpacing(6)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1010,7 +1024,7 @@ struct InsideTalkCard: View {
             // ── Uploaded Media ───────────────────────────────────────
             // resolvedUrl() returns "" for invalid entries; filter those out.
             let mediaUrls = content.media.map { $0.resolvedUrl() }.filter { !$0.isEmpty }
-            if !mediaUrls.isEmpty && !isLocked {
+            if !mediaUrls.isEmpty && !isLocked && !isRewardedContent {
                 PostMediaView(urls: mediaUrls)
             }
 
