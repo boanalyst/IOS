@@ -151,6 +151,8 @@ settings:
     FRAMEWORK_SEARCH_PATHS: ["$(inherited)"]
     HEADER_SEARCH_PATHS: ["$(inherited)"]
     SWIFT_INCLUDE_PATHS: ["$(inherited)"]
+    SWIFT_ENABLE_EXPLICIT_MODULES: NO
+    CLANG_ENABLE_EXPLICIT_MODULES: NO
     DEVELOPMENT_TEAM: ""   # ← Fill in your Team ID
     DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
 
@@ -168,6 +170,8 @@ targets:
     settings:
       base:
         PRODUCT_NAME: $PROJECT_NAME
+        SWIFT_ENABLE_EXPLICIT_MODULES: NO
+        CLANG_ENABLE_EXPLICIT_MODULES: NO
     entitlements:
       path: $PROJECT_NAME/$PROJECT_NAME.entitlements
 YAML

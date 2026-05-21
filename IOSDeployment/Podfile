@@ -23,13 +23,21 @@ target 'BoAnalyst' do
 
 end
 
-# ── Workaround for M1/M2 Mac architectures ────────────────────────────────
+# ── Workaround for M1/M2 Mac architectures & Xcode 16 Explicit Modules ────
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
       # Fix for Xcode 15 + arm64 simulator builds
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = ''
+      # Disable explicit modules for pods to fix GoogleMobileAds import on Xcode 16
+      config.build_settings['SWIFT_ENABLE_EXPLICIT_MODULES'] = 'NO'
+      config.build_settings['CLANG_ENABLE_EXPLICIT_MODULES'] = 'NO'
     end
+  end
+  # Disable it project-wide for pods
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['SWIFT_ENABLE_EXPLICIT_MODULES'] = 'NO'
+    config.build_settings['CLANG_ENABLE_EXPLICIT_MODULES'] = 'NO'
   end
 end
