@@ -249,6 +249,10 @@ struct CategoryPill: View {
 struct BuzzPostCard: View {
     let post: BuzzPost
 
+    var avatarInitial: String {
+        String(post.authorName.prefix(1)).uppercased()
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Author & Time
@@ -257,7 +261,7 @@ struct BuzzPostCard: View {
                     Circle()
                         .fill(AppTheme.goldGradient)
                         .frame(width: 36, height: 36)
-                    Text(String(post.authorName.prefix(1).uppercased()))
+                    Text(avatarInitial)
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(.black)
                 }
