@@ -183,6 +183,7 @@ struct FlockPost: Decodable, Identifiable {
     let replyCount: Int
     let isPinned: Bool          // MySQL TINYINT 0/1 decoded as Int then to Bool
     let userLiked: Bool         // mirrors Android FlockPost.userLiked
+    let showInterstitial: Bool
     let createdAt: String
 
     enum CodingKeys: String, CodingKey {
@@ -198,6 +199,7 @@ struct FlockPost: Decodable, Identifiable {
         case replyCount = "reply_count"
         case isPinned = "is_pinned"
         case userLiked = "user_liked"
+        case showInterstitial = "show_interstitial"
         case createdAt = "created_at"
     }
 
@@ -232,6 +234,7 @@ struct FlockPost: Decodable, Identifiable {
         }
         isPinned  = decodeBool(.isPinned)
         userLiked = decodeBool(.userLiked)
+        showInterstitial = decodeBool(.showInterstitial)
     }
 
     // Memberwise copy initializer for optimistic UI mutations
@@ -247,6 +250,7 @@ struct FlockPost: Decodable, Identifiable {
         self.replyCount   = replyCount ?? existing.replyCount
         self.isPinned     = isPinned   ?? existing.isPinned
         self.userLiked    = userLiked  ?? existing.userLiked
+        self.showInterstitial = existing.showInterstitial
         self.createdAt    = existing.createdAt
     }
 }
@@ -1037,6 +1041,7 @@ struct BuzzPost: Decodable, Identifiable {
     let viewCount: Int
     let isPinned: Bool
     var userLiked: Bool
+    let showInterstitial: Bool
     let createdAt: String
 
     var buzzCategory: BuzzCategory { BuzzCategory(rawValue: category) ?? .general }
@@ -1054,6 +1059,7 @@ struct BuzzPost: Decodable, Identifiable {
         case viewCount   = "view_count"
         case isPinned    = "is_pinned"
         case userLiked   = "user_liked"
+        case showInterstitial = "show_interstitial"
         case createdAt   = "created_at"
     }
 
@@ -1096,6 +1102,7 @@ struct BuzzPost: Decodable, Identifiable {
         }
         isPinned  = decodeBool(.isPinned)
         userLiked = decodeBool(.userLiked)
+        showInterstitial = decodeBool(.showInterstitial)
     }
 
     // Copy initializer for optimistic updates
@@ -1113,6 +1120,7 @@ struct BuzzPost: Decodable, Identifiable {
         self.viewCount    = existing.viewCount
         self.isPinned     = existing.isPinned
         self.userLiked    = userLiked    ?? existing.userLiked
+        self.showInterstitial = existing.showInterstitial
         self.createdAt    = existing.createdAt
     }
 
