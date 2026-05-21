@@ -147,9 +147,10 @@ settings:
     CODE_SIGN_STYLE: Automatic
     INFOPLIST_FILE: $PROJECT_NAME/Info.plist
     ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-    OTHER_LDFLAGS: $(inherited)
-    FRAMEWORK_SEARCH_PATHS: $(inherited)
-    HEADER_SEARCH_PATHS: $(inherited)
+    OTHER_LDFLAGS: ["$(inherited)", "-ObjC"]
+    FRAMEWORK_SEARCH_PATHS: ["$(inherited)"]
+    HEADER_SEARCH_PATHS: ["$(inherited)"]
+    SWIFT_INCLUDE_PATHS: ["$(inherited)"]
     DEVELOPMENT_TEAM: ""   # ← Fill in your Team ID
     DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
 
