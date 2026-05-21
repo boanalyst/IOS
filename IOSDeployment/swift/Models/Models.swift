@@ -184,6 +184,7 @@ struct FlockPost: Decodable, Identifiable {
     let isPinned: Bool          // MySQL TINYINT 0/1 decoded as Int then to Bool
     let userLiked: Bool         // mirrors Android FlockPost.userLiked
     let showInterstitial: Bool
+    let showRewarded: Bool
     let createdAt: String
 
     enum CodingKeys: String, CodingKey {
@@ -200,6 +201,7 @@ struct FlockPost: Decodable, Identifiable {
         case isPinned = "is_pinned"
         case userLiked = "user_liked"
         case showInterstitial = "show_interstitial"
+        case showRewarded = "show_rewarded"
         case createdAt = "created_at"
     }
 
@@ -235,6 +237,7 @@ struct FlockPost: Decodable, Identifiable {
         isPinned  = decodeBool(.isPinned)
         userLiked = decodeBool(.userLiked)
         showInterstitial = decodeBool(.showInterstitial)
+        showRewarded = decodeBool(.showRewarded)
     }
 
     // Memberwise copy initializer for optimistic UI mutations
@@ -251,6 +254,7 @@ struct FlockPost: Decodable, Identifiable {
         self.isPinned     = isPinned   ?? existing.isPinned
         self.userLiked    = userLiked  ?? existing.userLiked
         self.showInterstitial = existing.showInterstitial
+        self.showRewarded = existing.showRewarded
         self.createdAt    = existing.createdAt
     }
 }
@@ -1042,6 +1046,7 @@ struct BuzzPost: Decodable, Identifiable {
     let isPinned: Bool
     var userLiked: Bool
     let showInterstitial: Bool
+    let showRewarded: Bool
     let createdAt: String
 
     var buzzCategory: BuzzCategory { BuzzCategory(rawValue: category) ?? .general }
@@ -1060,6 +1065,7 @@ struct BuzzPost: Decodable, Identifiable {
         case isPinned    = "is_pinned"
         case userLiked   = "user_liked"
         case showInterstitial = "show_interstitial"
+        case showRewarded = "show_rewarded"
         case createdAt   = "created_at"
     }
 
@@ -1103,6 +1109,7 @@ struct BuzzPost: Decodable, Identifiable {
         isPinned  = decodeBool(.isPinned)
         userLiked = decodeBool(.userLiked)
         showInterstitial = decodeBool(.showInterstitial)
+        showRewarded = decodeBool(.showRewarded)
     }
 
     // Copy initializer for optimistic updates
@@ -1121,6 +1128,7 @@ struct BuzzPost: Decodable, Identifiable {
         self.isPinned     = existing.isPinned
         self.userLiked    = userLiked    ?? existing.userLiked
         self.showInterstitial = existing.showInterstitial
+        self.showRewarded = existing.showRewarded
         self.createdAt    = existing.createdAt
     }
 
