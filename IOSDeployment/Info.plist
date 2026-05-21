@@ -14,7 +14,7 @@
   <key>CFBundleVersion</key>
   <string>$(CURRENT_PROJECT_VERSION)</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.1.4</string>
+  <string>1.1.5</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleExecutable</key>
@@ -158,6 +158,31 @@
   <!-- ── Apple Export Compliance ──────────────────────────────────────── -->
   <key>ITSAppUsesNonExemptEncryption</key>
   <false/>
+
+  <!-- ── Google AdMob Setup (Production iOS ID) ── -->
+  <key>GADApplicationIdentifier</key>
+  <string>ca-app-pub-5734863079459748~9986914659</string>
+
+  <!-- Apple SKAdNetwork Identifiers (AdMob Performance Tracking) -->
+  <key>SKAdNetworkItems</key>
+  <array>
+    <dict>
+      <key>SKAdNetworkIdentifier</key>
+      <string>cstr6suwn9.skadnetwork</string>
+    </dict>
+    <dict>
+      <key>SKAdNetworkIdentifier</key>
+      <string>4fqxafvjvp.skadnetwork</string>
+    </dict>
+    <dict>
+      <key>SKAdNetworkIdentifier</key>
+      <string>5l3tpt7t6e.skadnetwork</string>
+    </dict>
+    <dict>
+      <key>SKAdNetworkIdentifier</key>
+      <string>wzmmz9fp6w.skadnetwork</string>
+    </dict>
+  </array>
 
 </dict>
 </plist>
