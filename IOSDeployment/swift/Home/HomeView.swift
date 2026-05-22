@@ -89,6 +89,7 @@ struct HomeView: View {
     var onSubscribeRequired: () -> Void = {}
     @StateObject private var viewModel = HomeViewModel()
     @EnvironmentObject private var authViewModel: AuthViewModel
+    @StateObject private var rewardedAdManager = RewardedAdManager()
 
     var body: some View {
         ZStack {
@@ -125,7 +126,17 @@ struct HomeView: View {
                                     exclusive: exclusive,
                                     isAdmin: authViewModel.currentUser?.isAdmin ?? false,
                                     onEdit: { viewModel.showExclusiveEditor = true },
-                                    onUnlock: { onSubscribeRequired() }
+                                    onUnlock: { 
+                                        let isRewarded = exclusive.description.lowercased().contains("#boanalystexclusive") || 
+                                                         exclusive.title.lowercased().contains("#boanalystexclusive")
+                                        if isRewarded {
+                                            RewardedAdController.showAd(manager: rewardedAdManager) {
+                                                onSubscribeRequired()
+                                            }
+                                        } else {
+                                            onSubscribeRequired()
+                                        }
+                                    }
                                 )
                                 .padding(.horizontal, 20)
                             }
