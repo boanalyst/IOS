@@ -315,7 +315,7 @@ struct FlockPostCard: View {
 
                 // ── Uploaded Media ───────────────────────────────────────
                 let mediaUrls = post.media.map { $0.resolvedUrl() }.filter { !$0.isEmpty }
-                if !mediaUrls.isEmpty {
+                if !mediaUrls.isEmpty && !shouldObscure {
                     PostMediaView(urls: mediaUrls)
                 }
 
