@@ -589,6 +589,7 @@ struct InsideTalkContent: Decodable, Identifiable {
     let isPinned: Bool
     let userLiked: Bool
     let userDisliked: Bool
+    let showRewarded: Bool
     let createdAt: String
 
     enum CodingKeys: String, CodingKey {
@@ -603,6 +604,7 @@ struct InsideTalkContent: Decodable, Identifiable {
         case isPinned = "is_pinned"
         case userLiked = "user_liked"
         case userDisliked = "user_disliked"
+        case showRewarded = "show_rewarded"
         case createdAt = "created_at"
     }
 
@@ -638,6 +640,7 @@ struct InsideTalkContent: Decodable, Identifiable {
         isPinned = decodeBool(.isPinned)
         userLiked = decodeBool(.userLiked)
         userDisliked = decodeBool(.userDisliked)
+        showRewarded = decodeBool(.showRewarded)
     }
 
     // Memberwise copy initializer for optimistic UI mutations
@@ -656,6 +659,7 @@ struct InsideTalkContent: Decodable, Identifiable {
         self.isPinned    = isPinned    ?? existing.isPinned
         self.userLiked   = userLiked   ?? existing.userLiked
         self.userDisliked = existing.userDisliked
+        self.showRewarded = existing.showRewarded
         self.createdAt   = existing.createdAt
     }
 }
