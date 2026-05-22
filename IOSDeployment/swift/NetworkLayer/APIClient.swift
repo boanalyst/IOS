@@ -190,6 +190,9 @@ final class APIClient {
 
         // SECURITY: Platform header — lets server apply iOS-specific behaviour
         urlRequest.setValue("ios", forHTTPHeaderField: "X-App-Client")
+        if let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+            urlRequest.setValue(appVersion, forHTTPHeaderField: "X-App-Version")
+        }
         urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
 
         if let token = authToken {
