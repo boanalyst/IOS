@@ -794,6 +794,8 @@ struct InsideTalkView: View {
     @State private var activeCommentTweetId: String? = nil
     @State private var showCreatePost = false
     @State private var editingPost: InsideTalkContent?
+    @StateObject private var rewardedAdManager = RewardedAdManager()
+    @State private var unlockedRewardedPosts: Set<String> = []
 
     var body: some View {
         ZStack {
@@ -805,17 +807,35 @@ struct InsideTalkView: View {
                 ScrollView {
                     LazyVStack(spacing: 16) { // Bug #2 fix: increased from 12 to 16
                         // Non-pro upgrade banner (scrollable, mirrors Android)
-                        if !(authViewModel.currentUser?.isPro ?? false) {
+                        if !(authViewModel.currentUser?.isPro ?? false) && viewModel.count > 0 && viewModel.tweets.contains(where: { !$0.showRewarded }) {
                             proUpgradeBanner
                                 .padding(.horizontal, 16)
                         }
 
-                        ForEach(viewModel.tweets) { tweet in
+                        let displayItems = (authViewModel.currentUser?.isPro ?? false || authViewModel.currentUser?.isAdmin == true) 
+                            ? viewModel.tweets 
+                            : viewModel.tweets.filter { $0.showRewarded }
+
+                        ForEach(displayItems) { tweet in
                             let isAdmin = authViewModel.currentUser?.isAdmin == true
+                            let isRewardedUnlocked = unlockedRewardedPosts.contains(tweet.id)
+                            let isActuallyUnlocked = (authViewModel.currentUser?.isPro ?? false) || isAdmin
+
                             InsideTalkCard(
                                 content: tweet,
-                                isUserPro: authViewModel.currentUser?.isPro ?? false || isAdmin,
-                                onSubscribeRequired: onSubscribeRequired,
+                                isUserPro: isActuallyUnlocked,
+                                isRewarded: tweet.showRewarded && !isRewardedUnlocked,
+                                onSubscribeRequired: {
+                                    if !isActuallyUnlocked || (tweet.showRewarded && !isRewardedUnlocked) {
+                                        if tweet.showRewarded && rewardedAdManager.isAdLoaded {
+                                            RewardedAdController.showAd(manager: rewardedAdManager) {
+                                                unlockedRewardedPosts.insert(tweet.id)
+                                            }
+                                        } else {
+                                            onSubscribeRequired()
+                                        }
+                                    }
+                                },
                                 onLike: { viewModel.toggleLike(tweet) },
                                 onComment: {
                                     viewModel.loadReplies(tweetId: tweet.id)
@@ -932,6 +952,7 @@ struct InsideTalkView: View {
 struct InsideTalkCard: View {
     let content: InsideTalkContent
     let isUserPro: Bool
+    var isRewarded: Bool = false
     let onSubscribeRequired: () -> Void
     var onLike: () -> Void = {}
     var onComment: () -> Void = {}
@@ -1002,28 +1023,27 @@ struct InsideTalkCard: View {
             }
 
             // Content — extract social embeds, strip raw URLs, render markdown
-            let isRewardedContent = content.content.lowercased().contains("#boanalystexclusive")
-            let socialEmbeds = (isLocked || isRewardedContent) ? [] : extractSocialEmbeds(from: content.content)
+            let socialEmbeds = (isLocked || isRewarded) ? [] : extractSocialEmbeds(from: content.content)
             let baseCleanText = stripEmbedUrls(from: content.content, embeds: socialEmbeds)
-            let cleanText = (isRewardedContent && baseCleanText.count > 15) ? String(baseCleanText.prefix(15)) + "... See more" : baseCleanText
+            let cleanText = ((isLocked || isRewarded) && baseCleanText.count > 25) ? String(baseCleanText.prefix(25)) + "..." : baseCleanText
             
             let attrText = parseBoAnalystHTML(cleanText)
 
             Text(attrText)
                 .tint(AppTheme.goldPrimary)
                 .font(.system(size: 14))
-                .foregroundColor((isLocked || isRewardedContent) ? AppTheme.goldPrimary : AppTheme.textPrimary)
-                .lineLimit(isLocked ? 3 : nil)
+                .foregroundColor((isLocked || isRewarded) ? AppTheme.goldPrimary : AppTheme.textPrimary)
+                .lineLimit((isLocked || isRewarded) ? 2 : nil)
                 .lineSpacing(6)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 4)
-                .blur(radius: isLocked ? 3.5 : 0)
+                .blur(radius: (isLocked || isRewarded) ? 3.5 : 0)
 
             // ── Uploaded Media ───────────────────────────────────────
             // resolvedUrl() returns "" for invalid entries; filter those out.
             let mediaUrls = content.media.map { $0.resolvedUrl() }.filter { !$0.isEmpty }
-            if !mediaUrls.isEmpty && !isLocked && !isRewardedContent {
+            if !mediaUrls.isEmpty && !isLocked && !isRewarded {
                 PostMediaView(urls: mediaUrls)
             }
 
@@ -1032,12 +1052,18 @@ struct InsideTalkCard: View {
                 SocialEmbedsSection(embeds: socialEmbeds)
             }
 
-            if isLocked {
+            if isLocked || isRewarded {
                 Button { onSubscribeRequired() } label: {
                     HStack(spacing: 8) {
-                        Image(systemName: "crown.fill").font(.system(size: 12))
-                        Text("Unlock with Pro — visit boanalyst.com")
-                            .font(.system(size: 12, weight: .semibold))
+                        if isRewarded {
+                            Image(systemName: "play.circle").font(.system(size: 12))
+                            Text("Watch ad to unlock")
+                                .font(.system(size: 12, weight: .semibold))
+                        } else {
+                            Image(systemName: "crown.fill").font(.system(size: 12))
+                            Text("Unlock with Pro — visit boanalyst.com")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
                     }
                     .foregroundColor(.black)
                     .padding(.horizontal, 14).padding(.vertical, 8)

@@ -95,6 +95,7 @@ struct MainTabView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
     @EnvironmentObject private var iapManager: IAPManager
     @StateObject private var flockVM = FlockViewModel()
+    @StateObject private var rewardedAdManager = RewardedAdManager()
 
     @State private var selectedTab = 0
 
@@ -165,7 +166,16 @@ struct MainTabView: View {
                 Spacer()
                 TabBarItem(icon: "eye.fill", title: "Inside", isSelected: selectedTab == 3) { selectedTab = 3 }
                 Spacer()
-                TabBarItem(icon: "chart.bar.fill", title: "Box Office", isSelected: selectedTab == 6) { selectedTab = 6 }
+                TabBarItem(icon: "chart.bar.fill", title: "Box Office", isSelected: selectedTab == 6) { 
+                    if selectedTab != 6 {
+                        if rewardedAdManager.isAdLoaded {
+                            RewardedAdController.showAd(manager: rewardedAdManager) {
+                                // Reload happens inside manager
+                            }
+                        }
+                        selectedTab = 6
+                    }
+                }
                 Spacer()
                 TabBarItem(icon: "flame.fill", title: "Buzz", isSelected: selectedTab == 1) { selectedTab = 1 }
                 Spacer()
