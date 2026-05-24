@@ -806,28 +806,32 @@ struct InsideTalkView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 16) { // Bug #2 fix: increased from 12 to 16
+                        let isUserProGlobal = (authViewModel.currentUser?.isPro ?? false) || (authViewModel.currentUser?.isAdmin == true)
+                        
                         // Non-pro upgrade banner (scrollable, mirrors Android)
-                        if !(authViewModel.currentUser?.isPro ?? false) && viewModel.count > 0 && viewModel.tweets.contains(where: { !$0.showRewarded }) {
+                        if !isUserProGlobal && viewModel.count > 0 && viewModel.tweets.contains(where: { !($0.showRewarded || $0.content.lowercased().contains("#boanalystexclusive")) }) {
                             proUpgradeBanner
                                 .padding(.horizontal, 16)
                         }
 
-                        let displayItems = (authViewModel.currentUser?.isPro ?? false || authViewModel.currentUser?.isAdmin == true) 
+                        let displayItems = isUserProGlobal 
                             ? viewModel.tweets 
-                            : viewModel.tweets.filter { $0.showRewarded }
+                            : viewModel.tweets.filter { $0.showRewarded || $0.content.lowercased().contains("#boanalystexclusive") }
 
                         ForEach(displayItems) { tweet in
                             let isAdmin = authViewModel.currentUser?.isAdmin == true
                             let isRewardedUnlocked = unlockedRewardedPosts.contains(tweet.id)
-                            let isActuallyUnlocked = (authViewModel.currentUser?.isPro ?? false) || isAdmin
+                            let isRewardedContent = tweet.showRewarded || tweet.content.lowercased().contains("#boanalystexclusive")
+                            let isActuallyUnlocked = isRewardedContent ? isRewardedUnlocked : isUserProGlobal
+                            let isRewardedForUser = isRewardedContent && isUserProGlobal
 
                             InsideTalkCard(
                                 content: tweet,
                                 isUserPro: isActuallyUnlocked,
-                                isRewarded: tweet.showRewarded && !isRewardedUnlocked,
+                                isRewarded: isRewardedForUser && !isRewardedUnlocked,
                                 onSubscribeRequired: {
-                                    if !isActuallyUnlocked || (tweet.showRewarded && !isRewardedUnlocked) {
-                                        if tweet.showRewarded && rewardedAdManager.isAdLoaded {
+                                    if !isActuallyUnlocked {
+                                        if isRewardedForUser {
                                             RewardedAdController.showAd(manager: rewardedAdManager) {
                                                 unlockedRewardedPosts.insert(tweet.id)
                                             }
