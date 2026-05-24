@@ -102,11 +102,13 @@ struct BuzzBoardView: View {
                                             self.unlockedRewardedPosts.insert(post.id)
                                             self.selectedPost = post
                                             self.isNavigatingToPost = true
+                                            AdTracker.shared.logImpression(postId: post.id, module: "buzz", adType: "rewarded")
                                         }
                                     } else if hasAdTag {
                                         InterstitialAdController.showAd(manager: adManager) {
                                             self.selectedPost = post
                                             self.isNavigatingToPost = true
+                                            AdTracker.shared.logImpression(postId: post.id, module: "buzz", adType: "interstitial")
                                         }
                                     } else {
                                         // No ad required, navigate immediately

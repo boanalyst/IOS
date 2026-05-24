@@ -132,6 +132,7 @@ struct HomeView: View {
                                         if isRewarded {
                                             RewardedAdController.showAd(manager: rewardedAdManager) {
                                                 onSubscribeRequired()
+                                                AdTracker.shared.logImpression(postId: exclusive.id, module: "inside_talk", adType: "rewarded")
                                             }
                                         } else {
                                             onSubscribeRequired()

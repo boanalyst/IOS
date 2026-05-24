@@ -503,8 +503,8 @@ struct BuzzPostDetailView: View {
     }
 
     private func sharePost() {
-        let url = "https://boanalyst.com/#buzz-board?post=\(post.id)"
-        let av = UIActivityViewController(activityItems: [post.title, url], applicationActivities: nil)
+        guard let url = URL(string: "https://boanalyst.com/#buzz-board?post=\(post.id)") else { return }
+        let av = UIActivityViewController(activityItems: [url], applicationActivities: nil)
         if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let root = scene.windows.first?.rootViewController {
             root.present(av, animated: true)
