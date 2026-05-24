@@ -5,8 +5,12 @@
         "appIDs": ["TEAMID.com.boanalyst.app"],
         "components": [
           {
-            "/": "*",
-            "comment": "Match all paths — opens the app for any boanalyst.com deep link"
+            "/": "/flock/post/*",
+            "comment": "Open Flock Feed post deep links in the app"
+          },
+          {
+            "/": "/inside-talk/*",
+            "comment": "Open Inside Talk post deep links in the app"
           }
         ]
       }
