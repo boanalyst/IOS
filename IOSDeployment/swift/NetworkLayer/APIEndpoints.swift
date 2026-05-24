@@ -40,6 +40,14 @@ extension APIEndpoint {
 
     static let deleteAccount = APIEndpoint(path: "/api/auth/account", method: .DELETE)
 
+    // ── Tracking ────────────────────────────────────────────────────────────
+
+    static func trackAdImpression(postId: String, module: String, adType: String) throws -> APIEndpoint {
+        let payload = ["postId": postId, "module": module, "adType": adType]
+        let body = try JSONEncoder().encode(payload)
+        return APIEndpoint(path: "/api/tracking/ad-impression", method: .POST, body: body)
+    }
+
     // ── Flock Feed ────────────────────────────────────────────────────────────
 
     static func getFlockPosts(offset: Int = 0, limit: Int = 20, topic: String? = nil) -> APIEndpoint {
