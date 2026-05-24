@@ -349,12 +349,14 @@ struct FlockPostCard: View {
                     }
                     .buttonStyle(.plain)
 
-                    ShareLink(item: post.content) {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                            .font(.system(size: 12))
-                            .foregroundColor(AppTheme.textMuted)
+                    if let shareUrl = URL(string: "https://boanalyst.com/flock/post/\(post.id)") {
+                        ShareLink(item: shareUrl) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                                .font(.system(size: 12))
+                                .foregroundColor(AppTheme.textMuted)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
 
                     Spacer()
                 }
