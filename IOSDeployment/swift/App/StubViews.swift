@@ -809,7 +809,7 @@ struct InsideTalkView: View {
                         let isUserProGlobal = (authViewModel.currentUser?.isPro ?? false) || (authViewModel.currentUser?.isAdmin == true)
                         
                         // Non-pro upgrade banner (scrollable, mirrors Android)
-                        if !isUserProGlobal && viewModel.count > 0 && viewModel.tweets.contains(where: { !($0.showRewarded || $0.content.lowercased().contains("#boanalystexclusive")) }) {
+                        if !isUserProGlobal && viewModel.count > 0 {
                             proUpgradeBanner
                                 .padding(.horizontal, 16)
                         }
