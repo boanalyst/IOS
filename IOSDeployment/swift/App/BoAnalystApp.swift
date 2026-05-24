@@ -11,6 +11,12 @@ class ThemeManager: ObservableObject {
     @AppStorage("isDarkMode") var isDarkMode: Bool = true
 }
 
+// MARK: - DeepLinkManager
+class DeepLinkManager: ObservableObject {
+    static let shared = DeepLinkManager()
+    @Published var flockPostId: String? = nil
+}
+
 @main
 struct BoAnalystApp: App {
     @StateObject private var authViewModel = AuthViewModel()
@@ -49,8 +55,17 @@ struct BoAnalystApp: App {
     }
 
     private func handleDeepLink(url: URL) {
-        // SECURITY: Strictly validate scheme + host before processing any token.
-        // This prevents other apps from injecting tokens via custom URL schemes.
+        // 1. Handle HTTPS Universal Links
+        if url.scheme == "https" && (url.host == "boanalyst.com" || url.host == "www.boanalyst.com") {
+            let pathComponents = url.pathComponents.filter { $0 != "/" }
+            if pathComponents.count >= 3 && pathComponents[0] == "flock" && pathComponents[1] == "post" {
+                let postId = pathComponents[2]
+                DeepLinkManager.shared.flockPostId = postId
+            }
+            return
+        }
+
+        // 2. Handle Custom Scheme boanalyst://auth
         guard url.scheme == "boanalyst", url.host == "auth" else { return }
         let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         guard let rawToken = components?.queryItems?.first(where: { $0.name == "token" })?.value,
@@ -96,6 +111,7 @@ struct MainTabView: View {
     @EnvironmentObject private var iapManager: IAPManager
     @StateObject private var flockVM = FlockViewModel()
     @StateObject private var rewardedAdManager = RewardedAdManager()
+    @ObservedObject private var deepLinkManager = DeepLinkManager.shared
 
     @State private var selectedTab = 0
 
@@ -200,6 +216,14 @@ struct MainTabView: View {
                     isPro: isPro,
                     isAdmin: isAdmin
                 )
+            }
+        }
+        .onChange(of: deepLinkManager.flockPostId) { postId in
+            if postId != nil {
+                // Switch to Flock tab (index 2) so the user sees the feed
+                selectedTab = 2
+                // Clear the deep link after handling
+                deepLinkManager.flockPostId = nil
             }
         }
     }

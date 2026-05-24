@@ -1088,12 +1088,14 @@ struct InsideTalkCard: View {
                     }
                     .buttonStyle(.plain)
                     
-                    ShareLink(item: content.content) {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                            .font(.system(size: 12))
-                            .foregroundColor(AppTheme.textMuted)
+                    if let shareUrl = URL(string: "https://boanalyst.com/inside-talk/\(content.id)") {
+                        ShareLink(item: shareUrl) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                                .font(.system(size: 12))
+                                .foregroundColor(AppTheme.textMuted)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
