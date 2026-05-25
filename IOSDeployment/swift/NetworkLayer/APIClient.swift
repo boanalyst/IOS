@@ -106,14 +106,17 @@ final class APIClient {
     ) async throws -> T {
         // Intercept ad config request to return cached instance if fresh
         if endpoint.path == "/api/tracking/ad-config", let responseType = responseType as? AdConfigResponse.Type {
-            adConfigLock.lock()
-            if let cached = cachedAdConfig as? T,
-               let fetchTime = lastAdConfigFetchTime,
-               Date().timeIntervalSince(fetchTime) < adConfigCacheDuration {
-                adConfigLock.unlock()
-                return cached
+            let cachedResult = adConfigLock.withLock { () -> T? in
+                if let cached = cachedAdConfig as? T,
+                   let fetchTime = lastAdConfigFetchTime,
+                   Date().timeIntervalSince(fetchTime) < adConfigCacheDuration {
+                    return cached
+                }
+                return nil
             }
-            adConfigLock.unlock()
+            if let cachedResult = cachedResult {
+                return cachedResult
+            }
         }
 
         let urlRequest = try buildRequest(for: endpoint)
@@ -137,10 +140,10 @@ final class APIClient {
                     let decoded = try JSONDecoder().decode(T.self, from: data)
                     // Cache the successful ad config response
                     if endpoint.path == "/api/tracking/ad-config" {
-                        adConfigLock.lock()
-                        cachedAdConfig = decoded
-                        lastAdConfigFetchTime = Date()
-                        adConfigLock.unlock()
+                        adConfigLock.withLock {
+                            cachedAdConfig = decoded
+                            lastAdConfigFetchTime = Date()
+                        }
                     }
                     return decoded
                 } catch {
