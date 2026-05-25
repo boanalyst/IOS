@@ -22,8 +22,7 @@ class AppOpenAdManager: NSObject, GADFullScreenContentDelegate {
     
     private override init() {
         super.init()
-        // Protect cold start (first open) by setting lastShownTime to now
-        lastShownTime = Date()
+        // Allow the first ad to load immediately on cold start by leaving lastShownTime as nil
         
         // Listen to application foregrounding notifications
         NotificationCenter.default.addObserver(
