@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct BuzzBoardView: View {
+    @EnvironmentObject private var authViewModel: AuthViewModel
     @State private var posts: [BuzzPost] = []
     @State private var isLoading = true
     @State private var offset = 0
@@ -21,6 +22,7 @@ struct BuzzBoardView: View {
     @StateObject private var rewardedAdManager = RewardedAdManager()
     @State private var selectedPost: BuzzPost?
     @State private var isNavigatingToPost = false
+    @State private var adInterval: Int = 10
     private var userToken: String { KeychainManager.shared.getToken() ?? "" }
 
     var body: some View {
@@ -90,7 +92,7 @@ struct BuzzBoardView: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 16) {
-                            ForEach(posts) { post in
+                            ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
                                 Button(action: {
                                     // Check if this post is flagged for an ad via hashtag
                                     let contentLower = post.content.lowercased()
@@ -124,6 +126,11 @@ struct BuzzBoardView: View {
                                     if post.id == posts.last?.id && hasMore {
                                         loadMore()
                                     }
+                                }
+
+                                if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isPro == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                    NativeAdView()
+                                        .padding(.vertical, 8)
                                 }
                             }
 
@@ -161,6 +168,14 @@ struct BuzzBoardView: View {
         .onAppear {
             if posts.isEmpty {
                 loadPosts()
+            }
+        }
+        .task {
+            do {
+                let config = try await APIClient.shared.request(.getAdConfig, responseType: AdConfigResponse.self)
+                self.adInterval = config.adInterval
+            } catch {
+                print("⚠️ [BuzzBoardView] Failed to fetch dynamic ad-config: \(error.localizedDescription)")
             }
         }
         .alert(isPresented: $showError) {
