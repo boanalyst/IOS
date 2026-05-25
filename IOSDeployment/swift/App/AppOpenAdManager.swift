@@ -16,8 +16,8 @@ class AppOpenAdManager: NSObject, GADFullScreenContentDelegate {
     private var isLoadingAd = false
     private var lastShownTime: Date?
     
-    // Default AdMob Test App Open Ad Unit ID for iOS
-    private var adUnitId = "ca-app-pub-3940256099942544/5575462274"
+    // Default AdMob Production App Open Ad Unit ID for iOS
+    private var adUnitId = "ca-app-pub-5734863079459748/7171520374"
     private var cooldownSeconds: TimeInterval = 4 * 60 * 60 // 4 hours in seconds
     
     private override init() {
