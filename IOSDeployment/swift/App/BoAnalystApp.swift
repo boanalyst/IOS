@@ -30,6 +30,9 @@ struct BoAnalystApp: App {
         
         // ── Initialize Google Mobile Ads SDK ───────────────────────────
         GADMobileAds.sharedInstance().start(completionHandler: nil)
+        
+        // Initialize App Open Ad Manager
+        AppOpenAdManager.shared.initialize()
     }
 
     var body: some Scene {

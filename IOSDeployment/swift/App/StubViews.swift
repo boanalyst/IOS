@@ -475,6 +475,7 @@ struct FlockFeedView: View {
     @StateObject private var adManager = InterstitialAdManager()
     @StateObject private var rewardedAdManager = RewardedAdManager()
     @State private var unlockedRewardedPosts: Set<String> = []
+    @State private var adInterval: Int = 10
 
     var body: some View {
         ZStack {
@@ -496,7 +497,7 @@ struct FlockFeedView: View {
                         if flockVM.posts.isEmpty {
                             emptyState
                         } else {
-                            ForEach(flockVM.posts) { post in
+                            ForEach(Array(flockVM.posts.enumerated()), id: \.element.id) { index, post in
                                 let isAdmin = authViewModel.currentUser?.isAdmin == true
                                 FlockPostCard(
                                     post: post,
@@ -529,6 +530,11 @@ struct FlockFeedView: View {
                                     onEdit: isAdmin ? { editingPost = post } : nil
                                 )
                                 .padding(.horizontal, 16)
+
+                                if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isPro == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                    NativeAdView()
+                                        .padding(.horizontal, 16)
+                                }
                             }
 
                             // Load more footer
@@ -557,7 +563,15 @@ struct FlockFeedView: View {
                 .background(AppTheme.surface)
             } // end VStack
         }
-        .task { if flockVM.posts.isEmpty { await flockVM.loadFeed() } }
+        .task {
+            if flockVM.posts.isEmpty { await flockVM.loadFeed() }
+            do {
+                let config = try await APIClient.shared.request(.getAdConfig, responseType: AdConfigResponse.self)
+                self.adInterval = config.adInterval
+            } catch {
+                print("⚠️ [FlockFeedView] Failed to fetch dynamic ad-config: \(error.localizedDescription)")
+            }
+        }
         .overlay(alignment: .bottomTrailing) {
             if authViewModel.currentUser?.isAdmin == true {
                 Button {
@@ -796,6 +810,7 @@ struct InsideTalkView: View {
     @State private var editingPost: InsideTalkContent?
     @StateObject private var rewardedAdManager = RewardedAdManager()
     @State private var unlockedRewardedPosts: Set<String> = []
+    @State private var adInterval: Int = 10
 
     var body: some View {
         ZStack {
@@ -818,7 +833,7 @@ struct InsideTalkView: View {
                             ? viewModel.tweets 
                             : viewModel.tweets.filter { $0.showRewarded || $0.content.lowercased().contains("#boanalystexclusive") }
 
-                        ForEach(displayItems) { tweet in
+                        ForEach(Array(displayItems.enumerated()), id: \.element.id) { index, tweet in
                             let isAdmin = authViewModel.currentUser?.isAdmin == true
                             let isRewardedUnlocked = unlockedRewardedPosts.contains(tweet.id)
                             let isRewardedContent = tweet.showRewarded || tweet.content.lowercased().contains("#boanalystexclusive")
@@ -850,6 +865,11 @@ struct InsideTalkView: View {
                                 onEdit: isAdmin ? { editingPost = tweet } : nil
                             )
                             .padding(.horizontal, 16)
+
+                            if (index + 1) % adInterval == 0 && !isUserProGlobal {
+                                NativeAdView()
+                                    .padding(.horizontal, 16)
+                            }
                         }
 
                         // Load more
@@ -873,7 +893,15 @@ struct InsideTalkView: View {
                 .background(AppTheme.surface)
             } // end VStack
         }
-        .task { if viewModel.tweets.isEmpty { await viewModel.loadAll() } }
+        .task {
+            if viewModel.tweets.isEmpty { await viewModel.loadAll() }
+            do {
+                let config = try await APIClient.shared.request(.getAdConfig, responseType: AdConfigResponse.self)
+                self.adInterval = config.adInterval
+            } catch {
+                print("⚠️ [InsideTalkView] Failed to fetch dynamic ad-config: \(error.localizedDescription)")
+            }
+        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
