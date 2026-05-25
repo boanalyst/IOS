@@ -62,6 +62,12 @@ final class APIClient {
 
     private let userAgent = "BoAnalyst iOS App / 1.0 (Build 5; Sandbox Compatible)"
 
+    // Thread-safe in-memory cache for ad configuration to prevent redundant tab-switch fetches
+    private var cachedAdConfig: Any? = nil
+    private var lastAdConfigFetchTime: Date? = nil
+    private let adConfigCacheDuration: TimeInterval = 60 // 60 seconds
+    private let adConfigLock = NSLock()
+
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
@@ -98,6 +104,18 @@ final class APIClient {
         _ endpoint: APIEndpoint,
         responseType: T.Type
     ) async throws -> T {
+        // Intercept ad config request to return cached instance if fresh
+        if endpoint.path == "/api/tracking/ad-config", let responseType = responseType as? AdConfigResponse.Type {
+            adConfigLock.lock()
+            if let cached = cachedAdConfig as? T,
+               let fetchTime = lastAdConfigFetchTime,
+               Date().timeIntervalSince(fetchTime) < adConfigCacheDuration {
+                adConfigLock.unlock()
+                return cached
+            }
+            adConfigLock.unlock()
+        }
+
         let urlRequest = try buildRequest(for: endpoint)
         // Use the upload session (longer timeouts) when sending multipart data
         let activeSession = endpoint.multipartData != nil ? uploadSession : session
@@ -116,7 +134,15 @@ final class APIClient {
             switch httpResponse.statusCode {
             case 200...299:
                 do {
-                    return try JSONDecoder().decode(T.self, from: data)
+                    let decoded = try JSONDecoder().decode(T.self, from: data)
+                    // Cache the successful ad config response
+                    if endpoint.path == "/api/tracking/ad-config" {
+                        adConfigLock.lock()
+                        cachedAdConfig = decoded
+                        lastAdConfigFetchTime = Date()
+                        adConfigLock.unlock()
+                    }
+                    return decoded
                 } catch {
                     throw APIError.decodingError(error)
                 }
