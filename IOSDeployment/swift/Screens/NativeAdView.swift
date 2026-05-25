@@ -9,9 +9,11 @@ import UIKit
 /// A SwiftUI view that dynamically loads and displays a premium Native Ad.
 /// Respects Pro-tier user exemptions and dynamic backend configurations.
 struct NativeAdView: View {
+    var index: Int = 0
+    var listName: String = "default"
+    
     @EnvironmentObject private var authViewModel: AuthViewModel
     @State private var nativeAd: GADNativeAd? = nil
-    @State private var adLoader: GADAdLoader? = nil
     @State private var adUnitId: String = "ca-app-pub-5734863079459748/2827053472" // Default Production Native Unit ID
     @State private var isEnabled: Bool = true
 
@@ -34,9 +36,6 @@ struct NativeAdView: View {
             .task {
                 await fetchConfigAndLoad()
             }
-            .onDisappear {
-                nativeAd = nil
-            }
         }
     }
 
@@ -58,61 +57,9 @@ struct NativeAdView: View {
     }
 
     private func loadAd() {
-        guard let rootController = getTopMostViewController() else { return }
-        
-        let loader = GADAdLoader(
-            adUnitID: adUnitId,
-            rootViewController: rootController,
-            adTypes: [.native],
-            options: nil
-        )
-        
-        let delegate = NativeAdLoaderDelegateWrapper { loadedAd in
+        NativeAdRegistry.shared.getAd(forIndex: index, listName: listName, adUnitId: adUnitId) { loadedAd in
             self.nativeAd = loadedAd
-            self.adLoader = nil // Clear reference once loaded successfully
         }
-        
-        // Retain delegate during loading
-        objc_setAssociatedObject(loader, &AssociatedKeys.delegate, delegate, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        
-        loader.delegate = delegate
-        self.adLoader = loader // Retain loader in SwiftUI view state to prevent immediate deallocation
-        loader.load(GADRequest())
-    }
-
-    private func getTopMostViewController() -> UIViewController? {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootViewController = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController else {
-            return nil
-        }
-        
-        var topController = rootViewController
-        while let presentedViewController = topController.presentedViewController {
-            topController = presentedViewController
-        }
-        return topController
-    }
-}
-
-private struct AssociatedKeys {
-    static var delegate = "native_ad_loader_delegate"
-}
-
-// MARK: - NativeAdLoaderDelegateWrapper
-
-private class NativeAdLoaderDelegateWrapper: NSObject, GADNativeAdLoaderDelegate {
-    let onSuccess: (GADNativeAd) -> Void
-    
-    init(onSuccess: @escaping (GADNativeAd) -> Void) {
-        self.onSuccess = onSuccess
-    }
-    
-    func adLoader(_ adLoader: GADAdLoader, didReceive nativeAd: GADNativeAd) {
-        onSuccess(nativeAd)
-    }
-    
-    func adLoader(_ adLoader: GADAdLoader, didFailToReceiveAdWithError error: Error) {
-        print("⚠️ [NativeAdView] Native Ad failed to load: \(error.localizedDescription)")
     }
 }
 
