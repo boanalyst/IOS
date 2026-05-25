@@ -48,6 +48,8 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/tracking/ad-impression", method: .POST, body: body)
     }
 
+    static let getAdConfig = APIEndpoint(path: "/api/tracking/ad-config", method: .GET)
+
     // ── Flock Feed ────────────────────────────────────────────────────────────
 
     static func getFlockPosts(offset: Int = 0, limit: Int = 20, topic: String? = nil) -> APIEndpoint {
