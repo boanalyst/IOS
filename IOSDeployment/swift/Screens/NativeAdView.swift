@@ -12,7 +12,7 @@ struct NativeAdView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
     @State private var nativeAd: GADNativeAd? = nil
     @State private var adLoader: GADAdLoader? = nil
-    @State private var adUnitId: String = "ca-app-pub-3940256099942544/3986693152" // Default Test Native Unit ID
+    @State private var adUnitId: String = "ca-app-pub-5734863079459748/2827053472" // Default Production Native Unit ID
     @State private var isEnabled: Bool = true
 
     var body: some View {
