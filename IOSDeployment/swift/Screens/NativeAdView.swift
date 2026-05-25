@@ -11,6 +11,7 @@ import UIKit
 struct NativeAdView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
     @State private var nativeAd: GADNativeAd? = nil
+    @State private var adLoader: GADAdLoader? = nil
     @State private var adUnitId: String = "ca-app-pub-3940256099942544/3986693152" // Default Test Native Unit ID
     @State private var isEnabled: Bool = true
 
@@ -59,7 +60,7 @@ struct NativeAdView: View {
     private func loadAd() {
         guard let rootController = getTopMostViewController() else { return }
         
-        let adLoader = GADAdLoader(
+        let loader = GADAdLoader(
             adUnitID: adUnitId,
             rootViewController: rootController,
             adTypes: [.native],
@@ -68,13 +69,15 @@ struct NativeAdView: View {
         
         let delegate = NativeAdLoaderDelegateWrapper { loadedAd in
             self.nativeAd = loadedAd
+            self.adLoader = nil // Clear reference once loaded successfully
         }
         
         // Retain delegate during loading
-        objc_setAssociatedObject(adLoader, &AssociatedKeys.delegate, delegate, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        objc_setAssociatedObject(loader, &AssociatedKeys.delegate, delegate, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         
-        adLoader.delegate = delegate
-        adLoader.load(GADRequest())
+        loader.delegate = delegate
+        self.adLoader = loader // Retain loader in SwiftUI view state to prevent immediate deallocation
+        loader.load(GADRequest())
     }
 
     private func getTopMostViewController() -> UIViewController? {
