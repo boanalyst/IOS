@@ -707,13 +707,14 @@ struct ExclusiveContent: Decodable, Identifiable {
         case id, title, description, price, currency
         case mediaUrl, isActive, contentType
         case createdAt = "created_at"
+        case mongoId = "_id"
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         // Accept both "id" and "_id" to be safe
         self.id = (try? container.decode(String.self, forKey: .id)) 
-               ?? (try? container.decode(String.self, forKey: CodingKeys(stringValue: "_id")!)) 
+               ?? (try? container.decode(String.self, forKey: .mongoId)) 
                ?? UUID().uuidString
         self.title = try container.decode(String.self, forKey: .title)
         self.description = try container.decode(String.self, forKey: .description)
@@ -1252,5 +1253,45 @@ struct BuzzAddCommentResponse: Decodable {
     let success: Bool
     let comment: BuzzComment?
     let message: String?
+}
+
+struct AdConfigResponse: Decodable, Sendable {
+    let success: Bool
+    let enabled: Bool
+    let appOpenEnabled: Bool
+    let nativeAdvancedEnabled: Bool
+    let adInterval: Int
+    let cooldownHours: Double
+    let adUnits: AdUnitsConfig?
+
+    enum CodingKeys: String, CodingKey {
+        case success, enabled
+        case appOpenEnabled = "appOpenEnabled"
+        case nativeAdvancedEnabled = "nativeAdvancedEnabled"
+        case adInterval = "adInterval"
+        case cooldownHours = "cooldownHours"
+        case adUnits = "adUnits"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        success = (try? c.decode(Bool.self, forKey: .success)) ?? false
+        enabled = (try? c.decode(Bool.self, forKey: .enabled)) ?? true
+        appOpenEnabled = (try? c.decode(Bool.self, forKey: .appOpenEnabled)) ?? false
+        nativeAdvancedEnabled = (try? c.decode(Bool.self, forKey: .nativeAdvancedEnabled)) ?? false
+        adInterval = (try? c.decode(Int.self, forKey: .adInterval)) ?? 5
+        cooldownHours = (try? c.decode(Double.self, forKey: .cooldownHours)) ?? 4.0
+        adUnits = try? c.decode(AdUnitsConfig.self, forKey: .adUnits)
+    }
+}
+
+struct AdUnitsConfig: Decodable, Sendable {
+    let android: PlatformAdUnits?
+    let ios: PlatformAdUnits?
+}
+
+struct PlatformAdUnits: Decodable, Sendable {
+    let appOpen: String?
+    let nativeAdvanced: String?
 }
 
