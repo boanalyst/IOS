@@ -136,9 +136,6 @@ packages:
   GoogleMobileAds:
     url: https://github.com/googleads/swift-package-manager-google-mobile-ads.git
     from: 11.0.0
-  GoogleMobileAdsMediationFacebook:
-    url: https://github.com/googleads/swift-package-manager-google-mobile-ads-mediation-facebook.git
-    from: 6.17.0
 settings:
   base:
     PRODUCT_BUNDLE_IDENTIFIER: $BUNDLE_ID
@@ -166,7 +163,6 @@ targets:
     dependencies:
       - package: Lottie
       - package: GoogleMobileAds
-      - package: GoogleMobileAdsMediationFacebook
     settings:
       base:
         PRODUCT_NAME: $PROJECT_NAME

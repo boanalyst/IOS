@@ -1,0 +1,126 @@
+workflows:
+
+  ios-release:
+    name: BoAnalyst — TestFlight & App Store
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    environment:
+      groups:
+        - env_codemagic
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.boanalyst.app
+      xcode: latest
+      vars:
+        BUNDLE_ID: "com.boanalyst.app"
+        XCODE_SCHEME: "BoAnalyst"
+        PROJ_DIR: "$CM_BUILD_DIR/IOSDeployment/BoAnalystXcode"
+        XCODE_WORKSPACE: "$CM_BUILD_DIR/IOSDeployment/BoAnalystXcode/BoAnalyst.xcworkspace"
+        BUILD_DIR: "$CM_BUILD_DIR/IOSDeployment/BoAnalystXcode/build"
+
+    scripts:
+
+      - name: Install Tools
+        script: |
+          brew install xcodegen
+          gem install xcpretty --no-document
+
+      - name: Scaffold Xcode Project
+        script: |
+          set -euo pipefail
+          mkdir -p "$PROJ_DIR/BoAnalyst"
+
+          echo "▶ Copying source files..."
+          find "$CM_BUILD_DIR/IOSDeployment/swift" -name "*.swift" -exec cp {} "$PROJ_DIR/BoAnalyst/" \;
+          cp "$CM_BUILD_DIR/IOSDeployment/Info.plist" "$PROJ_DIR/BoAnalyst/Info.plist"
+
+          echo "▶ Generating Assets.xcassets..."
+          ASSETS="$PROJ_DIR/BoAnalyst/Assets.xcassets"
+          mkdir -p "$ASSETS/AppIcon.appiconset"
+          mkdir -p "$ASSETS/AccentColor.colorset"
+
+          echo '{ "info" : { "author" : "xcode", "version" : 1 } }' > "$ASSETS/Contents.json"
+          printf '{\n  "colors" : [\n    {\n      "color" : {\n        "color-space" : "srgb",\n        "components" : { "alpha" : "1.000", "blue" : "0.000", "green" : "0.843", "red" : "1.000" }\n      },\n      "idiom" : "universal"\n    }\n  ],\n  "info" : { "author" : "xcode", "version" : 1 }\n}\n' > "$ASSETS/AccentColor.colorset/Contents.json"
+
+          if [ -f "$CM_BUILD_DIR/IOSDeployment/assets/AppIcon-1024.png" ]; then
+            ICON_SRC="$CM_BUILD_DIR/IOSDeployment/assets/AppIcon-1024.png"
+            ICONSET="$ASSETS/AppIcon.appiconset"
+            echo "▶ Generating all required icon sizes via sips..."
+            sips -s format png -z 1024 1024 "$ICON_SRC" --out "$ICONSET/AppIcon-1024.png" > /dev/null
+            sips -s format png -z 20   20   "$ICON_SRC" --out "$ICONSET/AppIcon-20.png"   > /dev/null
+            sips -s format png -z 29   29   "$ICON_SRC" --out "$ICONSET/AppIcon-29.png"   > /dev/null
+            sips -s format png -z 40   40   "$ICON_SRC" --out "$ICONSET/AppIcon-40.png"   > /dev/null
+            sips -s format png -z 58   58   "$ICON_SRC" --out "$ICONSET/AppIcon-58.png"   > /dev/null
+            sips -s format png -z 60   60   "$ICON_SRC" --out "$ICONSET/AppIcon-60.png"   > /dev/null
+            sips -s format png -z 76   76   "$ICON_SRC" --out "$ICONSET/AppIcon-76.png"   > /dev/null
+            sips -s format png -z 80   80   "$ICON_SRC" --out "$ICONSET/AppIcon-80.png"   > /dev/null
+            sips -s format png -z 87   87   "$ICON_SRC" --out "$ICONSET/AppIcon-87.png"   > /dev/null
+            sips -s format png -z 120  120  "$ICON_SRC" --out "$ICONSET/AppIcon-120.png"  > /dev/null
+            sips -s format png -z 152  152  "$ICON_SRC" --out "$ICONSET/AppIcon-152.png"  > /dev/null
+            sips -s format png -z 167  167  "$ICON_SRC" --out "$ICONSET/AppIcon-167.png"  > /dev/null
+            sips -s format png -z 180  180  "$ICON_SRC" --out "$ICONSET/AppIcon-180.png"  > /dev/null
+
+            printf '{\n  "images" : [\n    {"filename":"AppIcon-20.png","idiom":"iphone","scale":"1x","size":"20x20"},\n    {"filename":"AppIcon-40.png","idiom":"iphone","scale":"2x","size":"20x20"},\n    {"filename":"AppIcon-60.png","idiom":"iphone","scale":"3x","size":"20x20"},\n    {"filename":"AppIcon-29.png","idiom":"iphone","scale":"1x","size":"29x29"},\n    {"filename":"AppIcon-58.png","idiom":"iphone","scale":"2x","size":"29x29"},\n    {"filename":"AppIcon-87.png","idiom":"iphone","scale":"3x","size":"29x29"},\n    {"filename":"AppIcon-80.png","idiom":"iphone","scale":"2x","size":"40x40"},\n    {"filename":"AppIcon-120.png","idiom":"iphone","scale":"3x","size":"40x40"},\n    {"filename":"AppIcon-120.png","idiom":"iphone","scale":"2x","size":"60x60"},\n    {"filename":"AppIcon-180.png","idiom":"iphone","scale":"3x","size":"60x60"},\n    {"filename":"AppIcon-20.png","idiom":"ipad","scale":"1x","size":"20x20"},\n    {"filename":"AppIcon-40.png","idiom":"ipad","scale":"2x","size":"20x20"},\n    {"filename":"AppIcon-29.png","idiom":"ipad","scale":"1x","size":"29x29"},\n    {"filename":"AppIcon-58.png","idiom":"ipad","scale":"2x","size":"29x29"},\n    {"filename":"AppIcon-40.png","idiom":"ipad","scale":"1x","size":"40x40"},\n    {"filename":"AppIcon-80.png","idiom":"ipad","scale":"2x","size":"40x40"},\n    {"filename":"AppIcon-76.png","idiom":"ipad","scale":"1x","size":"76x76"},\n    {"filename":"AppIcon-152.png","idiom":"ipad","scale":"2x","size":"76x76"},\n    {"filename":"AppIcon-167.png","idiom":"ipad","scale":"2x","size":"83.5x83.5"},\n    {"filename":"AppIcon-1024.png","idiom":"ios-marketing","scale":"1x","size":"1024x1024"}\n  ],\n  "info" : { "author" : "xcode", "version" : 1 }\n}\n' > "$ICONSET/Contents.json"
+          fi
+
+          printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n  <key>com.apple.developer.associated-domains</key>\n  <array><string>applinks:boanalyst.com</string></array>\n  <key>com.apple.developer.applesignin</key>\n  <array><string>Default</string></array>\n  <key>aps-environment</key>\n  <string>production</string>\n</dict>\n</plist>\n' > "$PROJ_DIR/BoAnalyst/BoAnalyst.entitlements"
+
+          for font in "Cinzel-Regular.ttf" "Cinzel-Bold.ttf" "Cinzel-Black.ttf"; do
+            [ -f "$CM_BUILD_DIR/IOSDeployment/assets/$font" ] && cp "$CM_BUILD_DIR/IOSDeployment/assets/$font" "$PROJ_DIR/" && echo "✅ $font copied."
+          done
+
+          # ── project.yml with SPM packages (printf = proven reliable) ──
+          printf "name: BoAnalyst\noptions:\n  bundleIdPrefix: com.boanalyst\n  deploymentTarget:\n    iOS: '16.0'\n  createIntermediateGroups: true\npackages:\n  Lottie:\n    url: https://github.com/airbnb/lottie-spm.git\n    from: 4.5.0\n  GoogleMobileAds:\n    url: https://github.com/googleads/swift-package-manager-google-mobile-ads.git\n    from: 11.0.0\nsettings:\n  base:\n    PRODUCT_BUNDLE_IDENTIFIER: ${BUNDLE_ID:-com.boanalyst.app}\n    MARKETING_VERSION: '1.1.8'\n    CURRENT_PROJECT_VERSION: '${BUILD_NUMBER:-121}'\n    SWIFT_VERSION: '5.10'\n    IPHONEOS_DEPLOYMENT_TARGET: '16.0'\n    CODE_SIGN_STYLE: Manual\n    DEVELOPMENT_TEAM: '${APPLE_TEAM_ID:-}'\n    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon\n    DEBUG_INFORMATION_FORMAT: dwarf-with-dsym\n    SWIFT_COMPILATION_MODE: wholemodule\n    GENERATE_INFOPLIST: NO\n    CODE_SIGN_ENTITLEMENTS: BoAnalyst/BoAnalyst.entitlements\ntargets:\n  BoAnalyst:\n    type: application\n    platform: iOS\n    sources:\n      - path: BoAnalyst\n        excludes: ['**/*.md', '**/*.plist']\n    resources:\n      - path: BoAnalyst/Info.plist\n      - '*.ttf'\n    dependencies:\n      - package: Lottie\n      - package: GoogleMobileAds\n    settings:\n      base:\n        INFOPLIST_FILE: BoAnalyst/Info.plist\n        PRODUCT_NAME: BoAnalyst\n        OTHER_LDFLAGS: ['-ObjC']\n" > "$PROJ_DIR/project.yml"
+
+          echo "▶ project.yml contents:"
+          cat "$PROJ_DIR/project.yml"
+
+          cd "$PROJ_DIR" && xcodegen generate
+          echo "✅ BoAnalyst.xcodeproj generated."
+
+          # ── Kill any Podfile so Codemagic doesn't auto-run pod install ──
+          rm -f "$PROJ_DIR/Podfile" "$PROJ_DIR/Podfile.lock"
+          rm -rf "$PROJ_DIR/Pods"
+
+          # ── Create minimal .xcworkspace (wraps .xcodeproj only) ──
+          mkdir -p "$PROJ_DIR/BoAnalyst.xcworkspace"
+          printf '<?xml version="1.0" encoding="UTF-8"?>\n<Workspace version="1.0">\n  <FileRef location="container:BoAnalyst.xcodeproj"/>\n</Workspace>\n' > "$PROJ_DIR/BoAnalyst.xcworkspace/contents.xcworkspacedata"
+          echo "✅ BoAnalyst.xcworkspace created (SPM only, no Pods)."
+
+      - name: Resolve SPM Packages
+        script: |
+          set -euo pipefail
+          cd "$PROJ_DIR"
+          echo "▶ Resolving Swift Package Manager dependencies..."
+          xcodebuild -project BoAnalyst.xcodeproj -resolvePackageDependencies
+          echo "✅ SPM packages resolved."
+
+      - name: Set Up Code Signing
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
+          echo "✅ Code signing configured."
+
+      - name: Build & Archive
+        script: |
+          set -euo pipefail
+          mkdir -p "$BUILD_DIR/Export"
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME" \
+            --ipa-directory "$BUILD_DIR/Export"
+          echo "✅ IPA exported."
+
+    artifacts:
+      - IOSDeployment/BoAnalystXcode/build/Export/*.ipa
+      - IOSDeployment/BoAnalystXcode/build/BoAnalyst.xcarchive
+
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
