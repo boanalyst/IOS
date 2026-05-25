@@ -128,7 +128,7 @@ class AppOpenAdManager: NSObject, GADFullScreenContentDelegate {
     
     // MARK: - GADFullScreenContentDelegate Callbacks
     
-    func adDidPresentFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+    func adWillPresentFullScreenContent(_ ad: GADFullScreenPresentingAd) {
         print("✅ [AppOpenAdManager] Ad presented full screen.")
     }
     
