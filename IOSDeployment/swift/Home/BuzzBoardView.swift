@@ -129,7 +129,7 @@ struct BuzzBoardView: View {
                                 }
 
                                 if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isPro == true) && !(authViewModel.currentUser?.isAdmin == true) {
-                                    NativeAdView()
+                                    NativeAdView(index: index, listName: "buzz")
                                         .padding(.vertical, 8)
                                 }
                             }
