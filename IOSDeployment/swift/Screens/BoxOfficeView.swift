@@ -49,9 +49,11 @@ final class BoxOfficeViewModel: ObservableObject {
 // MARK: - BoxOfficeView
 
 struct BoxOfficeView: View {
+    @EnvironmentObject private var authViewModel: AuthViewModel
     @StateObject private var viewModel = BoxOfficeViewModel()
     @State private var isSearching = false
     @State private var searchQuery = ""
+    @State private var adInterval: Int = 10
 
     let languages = [
         ("all", "Global (All)"),
@@ -186,7 +188,7 @@ struct BoxOfficeView: View {
                                 .padding(.horizontal, 24)
                                 .padding(.vertical, 8)
 
-                                ForEach(filteredEntries) { entry in
+                                ForEach(Array(filteredEntries.enumerated()), id: \.element.id) { index, entry in
                                     BoxOfficeListRow(entry: entry)
                                         .background(
                                             RoundedRectangle(cornerRadius: 12)
@@ -198,6 +200,12 @@ struct BoxOfficeView: View {
                                         )
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 4)
+
+                                    if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isPro == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                        NativeAdView()
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 8)
+                                    }
                                 }
                             } else {
                                 emptyState(message: "No matching movies found.", icon: "film.stack")
@@ -218,7 +226,15 @@ struct BoxOfficeView: View {
                 }
             }
         }
-        .task { await viewModel.load() }
+        .task {
+            await viewModel.load()
+            do {
+                let config = try await APIClient.shared.request(.getAdConfig, responseType: AdConfigResponse.self)
+                self.adInterval = config.adInterval
+            } catch {
+                print("⚠️ [BoxOfficeView] Failed to fetch dynamic ad-config: \(error.localizedDescription)")
+            }
+        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
