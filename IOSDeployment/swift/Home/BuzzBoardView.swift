@@ -93,40 +93,39 @@ struct BuzzBoardView: View {
                     ScrollView {
                         LazyVStack(spacing: 16) {
                             ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
-                                Button(action: {
-                                    // Check if this post is flagged for an ad via hashtag
-                                    let contentLower = post.content.lowercased()
-                                    let hasAdTag = post.showInterstitial || contentLower.contains("#boad") || contentLower.contains("#interstitial")
-                                    let hasRewardedTag = post.showRewarded || contentLower.contains("#boanalystexclusive")
+                                let isUnlocked = unlockedRewardedPosts.contains(post.id)
+                                BuzzPostCard(post: post, isUnlocked: isUnlocked)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        // Check if this post is flagged for an ad via hashtag
+                                        let contentLower = post.content.lowercased()
+                                        let hasAdTag = post.showInterstitial || contentLower.contains("#boad") || contentLower.contains("#interstitial")
+                                        let hasRewardedTag = post.showRewarded || contentLower.contains("#boanalystexclusive")
 
-                                    if hasRewardedTag && !unlockedRewardedPosts.contains(post.id) {
-                                        RewardedAdController.showAd(manager: rewardedAdManager) {
-                                            self.unlockedRewardedPosts.insert(post.id)
+                                        if hasRewardedTag && !unlockedRewardedPosts.contains(post.id) {
+                                            RewardedAdController.showAd(manager: rewardedAdManager) {
+                                                self.unlockedRewardedPosts.insert(post.id)
+                                                self.selectedPost = post
+                                                self.isNavigatingToPost = true
+                                                AdTracker.shared.logImpression(postId: post.id, module: "buzz", adType: "rewarded")
+                                            }
+                                        } else if hasAdTag {
+                                            InterstitialAdController.showAd(manager: adManager) {
+                                                self.selectedPost = post
+                                                self.isNavigatingToPost = true
+                                                AdTracker.shared.logImpression(postId: post.id, module: "buzz", adType: "interstitial")
+                                            }
+                                        } else {
+                                            // No ad required, navigate immediately
                                             self.selectedPost = post
                                             self.isNavigatingToPost = true
-                                            AdTracker.shared.logImpression(postId: post.id, module: "buzz", adType: "rewarded")
                                         }
-                                    } else if hasAdTag {
-                                        InterstitialAdController.showAd(manager: adManager) {
-                                            self.selectedPost = post
-                                            self.isNavigatingToPost = true
-                                            AdTracker.shared.logImpression(postId: post.id, module: "buzz", adType: "interstitial")
+                                    }
+                                    .onAppear {
+                                        if post.id == posts.last?.id && hasMore {
+                                            loadMore()
                                         }
-                                    } else {
-                                        // No ad required, navigate immediately
-                                        self.selectedPost = post
-                                        self.isNavigatingToPost = true
                                     }
-                                }) {
-                                    let isUnlocked = unlockedRewardedPosts.contains(post.id)
-                                    BuzzPostCard(post: post, isUnlocked: isUnlocked)
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                                .onAppear {
-                                    if post.id == posts.last?.id && hasMore {
-                                        loadMore()
-                                    }
-                                }
 
                                 if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isPro == true) && !(authViewModel.currentUser?.isAdmin == true) {
                                     NativeAdView(index: index, listName: "buzz")
