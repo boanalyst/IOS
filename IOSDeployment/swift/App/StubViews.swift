@@ -157,8 +157,7 @@ struct CommentBottomSheet: View {
                         }
                     }
                 }
-                let cleanContent = stripEmbedUrls(from: c.content, embeds: [])
-                let attrString = parseBoAnalystHTML(cleanContent)
+                let attrString = ParsedTextCache.shared.parseFlock(cleanContent, id: c.id)
                 Text(attrString)
                     .tint(AppTheme.goldPrimary)
                     .font(.system(size: 14))
@@ -532,7 +531,7 @@ struct FlockFeedView: View {
                                 .padding(.horizontal, 16)
 
                                 if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isPro == true) && !(authViewModel.currentUser?.isAdmin == true) {
-                                    NativeAdView()
+                                    NativeAdView(index: index, listName: "flock")
                                         .padding(.horizontal, 16)
                                 }
                             }
@@ -867,7 +866,7 @@ struct InsideTalkView: View {
                             .padding(.horizontal, 16)
 
                             if (index + 1) % adInterval == 0 && !isUserProGlobal {
-                                NativeAdView()
+                                NativeAdView(index: index, listName: "insidetalk")
                                     .padding(.horizontal, 16)
                             }
                         }
@@ -1059,8 +1058,7 @@ struct InsideTalkCard: View {
             let baseCleanText = stripEmbedUrls(from: content.content, embeds: socialEmbeds)
             let cleanText = ((isLocked || isRewarded) && baseCleanText.count > 25) ? String(baseCleanText.prefix(25)) + "..." : baseCleanText
             
-            let attrText = parseBoAnalystHTML(cleanText)
-
+            let attrText = ParsedTextCache.shared.parseFlock(cleanText, id: content.id)
             Text(attrText)
                 .tint(AppTheme.goldPrimary)
                 .font(.system(size: 14))
