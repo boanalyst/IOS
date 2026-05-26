@@ -124,46 +124,69 @@ enum CachedImagePhase {
 struct CachedAsyncImage<Content: View>: View {
     let url: URL?
     @ViewBuilder let content: (CachedImagePhase) -> Content
-    
-    @State private var phase: CachedImagePhase = .empty
-    
+
+    @State private var loadedImage: UIImage? = nil
+    @State private var loadError: Error? = nil
+    @State private var isDownloading = false
+
     var body: some View {
-        content(phase)
-            .task(id: url) { await load() }
+        // 1. Direct Synchronous Cache Lookup to avoid asynchronous task thread storms
+        if let url = url, let cached = ImageLoaderCache.shared.object(forKey: url as NSURL) {
+            content(.success(Image(uiImage: cached)))
+        } else if let img = loadedImage {
+            content(.success(Image(uiImage: img)))
+        } else if let err = loadError {
+            content(.failure(err))
+        } else {
+            // Show placeholder and load only when cell appears
+            content(.empty)
+                .onAppear {
+                    load()
+                }
+        }
     }
-    
-    private func load() async {
-        guard let url = url else {
-            phase = .failure(URLError(.badURL))
-            return
-        }
-        if let cached = ImageLoaderCache.shared.object(forKey: url as NSURL) {
-            phase = .success(Image(uiImage: cached))
-            return
-        }
-        phase = .empty
-        do {
-            var request = URLRequest(url: url)
-            // Attach authentication token for protected media routes (e.g. Inside Talk, Distributors)
-            if let token = KeychainManager.shared.getToken() {
-                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+    private func load() {
+        guard let url = url else { return }
+        if ImageLoaderCache.shared.object(forKey: url as NSURL) != nil { return }
+        if isDownloading { return }
+        isDownloading = true
+
+        Task {
+            do {
+                var request = URLRequest(url: url)
+                if let token = KeychainManager.shared.getToken() {
+                    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                }
+                
+                let (data, response) = try await URLSession.shared.data(for: request)
+                
+                if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
+                    await MainActor.run {
+                        self.loadError = URLError(.badServerResponse)
+                        self.isDownloading = false
+                    }
+                    return
+                }
+                
+                if let uiImage = UIImage(data: data) {
+                    ImageLoaderCache.shared.setObject(uiImage, forKey: url as NSURL)
+                    await MainActor.run {
+                        self.loadedImage = uiImage
+                        self.isDownloading = false
+                    }
+                } else {
+                    await MainActor.run {
+                        self.loadError = URLError(.cannotDecodeRawData)
+                        self.isDownloading = false
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.loadError = error
+                    self.isDownloading = false
+                }
             }
-            
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
-                phase = .failure(URLError(.badServerResponse))
-                return
-            }
-            
-            if let uiImage = UIImage(data: data) {
-                ImageLoaderCache.shared.setObject(uiImage, forKey: url as NSURL)
-                phase = .success(Image(uiImage: uiImage))
-            } else {
-                phase = .failure(URLError(.cannotDecodeRawData))
-            }
-        } catch {
-            phase = .failure(error)
         }
     }
 }
@@ -186,15 +209,16 @@ struct BoAnalystAvatarView: View {
 
     private let logoUrl = URL(string: "https://boanalyst.com/Logo/download.jpeg")
     @State private var loadedImage: UIImage? = nil
+    @State private var isDownloading = false
 
     var body: some View {
         ZStack {
             // 1. Dark elegant background
             Color.black
 
-            // 2. Resolve image
-            if let uiImage = loadedImage {
-                Image(uiImage: uiImage)
+            // 2. Synchronous Image Resolution
+            if let cached = getCachedLogo() {
+                Image(uiImage: cached)
                     .resizable()
                     .scaledToFit()
                     .padding(padding)
@@ -217,6 +241,9 @@ struct BoAnalystAvatarView: View {
                 Text("B")
                     .font(.system(size: size * 0.45, weight: .bold, design: .serif))
                     .foregroundColor(AppTheme.goldPrimary)
+                    .onAppear {
+                        loadAvatar()
+                    }
             }
         }
         .frame(width: size, height: size)
@@ -226,21 +253,20 @@ struct BoAnalystAvatarView: View {
         .clipShape(Circle())
         // Subtle gold ring border (same as Android's optional border)
         .overlay(Circle().stroke(AppTheme.goldPrimary.opacity(0.25), lineWidth: 1))
-        .onAppear {
-            loadAvatar()
-        }
+    }
+
+    private func getCachedLogo() -> UIImage? {
+        if let loaded = loadedImage { return loaded }
+        guard let url = logoUrl else { return nil }
+        return ImageLoaderCache.shared.object(forKey: url as NSURL)
     }
 
     private func loadAvatar() {
-        if loadedImage != nil { return }
+        if getCachedLogo() != nil { return }
         if UIImage(named: "Logo") != nil { return }
         guard let url = logoUrl else { return }
-        
-        // Fast synchronous cache lookup
-        if let cached = ImageLoaderCache.shared.object(forKey: url as NSURL) {
-            self.loadedImage = cached
-            return
-        }
+        if isDownloading { return }
+        isDownloading = true
 
         // Asynchronous load in background
         Task {
@@ -251,11 +277,14 @@ struct BoAnalystAvatarView: View {
                     await MainActor.run {
                         withAnimation(.easeIn(duration: 0.2)) {
                             self.loadedImage = uiImage
+                            self.isDownloading = false
                         }
                     }
                 }
             } catch {
-                // Fail silently, keep the premium placeholder
+                await MainActor.run {
+                    self.isDownloading = false
+                }
             }
         }
     }
