@@ -478,7 +478,7 @@ struct ExclusiveContentCard: View {
             }
 
             // ── Title — rendered with full BIU parser (matches Flock Feed) ──
-            let attrTitle = parseBoAnalystHTML(exclusive.title)
+            let attrTitle = ParsedTextCache.shared.parseFlock(exclusive.title, id: exclusive.id + "-title")
             Text(attrTitle)
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(AppTheme.textPrimary)
@@ -487,7 +487,7 @@ struct ExclusiveContentCard: View {
 
             // ── Description — rendered with full BIU parser ──────────────────
             // ** bold, _italic_, __underline__, <b>, <i>, <u> all supported.
-            let attrDesc = parseBoAnalystHTML(exclusive.description)
+            let attrDesc = ParsedTextCache.shared.parseFlock(exclusive.description, id: exclusive.id + "-desc")
             Text(attrDesc)
                 .tint(AppTheme.goldPrimary)
                 .font(.system(size: 14))

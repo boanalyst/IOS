@@ -97,7 +97,7 @@ struct BuzzFormattedText: View {
     var lineLimit: Int? = nil
 
     var body: some View {
-        Text(text.asBuzzAttributedString(baseColor: UIColor(color)))
+        Text(ParsedTextCache.shared.parseBuzz(text))
             .foregroundColor(color)
             .font(.system(size: fontSize))
             .lineSpacing(4)
