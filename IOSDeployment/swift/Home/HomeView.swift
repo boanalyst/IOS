@@ -288,7 +288,7 @@ struct MovieCard: View {
                 
                 // Now that the path is cleanly trimmed and normalised, we execute the fetch natively.
                 if let posterURL = URL(string: urlStr) {
-                    AsyncImage(url: posterURL) { phase in
+                    CachedAsyncImage(url: posterURL) { phase in
                         switch phase {
                         case .empty:
                             ZStack {
@@ -299,8 +299,6 @@ struct MovieCard: View {
                         case .success(let image):
                             image.resizable().aspectRatio(contentMode: .fill)
                         case .failure:
-                            moviePlaceholder
-                        @unknown default:
                             moviePlaceholder
                         }
                     }
@@ -501,7 +499,7 @@ struct ExclusiveContentCard: View {
                let urls = try? JSONDecoder().decode([String].self, from: data),
                let firstUrlStr = urls.first,
                let firstUrl = URL(string: "https://boanalyst.com\(firstUrlStr)") {
-                AsyncImage(url: firstUrl) { phase in
+                CachedAsyncImage(url: firstUrl) { phase in
                     switch phase {
                     case .success(let image):
                         image.resizable()
@@ -641,7 +639,7 @@ struct ExclusiveContentEditSheet: View {
                                             ForEach(existingMediaUrls, id: \.self) { urlStr in
                                                 let fullUrl = URL(string: urlStr.hasPrefix("http") ? urlStr : "https://boanalyst.com" + urlStr)
                                                 ZStack(alignment: .topTrailing) {
-                                                    AsyncImage(url: fullUrl) { phase in
+                                                    CachedAsyncImage(url: fullUrl) { phase in
                                                         switch phase {
                                                         case .success(let img):
                                                             img.resizable().scaledToFill()
