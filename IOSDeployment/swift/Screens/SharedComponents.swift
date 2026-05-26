@@ -301,7 +301,7 @@ struct FlockPostCard: View {
                     ? String(rawCleanContent.prefix(15)) + "... See more"
                     : rawCleanContent
 
-                let attrString = parseBoAnalystHTML(cleanContent)
+                let attrString = ParsedTextCache.shared.parseFlock(cleanContent, id: post.id)
                 Text(attrString)
                     .tint(AppTheme.goldPrimary)
                     .font(.system(size: 14))
@@ -370,6 +370,43 @@ struct FlockPostCard: View {
 
 #Preview {
     Text("Add preview components here")
+}
+
+// MARK: - ParsedTextCache
+// Central thread-safe MainActor caching mechanism for heavy HTML and Markdown text parsing.
+// Eliminates repetitive regular expression parsing and AttributedString recreation on every scroll frame.
+@MainActor
+final class ParsedTextCache {
+    static let shared = ParsedTextCache()
+    private init() {}
+    
+    private var flockCache: [String: AttributedString] = [:]
+    private var buzzCache: [String: AttributedString] = [:]
+    
+    func parseFlock(_ text: String, id: String) -> AttributedString {
+        let key = "\(id)-\(text.hashValue)"
+        if let cached = flockCache[key] {
+            return cached
+        }
+        let parsed = parseBoAnalystHTML(text)
+        flockCache[key] = parsed
+        return parsed
+    }
+    
+    func parseBuzz(_ text: String) -> AttributedString {
+        let key = "\(text.hashValue)"
+        if let cached = buzzCache[key] {
+            return cached
+        }
+        let parsed = text.asBuzzAttributedString()
+        buzzCache[key] = parsed
+        return parsed
+    }
+    
+    func clear() {
+        flockCache.removeAll()
+        buzzCache.removeAll()
+    }
 }
 
 // MARK: - Global Content Parser (HTML to Markdown & AttributedString)

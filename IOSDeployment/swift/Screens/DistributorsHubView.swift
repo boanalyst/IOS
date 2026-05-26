@@ -363,7 +363,7 @@ struct DistributorsPostCard: View {
             // ── Content — strip embed URLs, render with HTML parser ──────
             let socialEmbeds = extractSocialEmbeds(from: post.content)
             let cleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
-            let attrContent = parseBoAnalystHTML(cleanContent)
+            let attrContent = ParsedTextCache.shared.parseFlock(cleanContent, id: post.id)
 
             Text(attrContent)
                 .tint(AppTheme.goldPrimary)
