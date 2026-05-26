@@ -70,7 +70,8 @@ private struct NativeAdRepresentable: UIViewRepresentable {
     
     func makeUIView(context: Context) -> GADNativeAdView {
         let nativeAdView = GADNativeAdView()
-        nativeAdView.translatesAutoresizingMaskIntoConstraints = false
+        // Do not set translatesAutoresizingMaskIntoConstraints to false on the root view.
+        // SwiftUI expects ktranslatesAutoresizingMaskIntoConstraints to be true so it can directly size its frame.
         
         // ── Main Card Container ──
         let cardContainer = UIView()
