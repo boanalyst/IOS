@@ -184,16 +184,40 @@ struct BoAnalystAvatarView: View {
     var size: CGFloat = 40
     var padding: CGFloat = 5
 
+    private let logoUrl = URL(string: "https://boanalyst.com/Logo/download.jpeg")
+    @State private var loadedImage: UIImage? = nil
+
     var body: some View {
         ZStack {
-            // 1. Black circle background fills the full frame
+            // 1. Dark elegant background
             Color.black
 
-            // 2. Logo image centered and padded inside the circle — directly synchronous loading
-            Image("Logo")
-                .resizable()
-                .scaledToFit()
-                .padding(padding)
+            // 2. Resolve image
+            if let uiImage = loadedImage {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(padding)
+            } else if let localImage = UIImage(named: "Logo") {
+                Image(uiImage: localImage)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(padding)
+            } else {
+                // Premium fallback placeholder: Gold text 'B' with subtle gradient
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        AppTheme.goldPrimary.opacity(0.3),
+                        AppTheme.goldSecondary.opacity(0.15)
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                
+                Text("B")
+                    .font(.system(size: size * 0.45, weight: .bold, design: .serif))
+                    .foregroundColor(AppTheme.goldPrimary)
+            }
         }
         .frame(width: size, height: size)
         // 3. Clip the ENTIRE ZStack to a circle — this is the key:
@@ -202,6 +226,38 @@ struct BoAnalystAvatarView: View {
         .clipShape(Circle())
         // Subtle gold ring border (same as Android's optional border)
         .overlay(Circle().stroke(AppTheme.goldPrimary.opacity(0.25), lineWidth: 1))
+        .onAppear {
+            loadAvatar()
+        }
+    }
+
+    private func loadAvatar() {
+        if loadedImage != nil { return }
+        if UIImage(named: "Logo") != nil { return }
+        guard let url = logoUrl else { return }
+        
+        // Fast synchronous cache lookup
+        if let cached = ImageLoaderCache.shared.object(forKey: url as NSURL) {
+            self.loadedImage = cached
+            return
+        }
+
+        // Asynchronous load in background
+        Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                if let uiImage = UIImage(data: data) {
+                    ImageLoaderCache.shared.setObject(uiImage, forKey: url as NSURL)
+                    await MainActor.run {
+                        withAnimation(.easeIn(duration: 0.2)) {
+                            self.loadedImage = uiImage
+                        }
+                    }
+                }
+            } catch {
+                // Fail silently, keep the premium placeholder
+            }
+        }
     }
 }
 

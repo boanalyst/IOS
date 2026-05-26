@@ -147,10 +147,11 @@ private struct YouTubeThumbnailCard: View {
     var body: some View {
         ZStack {
             // Thumbnail
-            AsyncImage(url: thumbnailURL) { phase in
-                if case .success(let img) = phase {
+            CachedAsyncImage(url: thumbnailURL) { phase in
+                switch phase {
+                case .success(let img):
                     img.resizable().aspectRatio(16 / 9, contentMode: .fill)
-                } else {
+                default:
                     Rectangle().fill(Color.black.opacity(0.7))
                 }
             }
