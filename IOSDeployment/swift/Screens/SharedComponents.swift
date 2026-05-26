@@ -208,7 +208,7 @@ struct BoAnalystAvatarView: View {
                 LinearGradient(
                     gradient: Gradient(colors: [
                         AppTheme.goldPrimary.opacity(0.3),
-                        AppTheme.goldSecondary.opacity(0.15)
+                        AppTheme.goldSoft.opacity(0.15)
                     ]),
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
