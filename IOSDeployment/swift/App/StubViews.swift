@@ -157,6 +157,7 @@ struct CommentBottomSheet: View {
                         }
                     }
                 }
+                let cleanContent = stripEmbedUrls(from: c.content, embeds: [])
                 let attrString = ParsedTextCache.shared.parseFlock(cleanContent, id: c.id)
                 Text(attrString)
                     .tint(AppTheme.goldPrimary)
