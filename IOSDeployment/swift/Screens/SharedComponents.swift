@@ -189,26 +189,11 @@ struct BoAnalystAvatarView: View {
             // 1. Black circle background fills the full frame
             Color.black
 
-            // 2. Logo image centered and padded inside the circle
-            CachedAsyncImage(url: URL(string: "https://boanalyst.com/Logo/download.jpeg")) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFit()
-                        .padding(padding)
-                case .failure:
-                    // Fallback: gold "B" initial on dark background
-                    Text("B")
-                        .font(.system(size: size * 0.4, weight: .bold))
-                        .foregroundStyle(AppTheme.goldGradient)
-                default:
-                    // Loading state: subtle gold shimmer ring
-                    Circle()
-                        .stroke(AppTheme.goldPrimary.opacity(0.3), lineWidth: 1.5)
-                        .padding(padding)
-                }
-            }
+            // 2. Logo image centered and padded inside the circle — directly synchronous loading
+            Image("Logo")
+                .resizable()
+                .scaledToFit()
+                .padding(padding)
         }
         .frame(width: size, height: size)
         // 3. Clip the ENTIRE ZStack to a circle — this is the key:
@@ -238,133 +223,134 @@ struct FlockPostCard: View {
     var onEdit: (() -> Void)? = nil
 
     var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 10) {
-                // Author header
-                HStack(spacing: 10) {
-                    // BoAnalystAvatarView: perfectly circular avatar (fixes flat/broken look)
-                    BoAnalystAvatarView(size: 40, padding: 5)
+        VStack(alignment: .leading, spacing: 10) {
+            // Author header
+            HStack(spacing: 10) {
+                // BoAnalystAvatarView: perfectly circular avatar (fixes flat/broken look)
+                BoAnalystAvatarView(size: 40, padding: 5)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text(post.authorName)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(AppTheme.textPrimary)
-                        }
-                        Text(formatRelativeDate(post.createdAt))
-                            .font(.system(size: 11))
-                            .foregroundColor(AppTheme.textMuted)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(post.authorName)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(AppTheme.textPrimary)
                     }
-                    Spacer()
+                    Text(formatRelativeDate(post.createdAt))
+                        .font(.system(size: 11))
+                        .foregroundColor(AppTheme.textMuted)
+                }
+                Spacer()
 
-                    // Right side: pin indicator + admin menu
-                    HStack(spacing: 8) {
-                        if post.isPinned {
-                            Image(systemName: "pin.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(AppTheme.goldGradient)
-                        }
-                        // Bug #1 fix: admin sees a context menu button
-                        if isAdmin {
-                            Menu {
-                                if let edit = onEdit {
-                                    Button(action: edit) {
-                                        Label("Edit Post", systemImage: "pencil")
-                                    }
+                // Right side: pin indicator + admin menu
+                HStack(spacing: 8) {
+                    if post.isPinned {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(AppTheme.goldGradient)
+                    }
+                    // Bug #1 fix: admin sees a context menu button
+                    if isAdmin {
+                        Menu {
+                            if let edit = onEdit {
+                                Button(action: edit) {
+                                    Label("Edit Post", systemImage: "pencil")
                                 }
-                                Button(role: .destructive) { onDelete() } label: {
-                                    Label("Delete Post", systemImage: "trash")
-                                }
-                                Button { onPin() } label: {
-                                    Label(post.isPinned ? "Unpin Post" : "Pin Post",
-                                          systemImage: post.isPinned ? "pin.slash" : "pin")
-                                }
-                            } label: {
-                                Image(systemName: "ellipsis")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(AppTheme.textMuted)
-                                    .padding(8)
-                                    .contentShape(Rectangle())
                             }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-
-                // Content — extract social embeds first, strip their URLs from text
-                let isRewardedContent = post.showRewarded || post.content.lowercased().contains("#boanalystexclusive")
-                let shouldObscure = isRewardedContent && !isUnlocked
-                let socialEmbeds = shouldObscure ? [] : extractSocialEmbeds(from: post.content)
-                let rawCleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
-                
-                let cleanContent: String = (shouldObscure && rawCleanContent.count > 15)
-                    ? String(rawCleanContent.prefix(15)) + "... See more"
-                    : rawCleanContent
-
-                let attrString = ParsedTextCache.shared.parseFlock(cleanContent, id: post.id)
-                Text(attrString)
-                    .tint(AppTheme.goldPrimary)
-                    .font(.system(size: 14))
-                    .foregroundColor(shouldObscure ? AppTheme.goldPrimary : AppTheme.textPrimary)
-                    .foregroundColor(AppTheme.textSecondary)
-                    .lineLimit(nil)
-                    .lineSpacing(6)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 4)
-
-                // ── Uploaded Media ───────────────────────────────────────
-                let mediaUrls = post.media.map { $0.resolvedUrl() }.filter { !$0.isEmpty }
-                if !mediaUrls.isEmpty && !shouldObscure {
-                    PostMediaView(urls: mediaUrls)
-                }
-
-                // ── Social Embeds (YouTube / X / Instagram) ──────────────
-                if !socialEmbeds.isEmpty {
-                    SocialEmbedsSection(embeds: socialEmbeds)
-                }
-
-                // Hashtags
-                if !post.tags.isEmpty {
-                    Text(post.tags.map { "#\($0)" }.joined(separator: " "))
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(AppTheme.goldGradient)
-                        .lineLimit(1)
-                }
-
-                // Engagement row — separate buttons to prevent tap bleeding into parent
-                HStack(spacing: 16) {
-                    Button { onLike() } label: {
-                        Label("\(post.likeCount)",
-                              systemImage: isLiked ? "heart.fill" : "heart")
-                            .font(.system(size: 12))
-                            .foregroundColor(isLiked ? AppTheme.goldPrimary : AppTheme.textMuted)
-                    }
-                    .buttonStyle(.plain)
-
-                    Button { onComment() } label: {
-                        Label("\(post.replyCount)", systemImage: "bubble.left")
-                            .font(.system(size: 12))
-                            .foregroundColor(AppTheme.textMuted)
-                    }
-                    .buttonStyle(.plain)
-
-                    if let shareUrl = URL(string: "https://boanalyst.com/flock/post/\(post.id)") {
-                        ShareLink(item: shareUrl) {
-                            Label("Share", systemImage: "square.and.arrow.up")
-                                .font(.system(size: 12))
+                            Button(role: .destructive) { onDelete() } label: {
+                                Label("Delete Post", systemImage: "trash")
+                            }
+                            Button { onPin() } label: {
+                                Label(post.isPinned ? "Unpin Post" : "Pin Post",
+                                      systemImage: post.isPinned ? "pin.slash" : "pin")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(AppTheme.textMuted)
+                                .padding(8)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
-
-                    Spacer()
                 }
             }
-            .padding(16)
-            .cardStyle()
+
+            // Content — extract social embeds first, strip their URLs from text
+            let isRewardedContent = post.showRewarded || post.content.lowercased().contains("#boanalystexclusive")
+            let shouldObscure = isRewardedContent && !isUnlocked
+            let socialEmbeds = shouldObscure ? [] : extractSocialEmbeds(from: post.content)
+            let rawCleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
+            
+            let cleanContent: String = (shouldObscure && rawCleanContent.count > 15)
+                ? String(rawCleanContent.prefix(15)) + "... See more"
+                : rawCleanContent
+
+            let attrString = ParsedTextCache.shared.parseFlock(cleanContent, id: post.id)
+            Text(attrString)
+                .tint(AppTheme.goldPrimary)
+                .font(.system(size: 14))
+                .foregroundColor(shouldObscure ? AppTheme.goldPrimary : AppTheme.textPrimary)
+                .foregroundColor(AppTheme.textSecondary)
+                .lineLimit(nil)
+                .lineSpacing(6)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 4)
+
+            // ── Uploaded Media ───────────────────────────────────────
+            let mediaUrls = post.media.map { $0.resolvedUrl() }.filter { !$0.isEmpty }
+            if !mediaUrls.isEmpty && !shouldObscure {
+                PostMediaView(urls: mediaUrls)
+            }
+
+            // ── Social Embeds (YouTube / X / Instagram) ──────────────
+            if !socialEmbeds.isEmpty {
+                SocialEmbedsSection(embeds: socialEmbeds)
+            }
+
+            // Hashtags
+            if !post.tags.isEmpty {
+                Text(post.tags.map { "#\($0)" }.joined(separator: " "))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(AppTheme.goldGradient)
+                    .lineLimit(1)
+            }
+
+            // Engagement row — separate buttons to prevent tap bleeding into parent
+            HStack(spacing: 16) {
+                Button { onLike() } label: {
+                    Label("\(post.likeCount)",
+                          systemImage: isLiked ? "heart.fill" : "heart")
+                        .font(.system(size: 12))
+                        .foregroundColor(isLiked ? AppTheme.goldPrimary : AppTheme.textMuted)
+                }
+                .buttonStyle(.plain)
+
+                Button { onComment() } label: {
+                    Label("\(post.replyCount)", systemImage: "bubble.left")
+                        .font(.system(size: 12))
+                        .foregroundColor(AppTheme.textMuted)
+                }
+                .buttonStyle(.plain)
+
+                if let shareUrl = URL(string: "https://boanalyst.com/flock/post/\(post.id)") {
+                    ShareLink(item: shareUrl) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                            .font(.system(size: 12))
+                            .foregroundColor(AppTheme.textMuted)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Spacer()
+            }
         }
-        .buttonStyle(.plain)
+        .padding(16)
+        .cardStyle()
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onTap()
+        }
     }
 }
 
@@ -634,27 +620,26 @@ struct PostMediaView: View {
     var body: some View {
         if !urls.isEmpty {
             if urls.count == 1 {
-                // Single image — aspect-fit, max 400pt tall, tappable
+                // Single image — stable aspect-ratio card to prevent dynamic layout jumps during scrolling
                 if let urlString = urls.first, let url = URL(string: urlString) {
                     CachedAsyncImage(url: url) { phase in
                         switch phase {
                         case .empty:
                             Rectangle().fill(AppTheme.surfaceVariant)
-                                .frame(maxWidth: .infinity, minHeight: 200)
                                 .overlay(ProgressView().tint(AppTheme.goldPrimary))
                         case .success(let image):
                             image.resizable()
-                                .scaledToFit()
-                                .frame(maxWidth: .infinity, maxHeight: 400)
-                                .onTapGesture { fullScreenIndex = 0 }
+                                .scaledToFill()
                         case .failure:
                             Rectangle().fill(AppTheme.surfaceVariant)
-                                .frame(maxWidth: .infinity, minHeight: 120)
                                 .overlay(Image(systemName: "photo").foregroundColor(AppTheme.textMuted))
                         @unknown default:
                             EmptyView()
                         }
                     }
+                    .frame(height: 240)
+                    .contentShape(Rectangle())
+                    .onTapGesture { fullScreenIndex = 0 }
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.top, 4)
                 }
