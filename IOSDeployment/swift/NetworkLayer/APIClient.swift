@@ -105,7 +105,7 @@ final class APIClient {
         responseType: T.Type
     ) async throws -> T {
         // Intercept ad config request to return cached instance if fresh
-        if endpoint.path == "/api/tracking/ad-config", let responseType = responseType as? AdConfigResponse.Type {
+        if endpoint.path == "/api/tracking/ad-config", responseType is AdConfigResponse.Type {
             let cachedResult = adConfigLock.withLock { () -> T? in
                 if let cached = cachedAdConfig as? T,
                    let fetchTime = lastAdConfigFetchTime,
