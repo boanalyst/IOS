@@ -108,8 +108,8 @@ struct CardStyle: ViewModifier {
                     .stroke(AppTheme.goldPrimary.opacity(0.15), lineWidth: 1)
             )
             .shadow(
-                color: colorScheme == .dark ? .black.opacity(0.4) : .black.opacity(0.1),
-                radius: 8, x: 0, y: 4
+                color: Color.black.opacity(colorScheme == .dark ? 0.35 : 0.08),
+                radius: 4, x: 0, y: 2
             )
     }
 }
