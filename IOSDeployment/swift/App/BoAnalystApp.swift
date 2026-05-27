@@ -22,7 +22,11 @@ struct BoAnalystApp: App {
     @StateObject private var authViewModel = AuthViewModel()
     @StateObject private var themeManager = ThemeManager()
     @StateObject private var iapManager = IAPManager.shared
+    @StateObject private var flockVM = FlockViewModel()
     @Environment(\.scenePhase) private var scenePhase
+    
+    @State private var detectedPostIdToOpen: String? = nil
+    @State private var showClipboardPrompt = false
 
     init() {
         let cache = URLCache(memoryCapacity: 50_000_000, diskCapacity: 200_000_000, diskPath: "BoAnalystImageCache")
@@ -41,27 +45,50 @@ struct BoAnalystApp: App {
                 .environmentObject(authViewModel)
                 .environmentObject(themeManager)
                 .environmentObject(iapManager)
+                .environmentObject(flockVM)
                 .preferredColorScheme(themeManager.isDarkMode ? .dark : .light)
                 .onOpenURL { url in
                     handleDeepLink(url: url)
                 }
+                .onAppear {
+                    checkClipboardForDeepLink()
+                }
+                .alert("Shared Post Found", isPresented: $showClipboardPrompt, actions: {
+                    Button("View Post") {
+                        if let postId = detectedPostIdToOpen {
+                            DeepLinkManager.shared.flockPostId = postId
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {
+                        detectedPostIdToOpen = nil
+                    }
+                }, message: {
+                    Text("We detected a shared BoAnalyst post in your clipboard. Would you like to view it now?")
+                })
         }
         // Refresh user + IAP status when app returns to foreground
         .onChange(of: scenePhase) { phase in
-            if phase == .active, authViewModel.isAuthenticated {
-                Task {
-                    await authViewModel.refreshUser()
-                    await iapManager.refreshSubscriptionStatus()
+            if phase == .active {
+                checkClipboardForDeepLink()
+                if authViewModel.isAuthenticated {
+                    Task {
+                        await authViewModel.refreshUser()
+                        await iapManager.refreshSubscriptionStatus()
+                    }
                 }
             }
         }
     }
 
     private func handleDeepLink(url: URL) {
-        // 1. Handle HTTPS Universal Links
-        if url.scheme == "https" && (url.host == "boanalyst.com" || url.host == "www.boanalyst.com") {
+        // 1. Handle HTTPS Universal Links or Custom Protocol boanalyst://flock/post/{id}
+        if (url.scheme == "https" && (url.host == "boanalyst.com" || url.host == "www.boanalyst.com")) ||
+           (url.scheme == "boanalyst" && url.host == "flock") {
             let pathComponents = url.pathComponents.filter { $0 != "/" }
-            if pathComponents.count >= 3 && pathComponents[0] == "flock" && pathComponents[1] == "post" {
+            if pathComponents.count >= 2 && pathComponents[0] == "post" {
+                let postId = pathComponents[1]
+                DeepLinkManager.shared.flockPostId = postId
+            } else if pathComponents.count >= 3 && pathComponents[0] == "flock" && pathComponents[1] == "post" {
                 let postId = pathComponents[2]
                 DeepLinkManager.shared.flockPostId = postId
             }
@@ -81,6 +108,24 @@ struct BoAnalystApp: App {
         }
         Task { await authViewModel.handleOAuthCallback(token: rawToken) }
     }
+    
+    private func checkClipboardForDeepLink() {
+        guard let clipboardString = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines), !clipboardString.isEmpty else { return }
+        
+        if clipboardString.hasPrefix("boanalyst://flock/post/") ||
+           clipboardString.hasPrefix("https://boanalyst.com/flock/post/") ||
+           clipboardString.hasPrefix("https://www.boanalyst.com/flock/post/") {
+            
+            let components = clipboardString.components(separatedBy: "/")
+            if let lastComponent = components.last, !lastComponent.isEmpty, lastComponent.allSatisfy({ $0.isNumber }) {
+                // Clear clipboard to prevent repeating the prompt
+                UIPasteboard.general.string = ""
+                
+                self.detectedPostIdToOpen = lastComponent
+                self.showClipboardPrompt = true
+            }
+        }
+    }
 }
 
 // MARK: - ContentView (Root Router)
@@ -88,6 +133,10 @@ struct BoAnalystApp: App {
 struct ContentView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @EnvironmentObject var iapManager: IAPManager
+    @EnvironmentObject var flockVM: FlockViewModel
+    @ObservedObject private var deepLinkManager = DeepLinkManager.shared
+    
+    @State private var flockDetailPostId: String? = nil
 
     var body: some View {
         Group {
@@ -104,6 +153,20 @@ struct ContentView: View {
             // Refresh IAP entitlements from Apple on launch
             await iapManager.refreshSubscriptionStatus()
         }
+        .sheet(item: Binding(
+            get: { flockDetailPostId.map { IdentifiableString(id: $0) } },
+            set: { flockDetailPostId = $0?.id }
+        )) { wrapper in
+            FlockPostDetailSheet(postId: wrapper.id)
+                .environmentObject(flockVM)
+                .environmentObject(authViewModel)
+        }
+        .onChange(of: deepLinkManager.flockPostId) { postId in
+            if let id = postId {
+                flockDetailPostId = id
+                deepLinkManager.flockPostId = nil
+            }
+        }
     }
 }
 
@@ -112,7 +175,7 @@ struct ContentView: View {
 struct MainTabView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
     @EnvironmentObject private var iapManager: IAPManager
-    @StateObject private var flockVM = FlockViewModel()
+    @EnvironmentObject private var flockVM: FlockViewModel
     @StateObject private var rewardedAdManager = RewardedAdManager()
     @ObservedObject private var deepLinkManager = DeepLinkManager.shared
 
@@ -223,10 +286,7 @@ struct MainTabView: View {
         }
         .onChange(of: deepLinkManager.flockPostId) { postId in
             if postId != nil {
-                // Switch to Flock tab (index 2) so the user sees the feed
                 selectedTab = 2
-                // Clear the deep link after handling
-                deepLinkManager.flockPostId = nil
             }
         }
     }

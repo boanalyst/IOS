@@ -220,6 +220,15 @@ struct TrendingStrip: View {
     }
 }
 
+struct IdentifiableString: Identifiable {
+    let id: String
+}
+
+struct SingleFlockPostResponse: Decodable {
+    let success: Bool
+    let post: FlockPost?
+}
+
 // MARK: - FlockViewModel (full implementation matching Android FlockViewModel)
 
 @MainActor
@@ -282,6 +291,19 @@ final class FlockViewModel: ObservableObject {
             responseType: TrendingResponse.self
         ) {
             trendingTopics = result.trends
+        }
+    }
+
+    func fetchSinglePost(id: String) async -> FlockPost? {
+        do {
+            let response = try await api.request(
+                .getFlockPost(id: id),
+                responseType: SingleFlockPostResponse.self
+            )
+            return response.post
+        } catch {
+            print("⚠️ Error fetching single post \(id): \(error.localizedDescription)")
+            return nil
         }
     }
 
@@ -470,6 +492,7 @@ struct FlockFeedView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
 
     @State private var activeCommentPostId: String? = nil
+    @State private var flockDetailPostId: String? = nil
     @State private var showCreatePost = false
     @State private var editingPost: FlockPost?
     @StateObject private var adManager = InterstitialAdManager()
@@ -506,18 +529,23 @@ struct FlockFeedView: View {
                                     isUnlocked: unlockedRewardedPosts.contains(post.id),
                                     onTap: {
                                         let contentLower = post.content.lowercased()
+                                        let hasSuperTag = contentLower.contains("#boanalystsuper")
                                         let hasAdTag = post.showInterstitial || contentLower.contains("#boad") || contentLower.contains("#interstitial")
                                         let hasRewardedTag = post.showRewarded || contentLower.contains("#boanalystexclusive")
                                         
-                                        if hasRewardedTag && !unlockedRewardedPosts.contains(post.id) {
+                                        if hasSuperTag {
+                                            flockDetailPostId = post.id
+                                        } else if hasRewardedTag && !unlockedRewardedPosts.contains(post.id) {
                                             RewardedAdController.showAd(manager: rewardedAdManager) {
                                                 unlockedRewardedPosts.insert(post.id)
+                                                flockDetailPostId = post.id
                                             }
                                         } else if hasAdTag {
                                             InterstitialAdController.showAd(manager: adManager) {
-                                                // Handle navigation if needed, right now onTap is empty
-                                                // Just reload for next use
+                                                flockDetailPostId = post.id
                                             }
+                                        } else {
+                                            flockDetailPostId = post.id
                                         }
                                     },
                                     onLike: { flockVM.toggleLike(post) },
@@ -608,6 +636,14 @@ struct FlockFeedView: View {
             CreatePostSheet(title: "Edit Flock Post", initialText: post.content, initialMediaUrls: post.media.map { $0.resolvedUrl() }.filter { !$0.isEmpty }, onSubmitWithMedia: { newContent, mediaFiles, existingUrls in
                 flockVM.updatePost(post, content: newContent, existingMediaUrls: existingUrls, mediaFiles: mediaFiles)
             })
+        }
+        .sheet(item: Binding(
+            get: { flockDetailPostId.map { IdentifiableString(id: $0) } },
+            set: { flockDetailPostId = $0?.id }
+        )) { wrapper in
+            FlockPostDetailSheet(postId: wrapper.id)
+                .environmentObject(flockVM)
+                .environmentObject(authViewModel)
         }
         // ── Comment Bottom Sheet (Bug #4 fix: uses FlockCommentSheetContainer for live updates) ──
         .sheet(item: $activeCommentPostId) { postId in
@@ -2216,6 +2252,333 @@ struct SheetBackgroundModifier: ViewModifier {
             content.presentationBackground(AppTheme.card)
         } else {
             content.background(AppTheme.card)
+        }
+    }
+}
+
+// MARK: - FlockPostDetailSheet (Parity with Android PostDetailScreen.kt)
+
+struct FlockPostDetailSheet: View {
+    let postId: String
+    @EnvironmentObject private var flockVM: FlockViewModel
+    @EnvironmentObject private var authViewModel: AuthViewModel
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var post: FlockPost? = nil
+    @State private var isLoading = true
+    @State private var adStep = "INITIAL"
+    @StateObject private var adManager = InterstitialAdManager()
+    @StateObject private var rewardedAdManager = RewardedAdManager()
+    @State private var showLoginAlert = false
+    @State private var loginAlertMessage = ""
+    
+    private var isLoggedIn: Bool {
+        authViewModel.currentUser != nil
+    }
+    
+    var body: some View {
+        ZStack {
+            AppTheme.background.ignoresSafeArea()
+            
+            if isLoading {
+                ProgressView().tint(AppTheme.goldPrimary)
+            } else if adStep != "CONTENT" {
+                // Progressive elegant ad-wall loading overlay
+                VStack(spacing: 24) {
+                    Text("BoAnalyst")
+                        .font(.system(size: 32, weight: .black))
+                        .foregroundColor(AppTheme.goldPrimary)
+                        
+                    Text("Sponsor Access Verification")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(AppTheme.textPrimary)
+                        
+                    VStack(spacing: 16) {
+                        ProgressView().tint(AppTheme.goldPrimary)
+                        
+                        let stepTitle = adStep == "INITIAL" ? "Verifying..." : (adStep.hasPrefix("INTERSTITIAL") ? "Step 1 of 2" : "Step 2 of 2")
+                        let stepDesc = adStep == "INITIAL" ? "Validating content authentication..." : (adStep.hasPrefix("INTERSTITIAL") ? "Preparing Premium Sponsor Presentation..." : "Unlocking Exclusive Post Video...")
+                        
+                        Text(stepTitle)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(AppTheme.goldPrimary)
+                            
+                        Text(stepDesc)
+                            .font(.system(size: 13))
+                            .foregroundColor(AppTheme.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(24)
+                    .background(AppTheme.surfaceVariant.opacity(0.8))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(AppTheme.goldPrimary.opacity(0.3), lineWidth: 1)
+                    )
+                    .padding(.horizontal, 32)
+                    
+                    Text("Content will unlock automatically")
+                        .font(.system(size: 11))
+                        .foregroundColor(AppTheme.textMuted.opacity(0.7))
+                }
+            } else if let post = post {
+                VStack(spacing: 0) {
+                    // Header
+                    HStack {
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(AppTheme.textMuted)
+                        }
+                        Spacer()
+                        Text("Post Details")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(AppTheme.textPrimary)
+                        Spacer()
+                        Color.clear.frame(width: 24, height: 24)
+                    }
+                    .padding()
+                    .background(AppTheme.surface)
+                    
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                let isAdmin = authViewModel.currentUser?.isAdmin == true
+                                FlockPostCard(
+                                    post: post,
+                                    isAdmin: isAdmin,
+                                    isLiked: flockVM.likedPostIds.contains(post.id),
+                                    isUnlocked: true, // already unlocked via ad progression
+                                    onTap: {},
+                                    onLike: {
+                                        if isLoggedIn {
+                                            flockVM.toggleLike(post)
+                                        } else {
+                                            loginAlertMessage = "Sign up or log in to like posts"
+                                            showLoginAlert = true
+                                        }
+                                    },
+                                    onComment: {
+                                        if isLoggedIn {
+                                            withAnimation {
+                                                proxy.scrollTo("commentsSection", anchor: .top)
+                                            }
+                                        } else {
+                                            loginAlertMessage = "Sign up or log in to comment on posts"
+                                            showLoginAlert = true
+                                        }
+                                    },
+                                    onDelete: isAdmin ? { flockVM.deletePost(post); dismiss() } : {},
+                                    onPin: isAdmin ? { flockVM.togglePin(post) } : {},
+                                    onEdit: nil
+                                )
+                                .padding(.horizontal, 16)
+                                
+                                // Live comments for this single post!
+                                Divider().background(Color.white.opacity(0.08))
+                                    .id("commentsSection")
+                                
+                                let comments = flockVM.commentsState[post.id] ?? []
+                                let commentsLoading = flockVM.commentsLoadingSet.contains(post.id)
+                                
+                                if commentsLoading && comments.isEmpty {
+                                    ProgressView().tint(AppTheme.goldPrimary).padding(20)
+                                } else if comments.isEmpty {
+                                    Text("No comments yet. Write a comment below!")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(AppTheme.textMuted)
+                                        .padding(20)
+                                } else {
+                                    LazyVStack(alignment: .leading, spacing: 12) {
+                                        ForEach(comments) { c in
+                                            commentRow(c)
+                                        }
+                                    }
+                                    .padding(.horizontal, 16)
+                                }
+                            }
+                            .padding(.vertical, 8)
+                        }
+                    }
+                    
+                    // Composer
+                    commentComposer
+                }
+            } else {
+                VStack(spacing: 12) {
+                    Text("Post not found")
+                        .foregroundColor(AppTheme.textPrimary)
+                    Button("Close") { dismiss() }
+                        .foregroundColor(AppTheme.goldPrimary)
+                }
+            }
+        }
+        .task {
+            await loadPost()
+        }
+        .onChange(of: adStep) { step in
+            handleAdProgression(step: step)
+        }
+        .alert("Sign In Required", isPresented: $showLoginAlert) {
+            Button("Sign In") {
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(loginAlertMessage)
+        }
+    }
+    
+    @State private var commentText = ""
+    
+    private var commentComposer: some View {
+        HStack(spacing: 10) {
+            if isLoggedIn {
+                TextField("Write a comment…", text: $commentText)
+                    .font(.system(size: 14))
+                    .foregroundColor(AppTheme.textPrimary)
+                    .accentColor(AppTheme.goldPrimary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(AppTheme.surfaceVariant)
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
+                
+                Button {
+                    let trimmed = commentText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmed.isEmpty else { return }
+                    flockVM.addComment(postId: postId, text: trimmed)
+                    commentText = ""
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 32))
+                        .foregroundStyle(commentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                         ? AnyShapeStyle(Color.gray.opacity(0.3))
+                                         : AnyShapeStyle(AppTheme.goldGradient))
+                }
+                .disabled(commentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } else {
+                Button {
+                    loginAlertMessage = "Sign up or log in to comment on posts"
+                    showLoginAlert = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "person.crop.circle.badge.plus")
+                            .font(.system(size: 16))
+                        Text("Sign in to comment")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .foregroundColor(AppTheme.goldPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(AppTheme.goldPrimary.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22)
+                            .stroke(AppTheme.goldPrimary.opacity(0.3), lineWidth: 1)
+                    )
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(AppTheme.surface)
+    }
+    
+    private func commentRow(_ c: AppComment) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            let authorStr = c.authorName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            if authorStr.contains("boanalyst") || authorStr.contains("admin") {
+                BoAnalystAvatarView(size: 32, padding: 4)
+            } else {
+                Circle()
+                    .fill(AppTheme.goldPrimary.opacity(0.15))
+                    .frame(width: 32, height: 32)
+                    .overlay(
+                        Text(String(c.authorName.prefix(1)).uppercased())
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(AppTheme.goldGradient)
+                    )
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(c.authorName)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(AppTheme.textPrimary)
+                    Spacer()
+                    Text(formatRelativeDate(c.createdAt))
+                        .font(.system(size: 10))
+                        .foregroundColor(AppTheme.textMuted)
+                }
+                
+                Text(c.content)
+                    .font(.system(size: 13))
+                    .foregroundColor(AppTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.vertical, 6)
+    }
+    
+    private func loadPost() async {
+        isLoading = true
+        // 1. Check if post is already in VM feed
+        if let existing = flockVM.posts.first(where: { $0.id == postId }) {
+            self.post = existing
+        } else {
+            // 2. Fetch single post from backend
+            if let fetched = await flockVM.fetchSinglePost(id: postId) {
+                self.post = fetched
+            }
+        }
+        
+        isLoading = false
+        
+        if let post = post {
+            flockVM.loadComments(postId: post.id)
+            let isSuper = post.content.lowercased().contains("#boanalystsuper")
+            let isExclusive = post.content.lowercased().contains("#boanalystexclusive") || post.showRewarded
+            if isSuper || isExclusive {
+                adStep = "INTERSTITIAL_PREPARE"
+            } else {
+                adStep = "CONTENT"
+            }
+        } else {
+            adStep = "CONTENT"
+        }
+    }
+    
+    private func handleAdProgression(step: String) {
+        Task {
+            if step == "INTERSTITIAL_PREPARE" {
+                var attempts = 0
+                while !adManager.isAdLoaded && attempts < 15 {
+                    try? await Task.sleep(nanoseconds: 300_000_000)
+                    attempts += 1
+                }
+                if adManager.isAdLoaded {
+                    adStep = "INTERSTITIAL_PLAYING"
+                    InterstitialAdController.showAd(manager: adManager) {
+                        adStep = "REWARDED_PREPARE"
+                    }
+                } else {
+                    adStep = "REWARDED_PREPARE"
+                }
+            } else if step == "REWARDED_PREPARE" {
+                var attempts = 0
+                while !rewardedAdManager.isAdLoaded && attempts < 15 {
+                    try? await Task.sleep(nanoseconds: 300_000_000)
+                    attempts += 1
+                }
+                if rewardedAdManager.isAdLoaded {
+                    adStep = "REWARDED_PLAYING"
+                    RewardedAdController.showAd(manager: rewardedAdManager) {
+                        adStep = "CONTENT"
+                    }
+                } else {
+                    adStep = "CONTENT"
+                }
+            }
         }
     }
 }
