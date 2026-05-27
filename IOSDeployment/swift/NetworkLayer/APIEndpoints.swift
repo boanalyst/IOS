@@ -94,6 +94,10 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/flock/posts/\(id)", method: .PUT, body: body)
     }
 
+    static func getFlockPost(id: String) -> APIEndpoint {
+        APIEndpoint(path: "/api/flock/posts/\(id)", method: .GET)
+    }
+
     static func likePost(id: String) -> APIEndpoint {
         APIEndpoint(path: "/api/flock/posts/\(id)/like", method: .POST)
     }
