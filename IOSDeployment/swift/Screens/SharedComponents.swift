@@ -361,26 +361,47 @@ struct FlockPostCard: View {
             }
 
             // Content — extract social embeds first, strip their URLs from text
-            let isRewardedContent = post.showRewarded || post.content.lowercased().contains("#boanalystexclusive")
+            let isRewardedContent = post.showRewarded || post.content.lowercased().contains("#boanalystexclusive") || post.content.lowercased().contains("#boanalystsuper")
             let shouldObscure = isRewardedContent && !isUnlocked
             let socialEmbeds = shouldObscure ? [] : extractSocialEmbeds(from: post.content)
             let rawCleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
             
-            let cleanContent: String = (shouldObscure && rawCleanContent.count > 15)
-                ? String(rawCleanContent.prefix(15)) + "... See more"
+            let cleanContent: String = (shouldObscure && rawCleanContent.count > 25)
+                ? String(rawCleanContent.prefix(25)) + "... See more"
                 : rawCleanContent
 
             let attrString = ParsedTextCache.shared.parseFlock(cleanContent, id: post.id)
             Text(attrString)
                 .tint(AppTheme.goldPrimary)
                 .font(.system(size: 14))
-                .foregroundColor(shouldObscure ? AppTheme.goldPrimary : AppTheme.textPrimary)
-                .foregroundColor(AppTheme.textSecondary)
+                .foregroundColor(AppTheme.textPrimary)
                 .lineLimit(nil)
                 .lineSpacing(6)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 4)
+
+            if shouldObscure {
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(AppTheme.goldPrimary)
+                    Text("PREMIUM UNLOCK • CLICK TO VIEW FULL POST")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(AppTheme.goldPrimary)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(AppTheme.goldPrimary.opacity(0.15))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(AppTheme.goldPrimary.opacity(0.3), lineWidth: 1)
+                )
+                .padding(.top, 6)
+            }
 
             // ── Uploaded Media ───────────────────────────────────────
             let mediaUrls = post.media.map { $0.resolvedUrl() }.filter { !$0.isEmpty }
