@@ -765,7 +765,9 @@ struct PostMediaView: View {
                             EmptyView()
                         }
                     }
+                    .frame(maxWidth: .infinity)   // constrain width to parent FIRST
                     .frame(height: 240)
+                    .clipped()                     // clip layout bounds (not just shape)
                     .contentShape(Rectangle())
                     .onTapGesture { fullScreenIndex = 0 }
                     .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -794,6 +796,7 @@ struct PostMediaView: View {
                                         }
                                     }
                                     .frame(width: UIScreen.main.bounds.width * 0.82, height: 320)
+                                    .clipped()
                                     .contentShape(Rectangle())
                                     .onTapGesture { fullScreenIndex = i }
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
