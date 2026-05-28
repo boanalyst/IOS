@@ -135,7 +135,7 @@ packages:
     from: 4.5.0
   GoogleMobileAds:
     url: https://github.com/googleads/swift-package-manager-google-mobile-ads.git
-    from: 11.0.0
+    from: 13.3.0
 settings:
   base:
     PRODUCT_BUNDLE_IDENTIFIER: $BUNDLE_ID
