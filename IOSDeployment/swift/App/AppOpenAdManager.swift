@@ -9,6 +9,7 @@ import UIKit
 /// A highly premium, background-aware App Open Ad Manager for iOS.
 /// Leverages the Google Mobile Ads SDK.
 /// Handles dynamic configuration, active background cooldowns, and Pro-tier exemption.
+@MainActor
 class AppOpenAdManager: NSObject, GADFullScreenContentDelegate {
     static let shared = AppOpenAdManager()
     
@@ -80,16 +81,19 @@ class AppOpenAdManager: NSObject, GADFullScreenContentDelegate {
         
         GADAppOpenAd.load(withAdUnitID: adUnitId, request: GADRequest()) { [weak self] ad, error in
             guard let self = self else { return }
-            self.isLoadingAd = false
             
-            if let error = error {
-                print("⚠️ [AppOpenAdManager] App Open Ad failed to load: \(error.localizedDescription)")
-                return
+            Task { @MainActor in
+                self.isLoadingAd = false
+                
+                if let error = error {
+                    print("⚠️ [AppOpenAdManager] App Open Ad failed to load: \(error.localizedDescription)")
+                    return
+                }
+                
+                self.appOpenAd = ad
+                self.appOpenAd?.fullScreenContentDelegate = self
+                print("✅ [AppOpenAdManager] App Open Ad loaded successfully and ready for presentation.")
             }
-            
-            self.appOpenAd = ad
-            self.appOpenAd?.fullScreenContentDelegate = self
-            print("✅ [AppOpenAdManager] App Open Ad loaded successfully and ready for presentation.")
         }
     }
     
@@ -127,17 +131,17 @@ class AppOpenAdManager: NSObject, GADFullScreenContentDelegate {
     
     // MARK: - GADFullScreenContentDelegate Callbacks
     
-    func adWillPresentFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+    func adWillPresentFullScreenContent(_ ad: any GADFullScreenPresentingAd) {
         print("✅ [AppOpenAdManager] Ad presented full screen.")
     }
     
-    func ad(_ ad: GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
+    func ad(_ ad: any GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         print("⚠️ [AppOpenAdManager] Ad failed to present: \(error.localizedDescription)")
         appOpenAd = nil
         loadAd() // Prefetch next ad
     }
     
-    func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+    func adDidDismissFullScreenContent(_ ad: any GADFullScreenPresentingAd) {
         print("✅ [AppOpenAdManager] Ad dismissed. Updating cooldown timer.")
         appOpenAd = nil
         lastShownTime = Date()
