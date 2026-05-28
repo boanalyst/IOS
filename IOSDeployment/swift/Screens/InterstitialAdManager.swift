@@ -2,6 +2,7 @@ import GoogleMobileAds
 import SwiftUI
 import UIKit
 
+@MainActor
 class InterstitialAdManager: NSObject, GADFullScreenContentDelegate, ObservableObject {
     private var interstitial: GADInterstitialAd?
     @Published var isAdLoaded = false
@@ -20,15 +21,18 @@ class InterstitialAdManager: NSObject, GADFullScreenContentDelegate, ObservableO
         let request = GADRequest()
         GADInterstitialAd.load(withAdUnitID: adUnitID,
                                request: request) { [weak self] ad, error in
-            if let error = error {
-                print("Failed to load interstitial ad with error: \(error.localizedDescription)")
-                self?.isAdLoaded = false
-                return
+            guard let self = self else { return }
+            Task { @MainActor in
+                if let error = error {
+                    print("Failed to load interstitial ad with error: \(error.localizedDescription)")
+                    self.isAdLoaded = false
+                    return
+                }
+                self.interstitial = ad
+                self.interstitial?.fullScreenContentDelegate = self
+                self.isAdLoaded = true
+                print("Interstitial ad loaded successfully.")
             }
-            self?.interstitial = ad
-            self?.interstitial?.fullScreenContentDelegate = self
-            self?.isAdLoaded = true
-            print("Interstitial ad loaded successfully.")
         }
     }
 
@@ -46,7 +50,7 @@ class InterstitialAdManager: NSObject, GADFullScreenContentDelegate, ObservableO
 
     // MARK: - GADFullScreenContentDelegate
 
-    func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+    func adDidDismissFullScreenContent(_ ad: any GADFullScreenPresentingAd) {
         print("Ad dismissed.")
         isAdLoaded = false
         onAdDismissed?()
@@ -54,7 +58,7 @@ class InterstitialAdManager: NSObject, GADFullScreenContentDelegate, ObservableO
         loadAd() // Preload the next ad
     }
 
-    func ad(_ ad: GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
+    func ad(_ ad: any GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         print("Ad failed to present: \(error.localizedDescription)")
         isAdLoaded = false
         onAdDismissed?()

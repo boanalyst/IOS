@@ -2,6 +2,7 @@ import GoogleMobileAds
 import SwiftUI
 import UIKit
 
+@MainActor
 class RewardedAdManager: NSObject, GADFullScreenContentDelegate, ObservableObject {
     private var rewardedAd: GADRewardedAd?
     @Published var isAdLoaded = false
@@ -20,15 +21,18 @@ class RewardedAdManager: NSObject, GADFullScreenContentDelegate, ObservableObjec
         let request = GADRequest()
         GADRewardedAd.load(withAdUnitID: adUnitID,
                            request: request) { [weak self] ad, error in
-            if let error = error {
-                print("Failed to load rewarded ad with error: \(error.localizedDescription)")
-                self?.isAdLoaded = false
-                return
+            guard let self = self else { return }
+            Task { @MainActor in
+                if let error = error {
+                    print("Failed to load rewarded ad with error: \(error.localizedDescription)")
+                    self.isAdLoaded = false
+                    return
+                }
+                self.rewardedAd = ad
+                self.rewardedAd?.fullScreenContentDelegate = self
+                self.isAdLoaded = true
+                print("Rewarded ad loaded successfully.")
             }
-            self?.rewardedAd = ad
-            self?.rewardedAd?.fullScreenContentDelegate = self
-            self?.isAdLoaded = true
-            print("Rewarded ad loaded successfully.")
         }
     }
 
@@ -57,7 +61,7 @@ class RewardedAdManager: NSObject, GADFullScreenContentDelegate, ObservableObjec
 
     // MARK: - GADFullScreenContentDelegate
 
-    func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+    func adDidDismissFullScreenContent(_ ad: any GADFullScreenPresentingAd) {
         print("Rewarded Ad dismissed.")
         isAdLoaded = false
         if onRewardEarned != nil {
@@ -71,7 +75,7 @@ class RewardedAdManager: NSObject, GADFullScreenContentDelegate, ObservableObjec
         loadAd() // Preload the next ad
     }
 
-    func ad(_ ad: GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
+    func ad(_ ad: any GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         print("Rewarded Ad failed to present: \(error.localizedDescription)")
         isAdLoaded = false
         // Since it failed to present (not the user's fault), let them through
