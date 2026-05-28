@@ -33,7 +33,9 @@ struct BoAnalystApp: App {
         URLCache.shared = cache
         
         // ── Initialize Google Mobile Ads SDK ───────────────────────────
-        GADMobileAds.sharedInstance().start(completionHandler: nil)
+        Task {
+            await MobileAds.shared.start()
+        }
         
         // Initialize App Open Ad Manager
         AppOpenAdManager.shared.initialize()

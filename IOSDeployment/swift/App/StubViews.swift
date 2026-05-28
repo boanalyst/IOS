@@ -560,7 +560,7 @@ struct FlockFeedView: View {
                                 .padding(.horizontal, 16)
 
                                 if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isPro == true) && !(authViewModel.currentUser?.isAdmin == true) {
-                                    NativeAdView(index: index, listName: "flock")
+                                    BoNativeAdView(index: index, listName: "flock")
                                         .padding(.horizontal, 16)
                                 }
                             }
@@ -903,7 +903,7 @@ struct InsideTalkView: View {
                             .padding(.horizontal, 16)
 
                             if (index + 1) % adInterval == 0 && !isUserProGlobal {
-                                NativeAdView(index: index, listName: "insidetalk")
+                                BoNativeAdView(index: index, listName: "insidetalk")
                                     .padding(.horizontal, 16)
                             }
                         }
