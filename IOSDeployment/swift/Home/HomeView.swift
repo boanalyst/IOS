@@ -159,7 +159,7 @@ struct HomeView: View {
                                 SectionHeader(title: "Now Playing", icon: "film.fill")
 
                                 ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 14) {
+                                    LazyHStack(spacing: 14) {
                                         ForEach(viewModel.nowPlayingMovies) { movie in
                                             MovieCard(movie: movie)
                                         }
@@ -173,7 +173,7 @@ struct HomeView: View {
                                 SectionHeader(title: "Upcoming", icon: "calendar")
 
                                 ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 14) {
+                                    LazyHStack(spacing: 14) {
                                         ForEach(viewModel.upcomingMovies) { movie in
                                             MovieCard(movie: movie)
                                         }
