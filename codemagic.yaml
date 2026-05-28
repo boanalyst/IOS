@@ -99,8 +99,22 @@ workflows:
       - name: Set Up Code Signing
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
-          keychain add-certificates
+          
+          # Import the manually generated .p12 certificate (which contains both cert and private key)
+          if [ -f "$CM_BUILD_DIR/IOSDeployment/final_distribution.p12" ]; then
+            echo "▶ Importing final_distribution.p12..."
+            keychain add-certificates \
+              --certificate "$CM_BUILD_DIR/IOSDeployment/final_distribution.p12" \
+              --certificate-password "boanalyst123"
+          fi
+          
+          # Fetch/create signing files from Apple Developer portal, supplying the private key for cert generation if needed
+          echo "▶ Fetching signing files from App Store Connect..."
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create \
+            --certificate-key=@file:$CM_BUILD_DIR/IOSDeployment/ios_distribution.key
+          
           xcode-project use-profiles
           echo "✅ Code signing configured."
 
