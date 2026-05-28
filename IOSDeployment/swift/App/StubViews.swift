@@ -2543,15 +2543,19 @@ struct FlockPostDetailSheet: View {
         
         if let post = post {
             flockVM.loadComments(postId: post.id)
-            let isSuper = post.content.lowercased().contains("#boanalystsuper")
-            let isExclusive = post.content.lowercased().contains("#boanalystexclusive") || post.showRewarded
-            if isSuper || isExclusive {
-                adStep = "INTERSTITIAL_PREPARE"
-            } else {
-                adStep = "CONTENT"
+            if adStep == "INITIAL" {
+                let isSuper = post.content.lowercased().contains("#boanalystsuper")
+                let isExclusive = post.content.lowercased().contains("#boanalystexclusive") || post.showRewarded
+                if isSuper || isExclusive {
+                    adStep = "INTERSTITIAL_PREPARE"
+                } else {
+                    adStep = "CONTENT"
+                }
             }
         } else {
-            adStep = "CONTENT"
+            if adStep == "INITIAL" {
+                adStep = "CONTENT"
+            }
         }
     }
     
@@ -2559,7 +2563,7 @@ struct FlockPostDetailSheet: View {
         Task {
             if step == "INTERSTITIAL_PREPARE" {
                 var attempts = 0
-                while !adManager.isAdLoaded && attempts < 15 {
+                while !adManager.isAdLoaded && attempts < 45 {
                     try? await Task.sleep(nanoseconds: 300_000_000)
                     attempts += 1
                 }
@@ -2573,7 +2577,7 @@ struct FlockPostDetailSheet: View {
                 }
             } else if step == "REWARDED_PREPARE" {
                 var attempts = 0
-                while !rewardedAdManager.isAdLoaded && attempts < 15 {
+                while !rewardedAdManager.isAdLoaded && attempts < 45 {
                     try? await Task.sleep(nanoseconds: 300_000_000)
                     attempts += 1
                 }
