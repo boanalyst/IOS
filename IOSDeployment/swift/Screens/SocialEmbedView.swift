@@ -196,6 +196,35 @@ private struct YouTubeThumbnailCard: View {
                 SafariView(url: url).ignoresSafeArea()
             }
         }
+// MARK: - WebView Cache to solve LazyVStack performance issues
+// This prevents SwiftUI from constantly allocating and deallocating WKWebViews
+// as the user scrolls up and down the feed.
+final class EmbedWebViewCache {
+    static let shared = EmbedWebViewCache()
+    private var cache: [String: WKWebView] = [:]
+    private var keys: [String] = [] // For simple LRU cache behavior
+    private let maxCacheSize = 12
+
+    func getWebView(id: String, creator: () -> WKWebView) -> WKWebView {
+        if let wv = cache[id] {
+            // Move to most recently used
+            if let idx = keys.firstIndex(of: id) {
+                keys.remove(at: idx)
+                keys.append(id)
+            }
+            return wv
+        }
+        
+        let wv = creator()
+        cache[id] = wv
+        keys.append(id)
+        
+        // Evict oldest if we exceed max size
+        if keys.count > maxCacheSize {
+            let oldest = keys.removeFirst()
+            cache.removeValue(forKey: oldest)
+        }
+        return wv
     }
 }
 
@@ -206,7 +235,6 @@ private struct XEmbedWebView: View {
 
     var body: some View {
         TwitterWebView(tweetId: tweetId)
-            // Removed tight maxHeight limits, increased minHeight to accommodate media
             .frame(maxWidth: .infinity, minHeight: 480)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
@@ -222,23 +250,28 @@ private struct TwitterWebView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.allowsInlineMediaPlayback = true
-        let wv = WKWebView(frame: .zero, configuration: config)
-        wv.isOpaque = false
-        wv.backgroundColor = .clear
-        
-        // ALLOW SCROLLING so user can pan if tweet is very long
-        wv.scrollView.isScrollEnabled = true
-        wv.scrollView.bounces = false
+        let wv = EmbedWebViewCache.shared.getWebView(id: "twitter_\(tweetId)") {
+            let config = WKWebViewConfiguration()
+            config.allowsInlineMediaPlayback = true
+            let view = WKWebView(frame: .zero, configuration: config)
+            view.isOpaque = false
+            view.backgroundColor = .clear
+            view.scrollView.isScrollEnabled = true
+            view.scrollView.bounces = false
+            return view
+        }
         
         wv.navigationDelegate = context.coordinator
-        let parts = tweetId.components(separatedBy: "|")
-        let username = parts.count == 2 ? parts[0] : "x"
-        let actualId = parts.count == 2 ? parts[1] : tweetId
         
-        let html = twitterHTML(username: username, tweetId: actualId)
-        wv.loadHTMLString(html, baseURL: URL(string: "https://twitter.com"))
+        // Only load if not already loaded (cache hit)
+        if wv.url == nil && !wv.isLoading {
+            let parts = tweetId.components(separatedBy: "|")
+            let username = parts.count == 2 ? parts[0] : "x"
+            let actualId = parts.count == 2 ? parts[1] : tweetId
+            let html = twitterHTML(username: username, tweetId: actualId)
+            wv.loadHTMLString(html, baseURL: URL(string: "https://twitter.com"))
+        }
+        
         return wv
     }
 
@@ -292,19 +325,24 @@ private struct InstagramWebView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.allowsInlineMediaPlayback = true
-        let wv = WKWebView(frame: .zero, configuration: config)
-        wv.isOpaque = false
-        wv.backgroundColor = .clear
-        
-        // ALLOW SCROLLING for vertical expansion of long captions
-        wv.scrollView.isScrollEnabled = true
-        wv.scrollView.bounces = false
+        let wv = EmbedWebViewCache.shared.getWebView(id: "ig_\(postUrl)") {
+            let config = WKWebViewConfiguration()
+            config.allowsInlineMediaPlayback = true
+            let view = WKWebView(frame: .zero, configuration: config)
+            view.isOpaque = false
+            view.backgroundColor = .clear
+            view.scrollView.isScrollEnabled = true
+            view.scrollView.bounces = false
+            return view
+        }
         
         wv.navigationDelegate = context.coordinator
-        let html = instagramHTML(postUrl: postUrl)
-        wv.loadHTMLString(html, baseURL: URL(string: "https://www.instagram.com"))
+        
+        if wv.url == nil && !wv.isLoading {
+            let html = instagramHTML(postUrl: postUrl)
+            wv.loadHTMLString(html, baseURL: URL(string: "https://www.instagram.com"))
+        }
+        
         return wv
     }
 
