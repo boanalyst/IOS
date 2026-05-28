@@ -105,7 +105,8 @@ workflows:
           xcode-project build-ipa \
             --workspace "$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME" \
-            --ipa-directory "$BUILD_DIR/Export"
+            --ipa-directory "$BUILD_DIR/Export" \
+            --export-options-plist "$CM_EXPORT_OPTIONS_PLIST"
           echo "✅ IPA exported."
 
     artifacts:
