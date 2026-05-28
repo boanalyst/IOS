@@ -112,19 +112,24 @@ struct BoAnalystApp: App {
     }
     
     private func checkClipboardForDeepLink() {
-        guard let clipboardString = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines), !clipboardString.isEmpty else { return }
-        
-        if clipboardString.hasPrefix("boanalyst://flock/post/") ||
-           clipboardString.hasPrefix("https://boanalyst.com/flock/post/") ||
-           clipboardString.hasPrefix("https://www.boanalyst.com/flock/post/") {
+        Task.detached {
+            guard UIPasteboard.general.hasStrings else { return }
+            guard let clipboardString = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines), !clipboardString.isEmpty else { return }
             
-            let components = clipboardString.components(separatedBy: "/")
-            if let lastComponent = components.last, !lastComponent.isEmpty, lastComponent.allSatisfy({ $0.isNumber }) {
-                // Clear clipboard to prevent repeating the prompt
-                UIPasteboard.general.string = ""
+            if clipboardString.hasPrefix("boanalyst://flock/post/") ||
+               clipboardString.hasPrefix("https://boanalyst.com/flock/post/") ||
+               clipboardString.hasPrefix("https://www.boanalyst.com/flock/post/") {
                 
-                self.detectedPostIdToOpen = lastComponent
-                self.showClipboardPrompt = true
+                let components = clipboardString.components(separatedBy: "/")
+                if let lastComponent = components.last, !lastComponent.isEmpty, lastComponent.allSatisfy({ $0.isNumber }) {
+                    
+                    await MainActor.run {
+                        // Clear clipboard to prevent repeating the prompt
+                        UIPasteboard.general.string = ""
+                        self.detectedPostIdToOpen = lastComponent
+                        self.showClipboardPrompt = true
+                    }
+                }
             }
         }
     }
