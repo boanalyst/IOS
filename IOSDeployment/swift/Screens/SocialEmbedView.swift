@@ -250,18 +250,17 @@ private func twitterHTML(username: String, tweetId: String) -> String {
     <!DOCTYPE html>
     <html>
     <head>
-    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
     <style>
       * { margin:0; padding:0; box-sizing:border-box; }
-      body { background:transparent; font-family:sans-serif; width: 100%; overflow: hidden; }
-      .wrap { width: 100%; max-width: 100%; padding: 4px; }
-      iframe, .twitter-tweet { margin: 0 auto !important; width: 100% !important; max-width: 100% !important; }
+      body { background:transparent; font-family:sans-serif; }
+      .wrap { display:flex; justify-content:center; padding:4px 0; }
     </style>
     </head>
     <body>
     <div class="wrap">
       <blockquote class="twitter-tweet" data-conversation="none" data-theme="dark"
-                  data-cards="visible" data-media="visible" data-dnt="true">
+                  data-cards="visible" data-media="visible" data-dnt="true" data-width="480">
         <a href="https://twitter.com/\(username)/status/\(tweetId)"></a>
       </blockquote>
     </div>
