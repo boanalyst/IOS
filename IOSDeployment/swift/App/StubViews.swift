@@ -2320,6 +2320,13 @@ struct FlockPostDetailSheet: View {
                     Text("Content will unlock automatically")
                         .font(.system(size: 11))
                         .foregroundColor(AppTheme.textMuted.opacity(0.7))
+                    
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(AppTheme.textMuted)
+                    .padding(.top, 12)
                 }
             } else if let post = post {
                 VStack(spacing: 0) {
@@ -2572,9 +2579,16 @@ struct FlockPostDetailSheet: View {
                 }
                 if rewardedAdManager.isAdLoaded {
                     adStep = "REWARDED_PLAYING"
-                    RewardedAdController.showAd(manager: rewardedAdManager) {
-                        adStep = "CONTENT"
-                    }
+                    RewardedAdController.showAd(
+                        manager: rewardedAdManager,
+                        onRewardEarned: {
+                            adStep = "CONTENT"
+                        },
+                        onDismissedWithoutReward: {
+                            // User dismissed early — retry (reload ad + re-enter REWARDED_PREPARE)
+                            adStep = "REWARDED_PREPARE"
+                        }
+                    )
                 } else {
                     adStep = "CONTENT"
                 }
