@@ -509,118 +509,96 @@ final class ParsedTextCache {
 fileprivate let hashtagRegex: NSRegularExpression? = try? NSRegularExpression(pattern: "(#[\\p{L}\\p{N}_]+)")
 
 func parseBoAnalystHTML(_ text: String) -> AttributedString {
-    var result = AttributedString()
-    let goldColor = Color(red: 0.831, green: 0.686, blue: 0.216)
-    
-    // ── Step 1: Normalise line endings and breaks ─────────────────────────────
+    // ── Step 1: Normalise line endings ───────────────────────────────────────
     var clean = text
         .replacingOccurrences(of: "\r\n", with: "\n")
         .replacingOccurrences(of: "\r", with: "\n")
-        .replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)</?p>", with: "\n\n", options: .regularExpression)
-        .replacingOccurrences(of: "(?i)<li>", with: "\n• ", options: .regularExpression)
-    
-    // ── Step 2: Strip remaining HTML tags ─────────────────────────────────────
+
+    // ── Step 2: Convert standard tags to intermediate markers ──
+    clean = clean.replacingOccurrences(of: "(?is)<b>(.*?)</b>", with: "**$1**", options: .regularExpression)
+    clean = clean.replacingOccurrences(of: "(?is)<i>(.*?)</i>", with: "₩₩$1₩₩", options: .regularExpression)
+    clean = clean.replacingOccurrences(of: "(?is)<u>(.*?)</u>", with: "§§$1§§", options: .regularExpression)
+
+    // Android markdown compat
+    clean = clean.replacingOccurrences(of: "__([^_]+)__", with: "§§$1§§", options: .regularExpression)
+    clean = clean.replacingOccurrences(of: "_([^_]+)_", with: "₩₩$1₩₩", options: .regularExpression)
+
+    // ── Step 3: Block HTML to newlines ──
+    clean = clean.replacingOccurrences(of: "(?i)<br\\s*/?>", with: "\n", options: .regularExpression)
+    clean = clean.replacingOccurrences(of: "(?i)</?p>", with: "\n\n", options: .regularExpression)
+    clean = clean.replacingOccurrences(of: "(?i)<li>", with: "\n• ", options: .regularExpression)
+
+    // ── Step 4: Strip all remaining HTML tags ──
     clean = clean.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-    
-    // ── Step 3: Replace HTML entities ─────────────────────────────────────────
+
+    // ── Step 5: HTML Entities ──
     clean = clean.replacingOccurrences(of: "&nbsp;", with: " ")
                  .replacingOccurrences(of: "&amp;", with: "&")
                  .replacingOccurrences(of: "&lt;", with: "<")
                  .replacingOccurrences(of: "&gt;", with: ">")
-    
-    // ── Step 4: Normalize bullets ─────────────────────────────────────────────
+
     clean = clean.replacingOccurrences(of: "(?m)^\\s*\\*\\*\\*(?!\\*)\\s+", with: "**• ", options: .regularExpression)
     clean = clean.replacingOccurrences(of: "(?m)^\\s*\\*(?!\\*)\\s+", with: "• ", options: .regularExpression)
+    clean = clean.replacingOccurrences(
+        of: "\\*\\*[ \\t]+(.*?)[ \\t]+\\*\\*",
+        with: "**$1**",
+        options: .regularExpression
+    )
+
+    var attrResult = AttributedString()
+    let boldParts = clean.components(separatedBy: "**")
     
-    // ── Step 5: Unified Regex Parsing (Identical parsing tree to Android) ─────
-    let pattern = "\\*\\*(.*?)\\*\\*|__(.*?)__|\\*(.*?)\\*|_(.*?)_|(?is)<b>(.*?)</b>|(?is)<i>(.*?)</i>|(?is)<u>(.*?)</u>"
-    guard let regex = try? NSRegularExpression(pattern: pattern) else {
-        return AttributedString(clean)
-    }
-    
-    let nsText = clean as NSString
-    let matches = regex.matches(in: clean, range: NSRange(location: 0, length: nsText.length))
-    
-    var cursor = 0
-    
-    func appendSegments(_ rawText: String, isBold: Bool = false, isItalic: Bool = false, isUnderline: Bool = false) {
-        // Highlight #hashtags within segment
-        let words = rawText.components(separatedBy: CharacterSet.whitespaces)
-        for (idx, word) in words.enumerated() {
-            var chunk = AttributedString(word)
-            let isHashtag = word.hasPrefix("#") && word.count > 1
+    for (i, bPart) in boldParts.enumerated() {
+        if bPart.isEmpty { continue }
+        let isBold = (i % 2 == 1 && boldParts.count > 1)
+        
+        let italicParts = bPart.components(separatedBy: "₩₩")
+        for (j, iPart) in italicParts.enumerated() {
+            if iPart.isEmpty { continue }
+            let isItalic = (j % 2 == 1 && italicParts.count > 1)
             
-            var intent: InlinePresentationIntent = []
-            if isBold { intent.insert(.stronglyEmphasized) }
-            if isItalic { intent.insert(.emphasized) }
-            if !intent.isEmpty {
-                chunk.inlinePresentationIntent = intent
-            }
-            if isUnderline {
-                chunk.underlineStyle = Text.LineStyle(pattern: .solid)
-            }
-            
-            if isHashtag {
-                chunk.foregroundColor = goldColor
-                chunk.inlinePresentationIntent = intent.union([.stronglyEmphasized])
-                chunk.link = URL(string: "boanalyst://hashtag")
-            }
-            
-            result.append(chunk)
-            if idx < words.count - 1 {
-                result.append(AttributedString(" "))
+            let underParts = iPart.components(separatedBy: "§§")
+            for (k, uPart) in underParts.enumerated() {
+                if uPart.isEmpty { continue }
+                let isUnder = (k % 2 == 1 && underParts.count > 1)
+                
+                var attrPart = AttributedString(uPart)
+                
+                var intent: InlinePresentationIntent = []
+                if isBold { intent.insert(.stronglyEmphasized) }
+                if isItalic { intent.insert(.emphasized) }
+                
+                if !intent.isEmpty {
+                    attrPart.inlinePresentationIntent = intent
+                }
+                
+                if isUnder {
+                    attrPart.underlineStyle = Text.LineStyle(pattern: .solid)
+                }
+                
+                attrResult.append(attrPart)
             }
         }
     }
     
-    for match in matches {
-        let start = match.range.location
-        if start > cursor {
-            let plain = nsText.substring(with: NSRange(location: cursor, length: start - cursor))
-            appendSegments(plain)
-        }
-        
-        var innerText = ""
-        var isBold = false
-        var isItalic = false
-        var isUnderline = false
-        
-        if match.range(at: 1).location != NSNotFound {
-            innerText = nsText.substring(with: match.range(at: 1))
-            isBold = true
-        } else if match.range(at: 2).location != NSNotFound {
-            innerText = nsText.substring(with: match.range(at: 2))
-            isUnderline = true
-        } else if match.range(at: 3).location != NSNotFound {
-            innerText = nsText.substring(with: match.range(at: 3))
-            isItalic = true
-        } else if match.range(at: 4).location != NSNotFound {
-            innerText = nsText.substring(with: match.range(at: 4))
-            isItalic = true
-        } else if match.range(at: 5).location != NSNotFound {
-            innerText = nsText.substring(with: match.range(at: 5))
-            isBold = true
-        } else if match.range(at: 6).location != NSNotFound {
-            innerText = nsText.substring(with: match.range(at: 6))
-            isItalic = true
-        } else if match.range(at: 7).location != NSNotFound {
-            innerText = nsText.substring(with: match.range(at: 7))
-            isUnderline = true
-        } else {
-            innerText = nsText.substring(with: match.range)
-        }
-        
-        appendSegments(innerText, isBold: isBold, isItalic: isItalic, isUnderline: isUnderline)
-        cursor = match.range.location + match.range.length
+    if attrResult.characters.isEmpty {
+        attrResult = AttributedString(clean.replacingOccurrences(of: "**", with: ""))
     }
-    
-    if cursor < nsText.length {
-        let tail = nsText.substring(from: cursor)
-        appendSegments(tail)
+
+    if let regex = hashtagRegex {
+        let plainText = String(attrResult.characters)
+        let matches = regex.matches(in: plainText, range: NSRange(location: 0, length: plainText.utf16.count))
+        for match in matches.reversed() {
+            if let swiftRange = Range(match.range, in: plainText) {
+                if let startIdx = AttributedString.Index(swiftRange.lowerBound, within: attrResult),
+                   let endIdx = AttributedString.Index(swiftRange.upperBound, within: attrResult) {
+                    attrResult[startIdx..<endIdx].link = URL(string: "boanalyst://hashtag")
+                }
+            }
+        }
     }
-    
-    return result
+
+    return attrResult
 }
 
 // MARK: - Backward-compatibility alias so HomeView's existing FlockPostCardFull calls compile
@@ -750,28 +728,31 @@ struct PostMediaView: View {
             if urls.count == 1 {
                 // Single image — stable aspect-ratio card to prevent dynamic layout jumps during scrolling
                 if let urlString = urls.first, let url = URL(string: urlString) {
-                    CachedAsyncImage(url: url) { phase in
-                        switch phase {
-                        case .empty:
-                            Rectangle().fill(AppTheme.surfaceVariant)
-                                .overlay(ProgressView().tint(AppTheme.goldPrimary))
-                        case .success(let image):
-                            image.resizable()
-                                .scaledToFill()
-                        case .failure:
-                            Rectangle().fill(AppTheme.surfaceVariant)
-                                .overlay(Image(systemName: "photo").foregroundColor(AppTheme.textMuted))
-                        @unknown default:
-                            EmptyView()
-                        }
-                    }
-                    .frame(maxWidth: .infinity)   // constrain width to parent FIRST
-                    .frame(height: 240)
-                    .clipped()                     // clip layout bounds (not just shape)
-                    .contentShape(Rectangle())
-                    .onTapGesture { fullScreenIndex = 0 }
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding(.top, 4)
+                    // Container with fixed layout size — overlay doesn't affect parent sizing
+                    Color.clear
+                        .frame(height: 240)
+                        .overlay(
+                            CachedAsyncImage(url: url) { phase in
+                                switch phase {
+                                case .empty:
+                                    Rectangle().fill(AppTheme.surfaceVariant)
+                                        .overlay(ProgressView().tint(AppTheme.goldPrimary))
+                                case .success(let image):
+                                    image.resizable()
+                                        .scaledToFill()
+                                case .failure:
+                                    Rectangle().fill(AppTheme.surfaceVariant)
+                                        .overlay(Image(systemName: "photo").foregroundColor(AppTheme.textMuted))
+                                @unknown default:
+                                    EmptyView()
+                                }
+                            }
+                        )
+                        .clipped()
+                        .contentShape(Rectangle())
+                        .onTapGesture { fullScreenIndex = 0 }
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(.top, 4)
                 }
             } else {
                 // Horizontal scroll - fixed 240pt height cards, tappable
@@ -796,7 +777,6 @@ struct PostMediaView: View {
                                         }
                                     }
                                     .frame(width: UIScreen.main.bounds.width * 0.82, height: 320)
-                                    .clipped()
                                     .contentShape(Rectangle())
                                     .onTapGesture { fullScreenIndex = i }
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
