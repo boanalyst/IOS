@@ -196,6 +196,9 @@ private struct YouTubeThumbnailCard: View {
                 SafariView(url: url).ignoresSafeArea()
             }
         }
+    }
+}
+
 // MARK: - WebView Cache to solve LazyVStack performance issues
 // This prevents SwiftUI from constantly allocating and deallocating WKWebViews
 // as the user scrolls up and down the feed.
