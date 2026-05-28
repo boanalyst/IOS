@@ -2578,6 +2578,10 @@ struct FlockPostDetailSheet: View {
                     attempts += 1
                 }
                 if rewardedAdManager.isAdLoaded {
+                    // Small delay to allow the Interstitial dismissal animation to completely finish in UIKit
+                    // Otherwise UIKit ignores the new present() request and we get stuck on "Loading Premium Content"
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    
                     adStep = "REWARDED_PLAYING"
                     RewardedAdController.showAd(
                         manager: rewardedAdManager,
