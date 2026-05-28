@@ -32,18 +32,24 @@ class RewardedAdManager: NSObject, GADFullScreenContentDelegate, ObservableObjec
         }
     }
 
-    func showAd(from viewController: UIViewController, onRewardEarned: @escaping () -> Void) {
+    private var onDismissedWithoutReward: (() -> Void)?
+
+    func showAd(from viewController: UIViewController,
+                onRewardEarned: @escaping () -> Void,
+                onDismissedWithoutReward: (() -> Void)? = nil) {
         if let rewardedAd = rewardedAd, isAdLoaded {
             self.onRewardEarned = onRewardEarned
+            self.onDismissedWithoutReward = onDismissedWithoutReward
             rewardedAd.present(fromRootViewController: viewController) {
-                // User earned reward
+                // User earned reward (watched full ad)
                 print("User earned reward.")
                 self.onRewardEarned?()
                 self.onRewardEarned = nil
+                self.onDismissedWithoutReward = nil
             }
         } else {
             print("Rewarded Ad wasn't ready.")
-            // Allow if it fails to load
+            // Allow if it fails to load (not the user's fault)
             onRewardEarned()
             loadAd()
         }
@@ -54,10 +60,14 @@ class RewardedAdManager: NSObject, GADFullScreenContentDelegate, ObservableObjec
     func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
         print("Rewarded Ad dismissed.")
         isAdLoaded = false
-        // We only trigger success on the reward block, not here, to enforce watching
-        // But if we want to handle early dismissal without reward, we can do it.
-        // For strict enforcement, we only call the callback in the present block.
-        // Wait, if they dismiss early, they don't get the reward and the UI doesn't progress.
+        if onRewardEarned != nil {
+            // User dismissed early without earning — DON'T unlock content
+            print("User dismissed rewarded ad early — no reward granted.")
+            onDismissedWithoutReward?()
+        }
+        // Clean up
+        onRewardEarned = nil
+        onDismissedWithoutReward = nil
         loadAd() // Preload the next ad
     }
 
@@ -67,12 +77,15 @@ class RewardedAdManager: NSObject, GADFullScreenContentDelegate, ObservableObjec
         // Since it failed to present (not the user's fault), let them through
         onRewardEarned?()
         onRewardEarned = nil
+        onDismissedWithoutReward = nil
         loadAd()
     }
 }
 
 struct RewardedAdController {
-    static func showAd(manager: RewardedAdManager, onRewardEarned: @escaping () -> Void) {
+    static func showAd(manager: RewardedAdManager,
+                       onRewardEarned: @escaping () -> Void,
+                       onDismissedWithoutReward: (() -> Void)? = nil) {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootViewController = windowScene.windows.first?.rootViewController else {
             print("Could not find root view controller to present rewarded ad.")
@@ -85,6 +98,6 @@ struct RewardedAdController {
             currentVC = presentedVC
         }
         
-        manager.showAd(from: currentVC, onRewardEarned: onRewardEarned)
+        manager.showAd(from: currentVC, onRewardEarned: onRewardEarned, onDismissedWithoutReward: onDismissedWithoutReward)
     }
 }
