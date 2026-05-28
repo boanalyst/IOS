@@ -3,8 +3,8 @@ import SwiftUI
 import UIKit
 
 @MainActor
-class RewardedAdManager: NSObject, GADFullScreenContentDelegate, ObservableObject {
-    private var rewardedAd: GADRewardedAd?
+class RewardedAdManager: NSObject, FullScreenContentDelegate, ObservableObject {
+    private var rewardedAd: RewardedAd?
     @Published var isAdLoaded = false
     
     // Production iOS Rewarded Ad Unit ID
@@ -18,9 +18,9 @@ class RewardedAdManager: NSObject, GADFullScreenContentDelegate, ObservableObjec
     }
 
     func loadAd() {
-        let request = GADRequest()
-        GADRewardedAd.load(withAdUnitID: adUnitID,
-                           request: request) { [weak self] ad, error in
+        let request = Request()
+        RewardedAd.load(with: adUnitID,
+                        request: request) { [weak self] ad, error in
             guard let self = self else { return }
             Task { @MainActor in
                 if let error = error {
@@ -44,7 +44,7 @@ class RewardedAdManager: NSObject, GADFullScreenContentDelegate, ObservableObjec
         if let rewardedAd = rewardedAd, isAdLoaded {
             self.onRewardEarned = onRewardEarned
             self.onDismissedWithoutReward = onDismissedWithoutReward
-            rewardedAd.present(fromRootViewController: viewController) {
+            rewardedAd.present(from: viewController) {
                 // User earned reward (watched full ad)
                 print("User earned reward.")
                 self.onRewardEarned?()
@@ -59,9 +59,9 @@ class RewardedAdManager: NSObject, GADFullScreenContentDelegate, ObservableObjec
         }
     }
 
-    // MARK: - GADFullScreenContentDelegate
+    // MARK: - FullScreenContentDelegate
 
-    func adDidDismissFullScreenContent(_ ad: any GADFullScreenPresentingAd) {
+    func adDidDismissFullScreenContent(_ ad: any FullScreenPresentingAd) {
         print("Rewarded Ad dismissed.")
         isAdLoaded = false
         if onRewardEarned != nil {
@@ -75,7 +75,7 @@ class RewardedAdManager: NSObject, GADFullScreenContentDelegate, ObservableObjec
         loadAd() // Preload the next ad
     }
 
-    func ad(_ ad: any GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
+    func ad(_ ad: any FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         print("Rewarded Ad failed to present: \(error.localizedDescription)")
         isAdLoaded = false
         // Since it failed to present (not the user's fault), let them through
@@ -87,6 +87,7 @@ class RewardedAdManager: NSObject, GADFullScreenContentDelegate, ObservableObjec
 }
 
 struct RewardedAdController {
+    @MainActor
     static func showAd(manager: RewardedAdManager,
                        onRewardEarned: @escaping () -> Void,
                        onDismissedWithoutReward: (() -> Void)? = nil) {

@@ -3,8 +3,8 @@ import SwiftUI
 import UIKit
 
 @MainActor
-class InterstitialAdManager: NSObject, GADFullScreenContentDelegate, ObservableObject {
-    private var interstitial: GADInterstitialAd?
+class InterstitialAdManager: NSObject, FullScreenContentDelegate, ObservableObject {
+    private var interstitial: InterstitialAd?
     @Published var isAdLoaded = false
     
     // Production iOS Interstitial ID
@@ -18,9 +18,9 @@ class InterstitialAdManager: NSObject, GADFullScreenContentDelegate, ObservableO
     }
 
     func loadAd() {
-        let request = GADRequest()
-        GADInterstitialAd.load(withAdUnitID: adUnitID,
-                               request: request) { [weak self] ad, error in
+        let request = Request()
+        InterstitialAd.load(with: adUnitID,
+                            request: request) { [weak self] ad, error in
             guard let self = self else { return }
             Task { @MainActor in
                 if let error = error {
@@ -39,7 +39,7 @@ class InterstitialAdManager: NSObject, GADFullScreenContentDelegate, ObservableO
     func showAd(from viewController: UIViewController, onDismiss: @escaping () -> Void) {
         if let interstitial = interstitial, isAdLoaded {
             self.onAdDismissed = onDismiss
-            interstitial.present(fromRootViewController: viewController)
+            interstitial.present(from: viewController)
         } else {
             print("Ad wasn't ready.")
             // If ad is not ready, proceed with the action immediately
@@ -48,9 +48,9 @@ class InterstitialAdManager: NSObject, GADFullScreenContentDelegate, ObservableO
         }
     }
 
-    // MARK: - GADFullScreenContentDelegate
+    // MARK: - FullScreenContentDelegate
 
-    func adDidDismissFullScreenContent(_ ad: any GADFullScreenPresentingAd) {
+    func adDidDismissFullScreenContent(_ ad: any FullScreenPresentingAd) {
         print("Ad dismissed.")
         isAdLoaded = false
         onAdDismissed?()
@@ -58,7 +58,7 @@ class InterstitialAdManager: NSObject, GADFullScreenContentDelegate, ObservableO
         loadAd() // Preload the next ad
     }
 
-    func ad(_ ad: any GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
+    func ad(_ ad: any FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         print("Ad failed to present: \(error.localizedDescription)")
         isAdLoaded = false
         onAdDismissed?()
@@ -69,6 +69,7 @@ class InterstitialAdManager: NSObject, GADFullScreenContentDelegate, ObservableO
 
 // SwiftUI Wrapper to easily access the view controller
 struct InterstitialAdController {
+    @MainActor
     static func showAd(manager: InterstitialAdManager, onDismiss: @escaping () -> Void) {
         // Find the topmost view controller
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,

@@ -1,6 +1,6 @@
 // NativeAdView.swift
 // A highly premium, gold-bordered glassmorphic Native Advanced Ad wrapper for SwiftUI.
-// Bridges the Google Mobile Ads SDK GADNativeAdView (UIKit) into SwiftUI layouts seamlessly.
+// Bridges the Google Mobile Ads SDK NativeAdView (UIKit) into SwiftUI layouts seamlessly.
 
 import SwiftUI
 import GoogleMobileAds
@@ -8,12 +8,13 @@ import UIKit
 
 /// A SwiftUI view that dynamically loads and displays a premium Native Ad.
 /// Respects Pro-tier user exemptions and dynamic backend configurations.
-struct NativeAdView: View {
+/// Named BoNativeAdView to avoid collision with GoogleMobileAds.NativeAdView.
+struct BoNativeAdView: View {
     var index: Int = 0
     var listName: String = "default"
     
     @EnvironmentObject private var authViewModel: AuthViewModel
-    @State private var nativeAd: GADNativeAd? = nil
+    @State private var nativeAd: NativeAd? = nil
     @State private var adUnitId: String = "ca-app-pub-5734863079459748/2827053472" // Default Production Native Unit ID
     @State private var isEnabled: Bool = true
 
@@ -25,7 +26,7 @@ struct NativeAdView: View {
         } else {
             VStack {
                 if let ad = nativeAd {
-                    NativeAdRepresentable(nativeAd: ad)
+                    BoNativeAdRepresentable(nativeAd: ad)
                         .frame(maxWidth: .infinity)
                         .frame(height: 380) // Perfectly fits our beautiful programmatic layout
                         .padding(.vertical, 8)
@@ -51,7 +52,7 @@ struct NativeAdView: View {
             }
             self.loadAd()
         } catch {
-            print("⚠️ [NativeAdView] Failed to retrieve dynamic configurations: \(error.localizedDescription). Falling back to test credentials.")
+            print("⚠️ [BoNativeAdView] Failed to retrieve dynamic configurations: \(error.localizedDescription). Falling back to test credentials.")
             self.loadAd()
         }
     }
@@ -63,15 +64,15 @@ struct NativeAdView: View {
     }
 }
 
-// MARK: - NativeAdRepresentable
+// MARK: - BoNativeAdRepresentable
 
-private struct NativeAdRepresentable: UIViewRepresentable {
-    let nativeAd: GADNativeAd
+private struct BoNativeAdRepresentable: UIViewRepresentable {
+    let nativeAd: NativeAd
     
-    func makeUIView(context: Context) -> GADNativeAdView {
-        let nativeAdView = GADNativeAdView()
+    func makeUIView(context: Context) -> GoogleMobileAds.NativeAdView {
+        let nativeAdView = GoogleMobileAds.NativeAdView()
         // Do not set translatesAutoresizingMaskIntoConstraints to false on the root view.
-        // SwiftUI expects ktranslatesAutoresizingMaskIntoConstraints to be true so it can directly size its frame.
+        // SwiftUI expects translatesAutoresizingMaskIntoConstraints to be true so it can directly size its frame.
         
         // ── Main Card Container ──
         let cardContainer = UIView()
@@ -164,7 +165,7 @@ private struct NativeAdRepresentable: UIViewRepresentable {
         nativeAdView.bodyView = bodyLabel
         
         // ── Media View ──
-        let mediaView = GADMediaView()
+        let mediaView = GoogleMobileAds.MediaView()
         mediaView.translatesAutoresizingMaskIntoConstraints = false
         mediaView.layer.cornerRadius = 10
         mediaView.clipsToBounds = true
@@ -179,7 +180,7 @@ private struct NativeAdRepresentable: UIViewRepresentable {
         ctaButton.titleLabel?.font = UIFont.systemFont(ofSize: 13, weight: .bold)
         ctaButton.backgroundColor = UIColor(red: 0.83, green: 0.69, blue: 0.22, alpha: 1.0) // Gold
         ctaButton.layer.cornerRadius = 20
-        ctaButton.isUserInteractionEnabled = false // Let GADNativeAdView handle user interaction
+        ctaButton.isUserInteractionEnabled = false // Let NativeAdView handle user interaction
         cardContainer.addSubview(ctaButton)
         nativeAdView.callToActionView = ctaButton
         
@@ -220,5 +221,5 @@ private struct NativeAdRepresentable: UIViewRepresentable {
         return nativeAdView
     }
     
-    func updateUIView(_ uiView: GADNativeAdView, context: Context) {}
+    func updateUIView(_ uiView: GoogleMobileAds.NativeAdView, context: Context) {}
 }
