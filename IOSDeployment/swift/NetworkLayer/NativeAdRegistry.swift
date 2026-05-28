@@ -10,10 +10,10 @@ import UIKit
 final class NativeAdRegistry: NSObject {
     static let shared = NativeAdRegistry()
     
-    private var cache: [String: GADNativeAd] = [:]
-    private var loaders: [String: GADAdLoader] = [:]
+    private var cache: [String: NativeAd] = [:]
+    private var loaders: [String: AdLoader] = [:]
     private var delegates: [String: NativeAdDelegateWrapper] = [:]
-    private var pendingCallbacks: [String: [(GADNativeAd) -> Void]] = [:]
+    private var pendingCallbacks: [String: [(NativeAd) -> Void]] = [:]
     
     private override init() {
         super.init()
@@ -29,7 +29,7 @@ final class NativeAdRegistry: NSObject {
     }
     
     /// Retrieves or loads a native ad for a specific unique cache key.
-    func getAd(forIndex index: Int, listName: String, adUnitId: String, completion: @escaping (GADNativeAd) -> Void) {
+    func getAd(forIndex index: Int, listName: String, adUnitId: String, completion: @escaping (NativeAd) -> Void) {
         let cacheKey = "\(listName)-\(index)-\(adUnitId)"
         
         // 1. Return cached ad if present
@@ -50,7 +50,7 @@ final class NativeAdRegistry: NSObject {
             return
         }
         
-        let loader = GADAdLoader(
+        let loader = AdLoader(
             adUnitID: adUnitId,
             rootViewController: rootController,
             adTypes: [.native],
@@ -64,11 +64,11 @@ final class NativeAdRegistry: NSObject {
         pendingCallbacks[cacheKey] = [completion]
         
         loader.delegate = delegate
-        loader.load(GADRequest())
+        loader.load(Request())
         print("ℹ️ [NativeAdRegistry] Started loading ad for key: \(cacheKey)")
     }
     
-    fileprivate func didReceiveAd(_ ad: GADNativeAd, for key: String) {
+    fileprivate func didReceiveAd(_ ad: NativeAd, for key: String) {
         cache[key] = ad
         loaders[key] = nil
         delegates[key] = nil
@@ -104,20 +104,20 @@ final class NativeAdRegistry: NSObject {
 
 // MARK: - NativeAdDelegateWrapper
 
-private class NativeAdDelegateWrapper: NSObject, GADNativeAdLoaderDelegate {
+private class NativeAdDelegateWrapper: NSObject, NativeAdLoaderDelegate {
     let cacheKey: String
     
     init(cacheKey: String) {
         self.cacheKey = cacheKey
     }
     
-    func adLoader(_ adLoader: GADAdLoader, didReceive nativeAd: GADNativeAd) {
+    func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
         Task { @MainActor in
             NativeAdRegistry.shared.didReceiveAd(nativeAd, for: cacheKey)
         }
     }
     
-    func adLoader(_ adLoader: GADAdLoader, didFailToReceiveAdWithError error: Error) {
+    func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
         Task { @MainActor in
             NativeAdRegistry.shared.didFailToReceiveAd(for: cacheKey)
         }
