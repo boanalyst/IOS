@@ -254,8 +254,8 @@ private func twitterHTML(username: String, tweetId: String) -> String {
     <style>
       * { margin:0; padding:0; box-sizing:border-box; }
       body { background:transparent; font-family:sans-serif; width: 100%; overflow: hidden; }
-      .wrap { width: 100%; max-width: 100%; display: flex; justify-content: center; padding: 4px; }
-      .twitter-tweet { margin: 0 auto !important; width: 100% !important; max-width: 100% !important; }
+      .wrap { width: 100%; max-width: 100%; padding: 4px; }
+      iframe, .twitter-tweet { margin: 0 auto !important; width: 100% !important; max-width: 100% !important; }
     </style>
     </head>
     <body>

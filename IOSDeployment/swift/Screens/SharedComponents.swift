@@ -743,7 +743,9 @@ struct PostMediaView: View {
                             EmptyView()
                         }
                     }
+                    .frame(maxWidth: .infinity)
                     .frame(height: 240)
+                    .clipped()
                     .contentShape(Rectangle())
                     .onTapGesture { fullScreenIndex = 0 }
                     .clipShape(RoundedRectangle(cornerRadius: 12))
