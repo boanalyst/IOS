@@ -81,6 +81,10 @@ workflows:
           cd "$PROJ_DIR" && xcodegen generate
           echo "✅ BoAnalyst.xcodeproj generated."
 
+          # ── Apply downloaded provisioning profiles to the generated project ──
+          xcode-project use-profiles
+          echo "✅ Provisioning profiles applied to Xcode project."
+
           # ── Kill any Podfile so Codemagic doesn't auto-run pod install ──
           rm -f "$PROJ_DIR/Podfile" "$PROJ_DIR/Podfile.lock"
           rm -rf "$PROJ_DIR/Pods"
