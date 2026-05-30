@@ -127,7 +127,7 @@ struct BuzzBoardView: View {
                                         }
                                     }
 
-                                if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isPro == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
                                     BoNativeAdView(index: index, listName: "buzz")
                                         .padding(.vertical, 8)
                                 }
@@ -153,10 +153,12 @@ struct BuzzBoardView: View {
                 }
 
                 // Anchored AdMob Banner — separated from scrollable content (Google recommended)
-                SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
-                    .frame(height: 50)
-                    .padding(.vertical, 4)
-                    .background(Color(hex: "1A1A1A"))
+                if !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                    SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
+                        .frame(height: 50)
+                        .padding(.vertical, 4)
+                        .background(Color(hex: "1A1A1A"))
+                }
             }
         }
         .sheet(isPresented: $showCreatePost) {
