@@ -163,7 +163,8 @@
   <key>GADApplicationIdentifier</key>
   <string>ca-app-pub-5734863079459748~9986914659</string>
 
-  <!-- Apple SKAdNetwork Identifiers (AdMob Performance Tracking) -->
+
+  <!-- Apple SKAdNetwork Identifiers (AdMob + Meta Performance Tracking) -->
   <key>SKAdNetworkItems</key>
   <array>
     <dict>
@@ -181,6 +182,10 @@
     <dict>
       <key>SKAdNetworkIdentifier</key>
       <string>wzmmz9fp6w.skadnetwork</string>
+    </dict>
+    <dict>
+      <key>SKAdNetworkIdentifier</key>
+      <string>v9wttpbfk9.skadnetwork</string>
     </dict>
   </array>
 
