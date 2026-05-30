@@ -46,6 +46,7 @@ private let planInfos: [PlanInfo] = [
         accentColors: [Color(hex: "1A6080"), Color(hex: "0D2D3F")],
         features: [
             FeatureItem(icon: "chart.bar.fill",        text: "Advanced Movie Analytics"),
+            FeatureItem(icon: "sparkles",              text: "Limited Ads"),
             FeatureItem(icon: "mic.fill",              text: "Inside Talks Exclusive Content"),
             FeatureItem(icon: "bolt.fill",             text: "Early Access To New Features"),
             FeatureItem(icon: "headphones",            text: "Priority Support")
@@ -60,7 +61,7 @@ private let planInfos: [PlanInfo] = [
         accentColors: [Color(hex: "4A3500"), Color(hex: "1C1400")],
         features: [
             FeatureItem(icon: "chart.bar.fill",        text: "Advanced Movie Analytics"),
-            FeatureItem(icon: "sparkles",              text: "Ad-Free Experience"),
+            FeatureItem(icon: "sparkles",              text: "Limited Ads"),
             FeatureItem(icon: "mic.fill",              text: "Inside Talk — 4 Days Early"),
             FeatureItem(icon: "bolt.fill",             text: "Early Access To New Features"),
             FeatureItem(icon: "headphones",            text: "Priority Support")
@@ -76,11 +77,13 @@ private let planInfos: [PlanInfo] = [
         features: [
             FeatureItem(icon: "film.stack.fill",       text: "Early Inside Updates on Movie Projects"),
             FeatureItem(icon: "chart.line.uptrend.xyaxis", text: "Box Office Predictions & Analysis"),
-            FeatureItem(icon: "banknote.fill",         text: "Investment Recommendations"),
-            FeatureItem(icon: "scope",                 text: "Which Movies to Buy / Distribute"),
+            FeatureItem(icon: "chart.bar.fill",        text: "Analytical Pre-Release Projections"),
+            FeatureItem(icon: "bubble.left.and.bubble.right.fill", text: "Box Office Buzz Commentary & Sentiment"),
             FeatureItem(icon: "eye.fill",              text: "Exclusive Market Insights"),
             FeatureItem(icon: "person.2.fill",         text: "Direct Access to Industry Contacts"),
-            FeatureItem(icon: "calendar.badge.clock",  text: "Inside Talk — 1 Month Early Access")
+            FeatureItem(icon: "calendar.badge.clock",  text: "Inside Talk — 1 Month Early Access"),
+            FeatureItem(icon: "sparkles",              text: "Ad-Free Experience"),
+            FeatureItem(icon: "gavel.fill",            text: "Speculative Analysis Only")
         ]
     )
 ]
