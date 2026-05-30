@@ -159,7 +159,7 @@ struct BoxOfficeView: View {
                     Spacer()
                 } else {
                     ScrollView {
-                        VStack(spacing: 12) {
+                        LazyVStack(spacing: 12) {
                             
                             // ── Top 3 Podium Showcase (Only when not searching) ────
                             if filteredEntries.count >= 3 && searchQuery.isEmpty {
@@ -201,7 +201,7 @@ struct BoxOfficeView: View {
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 4)
 
-                                    if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isPro == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                    if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
                                         BoNativeAdView(index: index, listName: "boxoffice")
                                             .padding(.horizontal, 16)
                                             .padding(.vertical, 8)
@@ -218,7 +218,7 @@ struct BoxOfficeView: View {
                 }
 
                 // Anchored AdMob Banner at the bottom (persistent across scroll, matches Android exactly)
-                if !viewModel.isLoading && viewModel.error == nil && !viewModel.boxOfficeEntries.isEmpty {
+                if !viewModel.isLoading && viewModel.error == nil && !viewModel.boxOfficeEntries.isEmpty && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
                     SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
                         .frame(height: 50)
                         .padding(.vertical, 4)

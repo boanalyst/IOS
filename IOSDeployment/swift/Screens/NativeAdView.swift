@@ -19,9 +19,9 @@ struct BoNativeAdView: View {
     @State private var isEnabled: Bool = true
 
     var body: some View {
-        let isPro = authViewModel.currentUser?.isPro == true
+        let isAdFree = authViewModel.currentUser?.isDistributor == true || authViewModel.currentUser?.isAdmin == true
         
-        if isPro || !isEnabled {
+        if isAdFree || !isEnabled {
             EmptyView()
         } else {
             VStack {

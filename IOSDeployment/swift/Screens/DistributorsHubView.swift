@@ -132,22 +132,29 @@ struct DistributorsHubView: View {
                 distributorsPaywall
             } else if viewModel.isLoading && viewModel.posts.isEmpty {
                 LoadingView()
-            } else if viewModel.posts.isEmpty {
-                emptyState
             } else {
                 ScrollView {
                     LazyVStack(spacing: 16) { // Bug #2 fix: increased from 12 to 16
-                        ForEach(viewModel.posts) { post in
-                            let isAdmin = authViewModel.currentUser?.isAdmin == true
-                            DistributorsPostCard(
-                                post: post,
-                                isAdmin: isAdmin,
-                                onLike: { Task { await viewModel.likePost(post.id) } },
-                                onDelete: { viewModel.deletePost(post.id) },
-                                onPin: { viewModel.pinPost(post) },
-                                onEdit: isAdmin ? { editingPost = post } : nil
-                            )
+                        DistributorDisclaimerCard()
                             .padding(.horizontal, 16)
+                            .padding(.top, 8)
+
+                        if viewModel.posts.isEmpty {
+                            emptyState
+                                .padding(.top, 40)
+                        } else {
+                            ForEach(viewModel.posts) { post in
+                                let isAdmin = authViewModel.currentUser?.isAdmin == true
+                                DistributorsPostCard(
+                                    post: post,
+                                    isAdmin: isAdmin,
+                                    onLike: { Task { await viewModel.likePost(post.id) } },
+                                    onDelete: { viewModel.deletePost(post.id) },
+                                    onPin: { viewModel.pinPost(post) },
+                                    onEdit: isAdmin ? { editingPost = post } : nil
+                                )
+                                .padding(.horizontal, 16)
+                            }
                         }
                     }
                     .padding(.vertical, 12)
@@ -251,7 +258,6 @@ struct DistributorsHubView: View {
                 .foregroundColor(AppTheme.textSecondary)
                 .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(32)
     }
 }
@@ -418,5 +424,30 @@ struct DistributorsPostCard: View {
         }
         .padding(16)
         .cardStyle()
+    }
+}
+
+// MARK: - DistributorDisclaimerCard
+
+private struct DistributorDisclaimerCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "gavel.fill")
+                    .font(.system(size: 15))
+                    .foregroundStyle(AppTheme.goldGradient)
+                Text("BNS Compliance & Speculative Disclaimer")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(AppTheme.textPrimary)
+            }
+            
+            Text("All movie and sports predictions, box office forecasts, and analytical ratings on this platform operate like sports pre-match commentary and are speculative estimates based purely on gut feeling, public sentiment, and historical models of released content. BoAnalyst does NOT suggest stocks, assets, or financial investments, and has no inside or non-public industry information. These are educational and analytical opinions only.")
+                .font(.system(size: 11))
+                .foregroundColor(AppTheme.textSecondary)
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .glassMorphism()
     }
 }
