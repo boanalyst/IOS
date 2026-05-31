@@ -33,15 +33,35 @@ final class HomeViewModel: ObservableObject {
         async let trendingTask  = api.request(.getTrendingTopics, responseType: TrendingResponse.self)
         async let exclusiveTask = api.request(.getExclusiveContent, responseType: ExclusiveContentResponse.self)
 
-        if let movies   = try? await moviesTask   { nowPlayingMovies = movies.movies }
-        if let upcoming = try? await upcomingTask { upcomingMovies = upcoming.movies }
-        if let ott      = try? await ottTask      { ottReleases = ott.movies }
+        if let movies   = try? await moviesTask   { nowPlayingMovies = sortMoviesByDateDesc(movies.movies) }
+        if let upcoming = try? await upcomingTask { upcomingMovies = sortMoviesByDateDesc(upcoming.movies) }
+        if let ott      = try? await ottTask      { ottReleases = sortMoviesByDateDesc(ott.movies) }
         if let polls    = try? await pollsTask    { self.polls = polls.data ?? [] }
         if let flock    = try? await flockTask    { recentFlockPosts = flock.posts }
         if let trending = try? await trendingTask { trendingTopics = trending.trends }
         if let excl     = try? await exclusiveTask{ exclusiveContent = excl.content }
 
         isLoading = false
+    }
+    
+    private func sortMoviesByDateDesc(_ movies: [Movie]) -> [Movie] {
+        let formatters: [DateFormatter] = [
+            "MMMM d, yyyy", "MMMM dd, yyyy", "MMM d, yyyy", "MMM dd, yyyy", "yyyy-MM-dd"
+        ].map {
+            let df = DateFormatter()
+            df.dateFormat = $0
+            df.locale = Locale(identifier: "en_US_POSIX")
+            return df
+        }
+        
+        return movies.sorted { m1, m2 in
+            let raw1 = m1.releaseDate ?? ""
+            let raw2 = m2.releaseDate ?? ""
+            
+            let d1 = formatters.compactMap { $0.date(from: raw1) }.first ?? Date.distantPast
+            let d2 = formatters.compactMap { $0.date(from: raw2) }.first ?? Date.distantPast
+            return d1 > d2
+        }
     }
 
     func votePoll(pollId: String, optionId: Int) async {
@@ -92,6 +112,8 @@ struct HomeView: View {
     var onSubscribeRequired: () -> Void = {}
     @StateObject private var viewModel = HomeViewModel()
     @EnvironmentObject private var authViewModel: AuthViewModel
+    @StateObject private var adManager = InterstitialAdManager()
+    @State private var selectedMovieForSynopsis: Movie? = nil
     @StateObject private var rewardedAdManager = RewardedAdManager()
 
     var body: some View {
@@ -164,7 +186,9 @@ struct HomeView: View {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     LazyHStack(spacing: 14) {
                                         ForEach(viewModel.nowPlayingMovies) { movie in
-                                            MovieCard(movie: movie)
+                                            MovieCard(movie: movie) {
+                                                handleMovieTap(movie)
+                                            }
                                         }
                                     }
                                     .padding(.horizontal, 20)
@@ -178,7 +202,9 @@ struct HomeView: View {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     LazyHStack(spacing: 14) {
                                         ForEach(viewModel.upcomingMovies) { movie in
-                                            MovieCard(movie: movie)
+                                            MovieCard(movie: movie) {
+                                                handleMovieTap(movie)
+                                            }
                                         }
                                     }
                                     .padding(.horizontal, 20)
@@ -192,7 +218,9 @@ struct HomeView: View {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     LazyHStack(spacing: 14) {
                                         ForEach(viewModel.ottReleases) { movie in
-                                            MovieCard(movie: movie)
+                                            MovieCard(movie: movie) {
+                                                handleMovieTap(movie)
+                                            }
                                         }
                                     }
                                     .padding(.horizontal, 20)
@@ -252,9 +280,21 @@ struct HomeView: View {
         .task {
             await viewModel.loadHomeData()
         }
+        .onAppear {
+            adManager.loadAd()
+        }
         .navigationBarHidden(true)
         .sheet(isPresented: $viewModel.showExclusiveEditor) {
             ExclusiveContentEditSheet()
+        }
+        .sheet(item: $selectedMovieForSynopsis) { movie in
+            MovieSynopsisSheet(movie: movie)
+        }
+    }
+
+    private func handleMovieTap(_ movie: Movie) {
+        InterstitialAdController.showAd(manager: adManager) {
+            selectedMovieForSynopsis = movie
         }
     }
 
@@ -292,9 +332,11 @@ struct SectionHeader: View {
 
 struct MovieCard: View {
     let movie: Movie
+    let onTap: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
             // posterPath is usually a TMDB relative path or a full URL.
             // Ensure we enforce HTTPS mapping and properly encode query spaces.
             if let posterURL = movie.resolvedPosterUrl {
@@ -357,6 +399,80 @@ struct MovieCard: View {
                 Text("No Image")
                     .font(.system(size: 9))
                     .foregroundColor(AppTheme.textMuted)
+            }
+        }
+    }
+}
+
+// MARK: - Movie Synopsis Sheet
+
+struct MovieSynopsisSheet: View {
+    let movie: Movie
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if let posterURL = movie.resolvedPosterUrl {
+                        CachedAsyncImage(url: posterURL) { phase in
+                            if case .success(let image) = phase {
+                                image.resizable().aspectRatio(contentMode: .fit)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: 300)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    
+                    Text(movie.title)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(AppTheme.textPrimary)
+                    
+                    if let date = movie.releaseDate {
+                        Text("Release: \(date)")
+                            .font(.subheadline)
+                            .foregroundColor(AppTheme.textMuted)
+                    }
+                    
+                    if let overview = movie.overview, !overview.isEmpty {
+                        Text(overview)
+                            .font(.body)
+                            .foregroundColor(AppTheme.textPrimary)
+                            .padding(.top, 8)
+                    } else {
+                        Text("No synopsis available.")
+                            .font(.body)
+                            .foregroundColor(AppTheme.textMuted)
+                            .padding(.top, 8)
+                    }
+                    
+                    if let link = movie.link, let url = URL(string: link) {
+                        Link(destination: url) {
+                            Text("More Info")
+                                .font(.headline)
+                                .foregroundColor(AppTheme.background)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(AppTheme.goldGradient)
+                                .cornerRadius(12)
+                        }
+                        .padding(.top, 16)
+                    }
+                }
+                .padding()
+            }
+            .background(AppTheme.background.edgesIgnoringSafeArea(.all))
+            .navigationTitle(movie.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(AppTheme.textMuted)
+                            .font(.title3)
+                    }
+                }
             }
         }
     }
