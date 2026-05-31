@@ -319,11 +319,6 @@ struct MovieCard: View {
                         .frame(width: 140, height: 200)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-            } else {
-                moviePlaceholder
-                    .frame(width: 140, height: 200)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(movie.title)
