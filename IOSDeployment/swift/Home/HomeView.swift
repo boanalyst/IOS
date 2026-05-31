@@ -9,6 +9,7 @@ import SwiftUI
 final class HomeViewModel: ObservableObject {
     @Published var nowPlayingMovies: [Movie] = []
     @Published var upcomingMovies: [Movie] = []
+    @Published var ottReleases: [Movie] = []
     @Published var polls: [Poll] = []
     @Published var recentFlockPosts: [FlockPost] = []
     @Published var trendingTopics: [TrendingTrend] = []
@@ -26,6 +27,7 @@ final class HomeViewModel: ObservableObject {
         error = nil
         async let moviesTask    = api.request(.getNowPlaying, responseType: MovieResponse.self)
         async let upcomingTask  = api.request(.getUpcoming, responseType: MovieResponse.self)
+        async let ottTask       = api.request(.getOttReleases(), responseType: MovieResponse.self)
         async let pollsTask     = api.request(.getPolls, responseType: ApiResult<[Poll]>.self)
         async let flockTask     = api.request(.getFlockPosts(offset: 0, limit: 5), responseType: FlockFeedResponse.self)
         async let trendingTask  = api.request(.getTrendingTopics, responseType: TrendingResponse.self)
@@ -33,6 +35,7 @@ final class HomeViewModel: ObservableObject {
 
         if let movies   = try? await moviesTask   { nowPlayingMovies = movies.movies }
         if let upcoming = try? await upcomingTask { upcomingMovies = upcoming.movies }
+        if let ott      = try? await ottTask      { ottReleases = ott.movies }
         if let polls    = try? await pollsTask    { self.polls = polls.data ?? [] }
         if let flock    = try? await flockTask    { recentFlockPosts = flock.posts }
         if let trending = try? await trendingTask { trendingTopics = trending.trends }
@@ -182,6 +185,20 @@ struct HomeView: View {
                                 }
                             }
 
+                            // ── OTT Releases ─────────────────────────
+                            if !viewModel.ottReleases.isEmpty {
+                                SectionHeader(title: "OTT Releases", icon: "play.tv.fill")
+
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    LazyHStack(spacing: 14) {
+                                        ForEach(viewModel.ottReleases) { movie in
+                                            MovieCard(movie: movie)
+                                        }
+                                    }
+                                    .padding(.horizontal, 20)
+                                }
+                            }
+
                             // ── Community Polls ────────────────────────
                             if !viewModel.polls.isEmpty {
                                 SectionHeader(title: "Live Polls", icon: "chart.bar.fill")
@@ -280,15 +297,8 @@ struct MovieCard: View {
         VStack(alignment: .leading, spacing: 8) {
             // posterPath is usually a TMDB relative path or a full URL.
             // Ensure we enforce HTTPS mapping and properly encode query spaces.
-            if let path = movie.posterPath?.trimmingCharacters(in: .whitespacesAndNewlines), !path.isEmpty {
-                let rawUrl = path.hasPrefix("http") ? path : "https://image.tmdb.org/t/p/w500\(path)"
-                let urlStr = rawUrl
-                    .replacingOccurrences(of: "http://", with: "https://")
-                    .replacingOccurrences(of: "media.themoviedb.org", with: "image.tmdb.org")
-                
-                // Now that the path is cleanly trimmed and normalised, we execute the fetch natively.
-                if let posterURL = URL(string: urlStr) {
-                    CachedAsyncImage(url: posterURL) { phase in
+            if let posterURL = movie.resolvedPosterUrl {
+                CachedAsyncImage(url: posterURL) { phase in
                         switch phase {
                         case .empty:
                             ZStack {
@@ -319,12 +329,20 @@ struct MovieCard: View {
                 Text(movie.title)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(AppTheme.textPrimary)
-                    .lineLimit(2)
+                    .lineLimit(1)
                     .frame(width: 130, alignment: .leading)
                 if let date = movie.releaseDate {
                     Text(date)
                         .font(.system(size: 10))
                         .foregroundColor(AppTheme.textMuted)
+                        .frame(width: 130, alignment: .leading)
+                }
+
+                // Synopsis / Overview
+                if let overview = movie.overview, !overview.isEmpty {
+                    Text(overview)
+                        .font(.system(size: 11))
+                        .foregroundColor(AppTheme.textPrimary)
                         .frame(width: 130, alignment: .leading)
                 }
             }
