@@ -388,7 +388,7 @@ struct MovieCard: View {
             }
         }
     }
-
+    }
     private var moviePlaceholder: some View {
         ZStack {
             Rectangle().fill(AppTheme.surfaceVariant)
