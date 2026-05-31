@@ -415,21 +415,44 @@ struct Movie: Decodable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case title
-        case posterPath  = "posterPath"   // server uses camelCase
+        case posterPath  = "posterPath"
+        case posterPathSnake = "poster_path"
         case releaseDate = "releaseDate"
-        case overview, link, rating
+        case releaseDateSnake = "release_date"
+        case overview, synopsis, link, rating
+        case platform, genre, language
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         title       = (try? c.decode(String.self, forKey: .title)) ?? ""
-        posterPath  = try? c.decode(String.self, forKey: .posterPath)
-        releaseDate = try? c.decode(String.self, forKey: .releaseDate)
-        overview    = try? c.decode(String.self, forKey: .overview)
+        posterPath  = (try? c.decode(String.self, forKey: .posterPath)) 
+                   ?? (try? c.decode(String.self, forKey: .posterPathSnake))
+        releaseDate = (try? c.decode(String.self, forKey: .releaseDate)) 
+                   ?? (try? c.decode(String.self, forKey: .releaseDateSnake))
+        overview    = (try? c.decode(String.self, forKey: .overview))
+                   ?? (try? c.decode(String.self, forKey: .synopsis))
         link        = try? c.decode(String.self, forKey: .link)
         rating      = try? c.decode(Double.self, forKey: .rating)
         // Synthesise a stable id from title + releaseDate
         id = "\(title)-\(releaseDate ?? "")"
+    }
+}
+
+extension Movie {
+    var resolvedPosterUrl: URL? {
+        guard let path = posterPath?.trimmingCharacters(in: .whitespacesAndNewlines), !path.isEmpty else {
+            return nil
+        }
+        let urlStr: String
+        if path.hasPrefix("http") || path.hasPrefix("https") {
+            urlStr = path.replacingOccurrences(of: "http://", with: "https://")
+        } else if path.hasPrefix("/") {
+            urlStr = "https://boanalyst.com\(path)"
+        } else {
+            urlStr = "https://boanalyst.com/uploads/movies/\(path)"
+        }
+        return URL(string: urlStr)
     }
 }
 
