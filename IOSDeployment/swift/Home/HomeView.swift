@@ -338,7 +338,10 @@ struct MovieCard: View {
                     Text(overview)
                         .font(.system(size: 11))
                         .foregroundColor(AppTheme.textPrimary)
-                        .frame(width: 130, alignment: .leading)
+                        .lineLimit(4)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(width: 130, alignment: .topLeading)
                 }
             }
         }
