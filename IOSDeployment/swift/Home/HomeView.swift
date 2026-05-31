@@ -446,19 +446,6 @@ struct MovieSynopsisSheet: View {
                             .foregroundColor(AppTheme.textMuted)
                             .padding(.top, 8)
                     }
-                    
-                    if let link = movie.link, let url = URL(string: link) {
-                        Link(destination: url) {
-                            Text("More Info")
-                                .font(.headline)
-                                .foregroundColor(AppTheme.background)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(AppTheme.goldGradient)
-                                .cornerRadius(12)
-                        }
-                        .padding(.top, 16)
-                    }
                 }
                 .padding()
             }
