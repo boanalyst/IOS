@@ -306,6 +306,7 @@ struct FlockPostCard: View {
     var onDelete: () -> Void = {}
     var onPin: () -> Void = {}
     var onEdit: (() -> Void)? = nil
+    var onVote: ((String, String) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -412,6 +413,14 @@ struct FlockPostCard: View {
             // ── Social Embeds (YouTube / X / Instagram) ──────────────
             if !socialEmbeds.isEmpty {
                 SocialEmbedsSection(embeds: socialEmbeds)
+            }
+
+            // ── Polls ──────────────────────────────────────────────
+            if let poll = post.poll {
+                PollComponent(poll: poll, onVote: { optionId in
+                    onVote?(poll.id, optionId)
+                })
+                .padding(.top, 4)
             }
 
             // Hashtags
@@ -865,5 +874,160 @@ struct MediaLightboxView: View {
                 Spacer()
             }
         }
+    }
+}
+
+// MARK: - PollComponent
+
+struct PollComponent: View {
+    let poll: Poll
+    let onVote: (String) -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(poll.question)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(AppTheme.textPrimary)
+            
+            VStack(spacing: 8) {
+                ForEach(poll.options) { option in
+                    PollOptionRow(poll: poll, option: option, onVote: onVote)
+                }
+            }
+            
+            HStack {
+                Text("\(poll.totalVotes) votes")
+                    .font(.system(size: 12))
+                    .foregroundColor(AppTheme.textSecondary)
+                
+                if poll.hasEnded == true {
+                    Text("•")
+                        .font(.system(size: 12))
+                        .foregroundColor(AppTheme.textSecondary)
+                    Text("Final Results")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(AppTheme.textSecondary)
+                } else if let endsAt = poll.endsAt {
+                    Text("•")
+                        .font(.system(size: 12))
+                        .foregroundColor(AppTheme.textSecondary)
+                    PollCountdownText(endsAtString: endsAt)
+                }
+            }
+            .padding(.top, 4)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(AppTheme.surfaceVariant)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(AppTheme.goldPrimary.opacity(0.15), lineWidth: 1)
+        )
+    }
+}
+
+struct PollCountdownText: View {
+    let endsAtString: String
+    @State private var timeLeftText: String = "Ends in ..."
+    
+    var body: some View {
+        Text(timeLeftText)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(AppTheme.textSecondary)
+            .onAppear { updateCountdown() }
+    }
+    
+    private func updateCountdown() {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        var date = formatter.date(from: endsAtString)
+        if date == nil {
+            formatter.formatOptions = [.withInternetDateTime]
+            date = formatter.date(from: endsAtString)
+        }
+        
+        guard let endDate = date else { return }
+        
+        let diff = endDate.timeIntervalSinceNow
+        if diff > 0 {
+            let days = Int(diff) / 86400
+            let hours = (Int(diff) % 86400) / 3600
+            let mins = (Int(diff) % 3600) / 60
+            
+            var parts = [String]()
+            if days > 0 { parts.append("\(days)d") }
+            if hours > 0 { parts.append("\(hours)h") }
+            if days == 0 && hours == 0 && mins > 0 { parts.append("\(mins)m") }
+            
+            timeLeftText = "Ends in " + parts.joined(separator: " ")
+        } else {
+            timeLeftText = "Ended"
+        }
+    }
+}
+
+struct PollOptionRow: View {
+    let poll: Poll
+    let option: PollOption
+    let onVote: (String) -> Void
+    
+    var body: some View {
+        let isVoted = poll.userVotedOptionId == option.id
+        let hasVoted = poll.userVotedOptionId != nil
+        let showResults = hasVoted || (poll.hasEnded == true)
+        
+        let percentageText: String
+        let fillFraction: CGFloat
+        if showResults && poll.totalVotes > 0 {
+            let pct = (Float(option.votes) / Float(poll.totalVotes)) * 100
+            percentageText = String(format: "%.0f%%", pct)
+            fillFraction = CGFloat(option.votes) / CGFloat(poll.totalVotes)
+        } else {
+            percentageText = ""
+            fillFraction = 0.0
+        }
+        
+        Button {
+            guard !hasVoted, poll.hasEnded != true else { return }
+            onVote(option.id)
+        } label: {
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(AppTheme.surface)
+                
+                if showResults {
+                    GeometryReader { geo in
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(isVoted ? AppTheme.goldPrimary.opacity(0.3) : AppTheme.goldPrimary.opacity(0.1))
+                            .frame(width: geo.size.width * fillFraction)
+                    }
+                }
+                
+                if !showResults {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(AppTheme.goldPrimary.opacity(0.2), lineWidth: 1)
+                }
+                
+                HStack {
+                    Text(option.text)
+                        .font(.system(size: 14, weight: isVoted ? .bold : .regular))
+                        .foregroundColor(AppTheme.textPrimary)
+                    
+                    Spacer()
+                    
+                    if showResults {
+                        Text(percentageText)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(AppTheme.textPrimary)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
+            }
+        }
+        .buttonStyle(.plain)
+        .opacity(poll.hasEnded == true && !isVoted ? 0.7 : 1.0)
     }
 }
