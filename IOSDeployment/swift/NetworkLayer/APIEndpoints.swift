@@ -159,7 +159,7 @@ extension APIEndpoint {
 
     static func votePoll(id: String, optionId: String) throws -> APIEndpoint {
         let body = try JSONEncoder().encode(VoteRequest(optionId: optionId, pollId: id))
-        return APIEndpoint(path: "/api/polls/\(id)/vote", method: .POST, body: body)
+        return APIEndpoint(path: "/api/polls/vote", method: .POST, body: body)
     }
 
     // ── Inside Talk ───────────────────────────────────────────────────────────
