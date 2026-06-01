@@ -61,10 +61,16 @@ extension APIEndpoint {
 
     static let getTrendingTopics = APIEndpoint(path: "/api/flock/trending", method: .GET)
 
-    static func createFlockPost(content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) throws -> APIEndpoint {
-        if !mediaFiles.isEmpty {
+    static func createFlockPost(content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = [], pollQuestion: String? = nil, pollOptions: [String]? = nil, pollEndsAt: String? = nil) throws -> APIEndpoint {
+        let hasPoll = pollQuestion != nil && !(pollQuestion?.isEmpty ?? true)
+        if !mediaFiles.isEmpty || hasPoll {
             var multipart = MultipartFormData()
             multipart.append(name: "content", string: content)
+            if let pq = pollQuestion { multipart.append(name: "poll_question", string: pq) }
+            if let opts = pollOptions, let optsData = try? JSONSerialization.data(withJSONObject: opts), let optsString = String(data: optsData, encoding: .utf8) {
+                multipart.append(name: "poll_options", string: optsString)
+            }
+            if let pe = pollEndsAt { multipart.append(name: "poll_ends_at", string: pe) }
             for file in mediaFiles {
                 multipart.append(name: "media", data: file.data, filename: file.fileName, mimeType: file.mimeType)
             }
@@ -72,7 +78,11 @@ extension APIEndpoint {
             endpoint.multipartData = multipart
             return endpoint
         }
-        let body = try JSONSerialization.data(withJSONObject: ["content": content])
+        var bodyDict: [String: Any] = ["content": content]
+        if let pq = pollQuestion { bodyDict["poll_question"] = pq }
+        if let opts = pollOptions { bodyDict["poll_options"] = opts }
+        if let pe = pollEndsAt { bodyDict["poll_ends_at"] = pe }
+        let body = try JSONSerialization.data(withJSONObject: bodyDict)
         return APIEndpoint(path: "/api/flock/posts", method: .POST, body: body)
     }
 
@@ -147,8 +157,8 @@ extension APIEndpoint {
 
     static let getPolls = APIEndpoint(path: "/api/polls", method: .GET)
 
-    static func votePoll(id: String, optionId: Int) throws -> APIEndpoint {
-        let body = try JSONEncoder().encode(VoteRequest(optionId: optionId))
+    static func votePoll(id: String, optionId: String) throws -> APIEndpoint {
+        let body = try JSONEncoder().encode(VoteRequest(optionId: optionId, pollId: id))
         return APIEndpoint(path: "/api/polls/\(id)/vote", method: .POST, body: body)
     }
 
