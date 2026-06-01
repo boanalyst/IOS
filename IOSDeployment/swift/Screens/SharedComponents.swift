@@ -978,16 +978,9 @@ struct PollOptionRow: View {
         let hasVoted = poll.userVotedOptionId != nil
         let showResults = hasVoted || (poll.hasEnded == true)
         
-        let percentageText: String
-        let fillFraction: CGFloat
-        if showResults && poll.totalVotes > 0 {
-            let pct = (Float(option.votes) / Float(poll.totalVotes)) * 100
-            percentageText = String(format: "%.0f%%", pct)
-            fillFraction = CGFloat(option.votes) / CGFloat(poll.totalVotes)
-        } else {
-            percentageText = ""
-            fillFraction = 0.0
-        }
+        let pct = (showResults && poll.totalVotes > 0) ? (Float(option.votes) / Float(poll.totalVotes)) * 100 : 0
+        let percentageText = (showResults && poll.totalVotes > 0) ? String(format: "%.0f%%", pct) : ""
+        let fillFraction = (showResults && poll.totalVotes > 0) ? CGFloat(option.votes) / CGFloat(poll.totalVotes) : 0.0
         
         Button {
             guard !hasVoted, poll.hasEnded != true else { return }
