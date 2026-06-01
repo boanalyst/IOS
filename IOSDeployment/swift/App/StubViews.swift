@@ -341,10 +341,24 @@ final class FlockViewModel: ObservableObject {
         }
     }
 
-    func createPost(content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) async {
-        guard let endpoint = try? APIEndpoint.createFlockPost(content: content, mediaFiles: mediaFiles) else { return }
+    func createPost(content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = [], pollData: PollCreationData? = nil) async {
+        guard let endpoint = try? APIEndpoint.createFlockPost(content: content, mediaFiles: mediaFiles, pollQuestion: pollData?.question, pollOptions: pollData?.options, pollEndsAt: pollData?.endsAt) else { return }
         _ = try? await api.request(endpoint, responseType: MessageResponse.self)
         await loadFeed()
+    }
+
+    func voteOnPoll(postId: String, pollId: String, optionId: String) {
+        Task {
+            guard let endpoint = try? APIEndpoint.votePoll(id: pollId, optionId: optionId) else { return }
+            if let result = try? await api.request(endpoint, responseType: PollVoteResponse.self), let updatedPoll = result.poll {
+                posts = posts.map { p in
+                    guard p.id == postId && p.poll?.id == pollId else { return p }
+                    return FlockPost(from: p, poll: updatedPoll)
+                }
+            } else {
+                error = "Could not vote on poll."
+            }
+        }
     }
 
     // MARK: Comments
@@ -555,7 +569,8 @@ struct FlockFeedView: View {
                                     },
                                     onDelete: isAdmin ? { flockVM.deletePost(post) } : {},
                                     onPin: isAdmin ? { flockVM.togglePin(post) } : {},
-                                    onEdit: isAdmin ? { editingPost = post } : nil
+                                    onEdit: isAdmin ? { editingPost = post } : nil,
+                                    onVote: { pollId, optionId in flockVM.voteOnPoll(postId: post.id, pollId: pollId, optionId: optionId) }
                                 )
                                 .padding(.horizontal, 16)
 
@@ -619,8 +634,8 @@ struct FlockFeedView: View {
             }
         }
         .fullScreenCover(isPresented: $showCreatePost) {
-            CreatePostSheet(title: "New Flock Post", onSubmitWithMedia: { text, mediaFiles, existingUrls in
-                await flockVM.createPost(content: text, mediaFiles: mediaFiles)
+            CreatePostSheet(title: "New Flock Post", onSubmitWithPoll: { text, mediaFiles, existingUrls, pollData in
+                await flockVM.createPost(content: text, mediaFiles: mediaFiles, pollData: pollData)
             })
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -1897,6 +1912,12 @@ struct ProfileRow: View {
 // Uses iOS PhotosPicker for image/video (no extra entitlements needed).
 // Uses fileImporter for audio files.
 
+struct PollCreationData {
+    let question: String
+    let options: [String]
+    let endsAt: String?
+}
+
 import PhotosUI
 
 struct CreatePostSheet: View {
@@ -1906,6 +1927,7 @@ struct CreatePostSheet: View {
     let initialMediaUrls: [String]
     let onSubmitText: ((String) async -> Void)?           // plain-text only (legacy)
     let onSubmitMedia: ((String, [(data: Data, mimeType: String, fileName: String)], [String]) async -> Void)?  // text + media + existingUrls
+    let onSubmitPoll: ((String, [(data: Data, mimeType: String, fileName: String)], [String], PollCreationData?) async -> Void)?
 
     init(title: String, initialText: String = "", initialMediaUrls: [String] = [], onSubmit: @escaping (String) async -> Void) {
         self.title = title
@@ -1913,6 +1935,7 @@ struct CreatePostSheet: View {
         self.initialMediaUrls = initialMediaUrls
         self.onSubmitText = onSubmit
         self.onSubmitMedia = nil
+        self.onSubmitPoll = nil
     }
 
     init(title: String, initialText: String = "", initialMediaUrls: [String] = [], onSubmitWithMedia: @escaping (String, [(data: Data, mimeType: String, fileName: String)], [String]) async -> Void) {
@@ -1921,6 +1944,16 @@ struct CreatePostSheet: View {
         self.initialMediaUrls = initialMediaUrls
         self.onSubmitText = nil
         self.onSubmitMedia = onSubmitWithMedia
+        self.onSubmitPoll = nil
+    }
+
+    init(title: String, initialText: String = "", initialMediaUrls: [String] = [], onSubmitWithPoll: @escaping (String, [(data: Data, mimeType: String, fileName: String)], [String], PollCreationData?) async -> Void) {
+        self.title = title
+        self.initialText = initialText
+        self.initialMediaUrls = initialMediaUrls
+        self.onSubmitText = nil
+        self.onSubmitMedia = nil
+        self.onSubmitPoll = onSubmitWithPoll
     }
 
     private let maxLength = 5000
@@ -1941,6 +1974,12 @@ struct CreatePostSheet: View {
     @State private var mediaFiles: [PostMediaFile] = []
     @State private var existingMediaUrls: [String] = []  // seeded from initialMediaUrls on appear; mutable so user can delete
     @State private var showAudioPicker = false
+
+    @State private var isPollEnabled = false
+    @State private var pollQuestion = ""
+    @State private var pollOptions = ["", ""]
+    @State private var pollEndsAt: Date? = nil
+    @State private var showDatePicker = false
 
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var isOverLimit: Bool { text.count > maxLength }
@@ -2111,8 +2150,81 @@ struct CreatePostSheet: View {
                                         attachmentButton(icon: "waveform", label: "Audio")
                                     }
                                 }
+                                
+                                if onSubmitPoll != nil {
+                                    Button {
+                                        withAnimation { isPollEnabled.toggle() }
+                                    } label: {
+                                        attachmentButton(icon: "chart.bar.fill", label: "Poll")
+                                            .foregroundColor(isPollEnabled ? AppTheme.goldPrimary : AppTheme.textMuted)
+                                    }
+                                }
                             }
                             .padding(.horizontal, 20)
+                            
+                            // Poll UI
+                            if isPollEnabled {
+                                VStack(spacing: 12) {
+                                    TextField("Ask a question...", text: $pollQuestion)
+                                        .padding()
+                                        .background(AppTheme.surfaceVariant)
+                                        .cornerRadius(8)
+                                        .foregroundColor(AppTheme.textPrimary)
+                                    
+                                    ForEach(0..<pollOptions.count, id: \.self) { idx in
+                                        HStack {
+                                            TextField("Option \(idx + 1)", text: $pollOptions[idx])
+                                                .padding()
+                                                .background(AppTheme.surfaceVariant)
+                                                .cornerRadius(8)
+                                                .foregroundColor(AppTheme.textPrimary)
+                                            
+                                            if pollOptions.count > 2 {
+                                                Button(action: { pollOptions.remove(at: idx) }) {
+                                                    Image(systemName: "xmark.circle.fill")
+                                                        .foregroundColor(AppTheme.error)
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    if pollOptions.count < 4 {
+                                        Button(action: { pollOptions.append("") }) {
+                                            HStack {
+                                                Image(systemName: "plus.circle.fill")
+                                                Text("Add Option")
+                                            }
+                                            .foregroundColor(AppTheme.goldPrimary)
+                                        }
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    }
+                                    
+                                    HStack {
+                                        Text(pollEndsAt == nil ? "Set End Date & Time" : "Ends: \(ISO8601DateFormatter().string(from: pollEndsAt!))")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(AppTheme.textPrimary)
+                                        Spacer()
+                                        Button("Select") {
+                                            showDatePicker = true
+                                        }
+                                        .foregroundColor(AppTheme.goldPrimary)
+                                    }
+                                    .padding()
+                                    .background(AppTheme.surfaceVariant)
+                                    .cornerRadius(8)
+                                    
+                                    if showDatePicker {
+                                        DatePicker("Select Date", selection: Binding(
+                                            get: { pollEndsAt ?? Date().addingTimeInterval(86400) },
+                                            set: { pollEndsAt = $0 }
+                                        ), in: Date()..., displayedComponents: [.date, .hourAndMinute])
+                                        .datePickerStyle(.graphical)
+                                        .colorScheme(.dark)
+                                        .accentColor(AppTheme.goldPrimary)
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                            }
 
                             // Preview thumbnails
                             if !mediaFiles.isEmpty {
@@ -2235,8 +2347,18 @@ struct CreatePostSheet: View {
 
     private func submitPost() async {
         isPosting = true
-        if let mediaHandler = onSubmitMedia {
-            let files = mediaFiles.map { (data: $0.data, mimeType: $0.mimeType, fileName: $0.fileName) }
+        let files = mediaFiles.map { (data: $0.data, mimeType: $0.mimeType, fileName: $0.fileName) }
+        
+        if let pollHandler = onSubmitPoll {
+            var pollData: PollCreationData? = nil
+            if isPollEnabled {
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                let endsAtStr = pollEndsAt != nil ? formatter.string(from: pollEndsAt!) : nil
+                pollData = PollCreationData(question: pollQuestion.trimmingCharacters(in: .whitespacesAndNewlines), options: pollOptions.filter { !$0.isEmpty }, endsAt: endsAtStr)
+            }
+            await pollHandler(trimmed, files, existingMediaUrls, pollData)
+        } else if let mediaHandler = onSubmitMedia {
             await mediaHandler(trimmed, files, existingMediaUrls)
         } else if let textHandler = onSubmitText {
             await textHandler(trimmed)
@@ -2379,7 +2501,15 @@ struct FlockPostDetailSheet: View {
                                     },
                                     onDelete: isAdmin ? { flockVM.deletePost(post); dismiss() } : {},
                                     onPin: isAdmin ? { flockVM.togglePin(post) } : {},
-                                    onEdit: nil
+                                    onEdit: nil,
+                                    onVote: { pollId, optionId in
+                                        if isLoggedIn {
+                                            flockVM.voteOnPoll(postId: post.id, pollId: pollId, optionId: optionId)
+                                        } else {
+                                            loginAlertMessage = "Sign up or log in to vote on polls"
+                                            showLoginAlert = true
+                                        }
+                                    }
                                 )
                                 .padding(.horizontal, 16)
                                 
