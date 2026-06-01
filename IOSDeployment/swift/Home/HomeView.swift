@@ -66,7 +66,7 @@ final class HomeViewModel: ObservableObject {
 
     func votePoll(pollId: String, optionId: Int) async {
         do {
-            let endpoint = try APIEndpoint.votePoll(id: pollId, optionId: optionId)
+            let endpoint = try APIEndpoint.votePoll(id: pollId, optionId: String(optionId))
             let result   = try await api.request(endpoint, responseType: ApiResult<Poll>.self)
             if let updated = result.data,
                let idx = polls.firstIndex(where: { $0.id == pollId }) {
@@ -74,6 +74,21 @@ final class HomeViewModel: ObservableObject {
             }
         } catch {
             self.error = "Could not record vote. Please try again."
+        }
+    }
+
+    func voteFlockPoll(postId: String, pollId: String, optionId: String) async {
+        do {
+            let endpoint = try APIEndpoint.votePoll(id: pollId, optionId: optionId)
+            let result = try await api.request(endpoint, responseType: PollVoteResponse.self)
+            if let updatedPoll = result.poll {
+                recentFlockPosts = recentFlockPosts.map { p in
+                    guard p.id == postId && p.poll?.id == pollId else { return p }
+                    return FlockPost(from: p, poll: updatedPoll)
+                }
+            }
+        } catch {
+            self.error = "Could not record vote."
         }
     }
 
@@ -173,7 +188,11 @@ struct HomeView: View {
 
                                 VStack(spacing: 12) {
                                     ForEach(viewModel.recentFlockPosts.prefix(3)) { post in
-                                        FlockPostCard(post: post, isAdmin: false)
+                                        FlockPostCard(post: post, isAdmin: false, onVote: { pollId, optionId in
+                                            Task {
+                                                await viewModel.voteFlockPoll(postId: post.id, pollId: pollId, optionId: optionId)
+                                            }
+                                        })
                                             .padding(.horizontal, 20)
                                     }
                                 }
