@@ -203,6 +203,7 @@ struct FlockPost: Decodable, Identifiable {
         case showInterstitial = "show_interstitial"
         case showRewarded = "show_rewarded"
         case createdAt = "created_at"
+        case poll
     }
 
     // Custom decoder: handles both "id" and "_id", plus TINYINT booleans
@@ -238,10 +239,11 @@ struct FlockPost: Decodable, Identifiable {
         userLiked = decodeBool(.userLiked)
         showInterstitial = decodeBool(.showInterstitial)
         showRewarded = decodeBool(.showRewarded)
+        poll = try? c.decode(Poll.self, forKey: .poll)
     }
 
     // Memberwise copy initializer for optimistic UI mutations
-    init(from existing: FlockPost, likeCount: Int? = nil, replyCount: Int? = nil, userLiked: Bool? = nil, isPinned: Bool? = nil) {
+    init(from existing: FlockPost, likeCount: Int? = nil, replyCount: Int? = nil, userLiked: Bool? = nil, isPinned: Bool? = nil, poll: Poll? = nil) {
         self.id           = existing.id
         self.content      = existing.content
         self.authorName   = existing.authorName
@@ -256,6 +258,7 @@ struct FlockPost: Decodable, Identifiable {
         self.showInterstitial = existing.showInterstitial
         self.showRewarded = existing.showRewarded
         self.createdAt    = existing.createdAt
+        self.poll         = poll ?? existing.poll
     }
 }
 
@@ -508,41 +511,88 @@ struct Poll: Decodable, Identifiable {
     let options: [PollOption]
     let totalVotes: Int
     let endsAt: String?
-    let userVotedOptionId: Int?  // matches Android Poll.userVotedOptionId: Int?
+    let userVotedOptionId: String?
+    let hasEnded: Bool?
+    let allowMultiple: Int?
 
     enum CodingKeys: String, CodingKey {
         case id = "_id"
-        case id2 = "id"          // some endpoints return numeric/string id
+        case id2 = "id"
         case question, options
         case totalVotes = "total_votes"
+        case totalVotes2 = "totalVotes"
         case endsAt = "ends_at"
+        case endsAt2 = "endsAt"
         case userVotedOptionId = "user_voted_option_id"
+        case userVotedOptionId2 = "userVotedOptionId"
+        case hasEnded = "has_ended"
+        case hasEnded2 = "hasEnded"
+        case allowMultiple = "allow_multiple"
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        // Server may use _id (MongoDB) or id (MySQL)
         id = (try? c.decode(String.self, forKey: .id)) ?? (try? c.decode(String.self, forKey: .id2)) ?? UUID().uuidString
-        question = try c.decode(String.self, forKey: .question)
+        question = (try? c.decode(String.self, forKey: .question)) ?? ""
         options = (try? c.decode([PollOption].self, forKey: .options)) ?? []
-        totalVotes = (try? c.decode(Int.self, forKey: .totalVotes)) ?? 0
-        endsAt = try? c.decode(String.self, forKey: .endsAt)
-        userVotedOptionId = try? c.decode(Int.self, forKey: .userVotedOptionId)
+        totalVotes = (try? c.decode(Int.self, forKey: .totalVotes)) ?? (try? c.decode(Int.self, forKey: .totalVotes2)) ?? 0
+        endsAt = (try? c.decode(String.self, forKey: .endsAt)) ?? (try? c.decode(String.self, forKey: .endsAt2))
+        
+        // userVotedOptionId might be String or Int
+        if let s = try? c.decode(String.self, forKey: .userVotedOptionId) { userVotedOptionId = s }
+        else if let s = try? c.decode(String.self, forKey: .userVotedOptionId2) { userVotedOptionId = s }
+        else if let i = try? c.decode(Int.self, forKey: .userVotedOptionId) { userVotedOptionId = String(i) }
+        else if let i = try? c.decode(Int.self, forKey: .userVotedOptionId2) { userVotedOptionId = String(i) }
+        else { userVotedOptionId = nil }
+        
+        hasEnded = (try? c.decode(Bool.self, forKey: .hasEnded)) ?? (try? c.decode(Bool.self, forKey: .hasEnded2)) ?? false
+        allowMultiple = try? c.decode(Int.self, forKey: .allowMultiple)
     }
 }
 
 struct PollOption: Decodable, Identifiable {
-    let id: Int            // matches Android PollOption.id: Int
+    let id: String
     let text: String
     let votes: Int
-    let percentage: Float
+    let percentage: Float?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case id2 = "_id"
+        case text
+        case optionText = "option_text"
+        case votes
+        case voteCount = "vote_count"
+        case percentage
+    }
+    
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let s = try? c.decode(String.self, forKey: .id) { id = s }
+        else if let s = try? c.decode(String.self, forKey: .id2) { id = s }
+        else if let i = try? c.decode(Int.self, forKey: .id) { id = String(i) }
+        else { id = UUID().uuidString }
+        
+        text = (try? c.decode(String.self, forKey: .text)) ?? (try? c.decode(String.self, forKey: .optionText)) ?? ""
+        votes = (try? c.decode(Int.self, forKey: .votes)) ?? (try? c.decode(Int.self, forKey: .voteCount)) ?? 0
+        percentage = try? c.decode(Float.self, forKey: .percentage)
+    }
 }
 
 struct VoteRequest: Encodable {
-    let optionId: Int      // matches Android VoteRequest(val optionId: Int)
+    let optionId: String
+    let pollId: String
+    
     enum CodingKeys: String, CodingKey {
         case optionId = "option_id"
+        case pollId = "poll_id"
     }
+}
+
+struct PollVoteResponse: Decodable {
+    let success: Bool
+    let poll: Poll?
+    let error: String?
 }
 
 // MARK: - Inside Talk
