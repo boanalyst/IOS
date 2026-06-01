@@ -64,9 +64,9 @@ final class HomeViewModel: ObservableObject {
         }
     }
 
-    func votePoll(pollId: String, optionId: Int) async {
+    func votePoll(pollId: String, optionId: String) async {
         do {
-            let endpoint = try APIEndpoint.votePoll(id: pollId, optionId: String(optionId))
+            let endpoint = try APIEndpoint.votePoll(id: pollId, optionId: optionId)
             let result   = try await api.request(endpoint, responseType: ApiResult<Poll>.self)
             if let updated = result.data,
                let idx = polls.firstIndex(where: { $0.id == pollId }) {
@@ -525,7 +525,7 @@ struct PollCard: View {
     let poll: Poll
     var isUserPro: Bool = false
     var onSubscribeRequired: () -> Void = {}
-    let onVote: (Int) -> Void  // Int matches PollOption.id type
+    let onVote: (String) -> Void  // String matches PollOption.id type
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -540,7 +540,7 @@ struct PollCard: View {
                 let isSelected = poll.userVotedOptionId == option.id
 
                 Button {
-                    onVote(option.id)  // option.id is Int — matches VoteRequest
+                    onVote(option.id)
                 } label: {
                     ZStack(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 8)
