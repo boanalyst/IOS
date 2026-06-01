@@ -186,6 +186,7 @@ struct FlockPost: Decodable, Identifiable {
     let showInterstitial: Bool
     let showRewarded: Bool
     let createdAt: String
+    let poll: Poll?
 
     enum CodingKeys: String, CodingKey {
         case id                 // server returns "id" (NOT "_id") for flock posts
