@@ -2218,7 +2218,7 @@ struct CreatePostSheet: View {
                                             get: { pollEndsAt ?? Date().addingTimeInterval(86400) },
                                             set: { pollEndsAt = $0 }
                                         ), in: Date()..., displayedComponents: [.date, .hourAndMinute])
-                                        .datePickerStyle(.graphical)
+                                        .datePickerStyle(.compact)
                                         .colorScheme(.dark)
                                         .accentColor(AppTheme.goldPrimary)
                                     }
