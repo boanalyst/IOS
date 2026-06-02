@@ -175,6 +175,7 @@ struct ContentView: View {
             }
         }
     }
+
 }
 
 // MARK: - MainTabView
@@ -243,6 +244,12 @@ struct MainTabView: View {
                 }
                 .opacity(selectedTab == 5 ? 1 : 0)
                 .allowsHitTesting(selectedTab == 5)
+                
+                NavigationStack {
+                    TechDealsView()
+                }
+                .opacity(selectedTab == 7 ? 1 : 0)
+                .allowsHitTesting(selectedTab == 7)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             
@@ -252,6 +259,8 @@ struct MainTabView: View {
                 TabBarItem(icon: "house.fill", title: "Home", isSelected: selectedTab == 0) { selectedTab = 0 }
                 Spacer()
                 TabBarItem(icon: "bubble.left.and.bubble.right.fill", title: "Flock", isSelected: selectedTab == 2) { selectedTab = 2 }
+                Spacer()
+                TabBarItem(icon: "tag.fill", title: "Deals", isSelected: selectedTab == 7) { selectedTab = 7 }
                 Spacer()
                 TabBarItem(icon: "eye.fill", title: "Inside", isSelected: selectedTab == 3) { selectedTab = 3 }
                 Spacer()
