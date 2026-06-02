@@ -1369,3 +1369,85 @@ struct PlatformAdUnits: Decodable, Sendable {
     let nativeAdvanced: String?
 }
 
+// MARK: - Tech Deals
+
+struct TechDealCategory: Decodable, Identifiable {
+    let id: String
+    let name: String
+}
+
+struct TechDealsResponse: Decodable {
+    let success: Bool
+    let deals: [TechDeal]?
+    let hasMore: Bool?
+    let error: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case success, deals, error
+        case hasMore = "has_more"
+    }
+}
+
+struct TechDeal: Decodable, Identifiable {
+    let id: String
+    let title: String
+    let description: String?
+    let originalPrice: Double?
+    let dealPrice: Double
+    let discountPercentage: Int?
+    let affiliateUrl: String
+    let imageUrl: String?
+    let platform: String
+    let category: String
+    let isFeatured: Bool
+    let isActive: Bool
+    let expiresAt: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, title, description, platform, category
+        case originalPrice = "original_price"
+        case dealPrice = "deal_price"
+        case discountPercentage = "discount_percentage"
+        case affiliateUrl = "affiliate_url"
+        case imageUrl = "image_url"
+        case isFeatured = "is_featured"
+        case isActive = "is_active"
+        case expiresAt = "expires_at"
+    }
+    
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        title = (try? c.decode(String.self, forKey: .title)) ?? ""
+        description = try? c.decode(String.self, forKey: .description)
+        
+        // Handle prices coming as numbers or strings from JSON/MySQL
+        if let orig = try? c.decode(Double.self, forKey: .originalPrice) { originalPrice = orig }
+        else if let origStr = try? c.decode(String.self, forKey: .originalPrice), let parsed = Double(origStr) { originalPrice = parsed }
+        else { originalPrice = nil }
+        
+        if let deal = try? c.decode(Double.self, forKey: .dealPrice) { dealPrice = deal }
+        else if let dealStr = try? c.decode(String.self, forKey: .dealPrice), let parsed = Double(dealStr) { dealPrice = parsed }
+        else { dealPrice = 0.0 }
+        
+        if let disc = try? c.decode(Int.self, forKey: .discountPercentage) { discountPercentage = disc }
+        else if let discStr = try? c.decode(String.self, forKey: .discountPercentage), let parsed = Int(discStr) { discountPercentage = parsed }
+        else { discountPercentage = nil }
+        
+        affiliateUrl = (try? c.decode(String.self, forKey: .affiliateUrl)) ?? ""
+        imageUrl = try? c.decode(String.self, forKey: .imageUrl)
+        platform = (try? c.decode(String.self, forKey: .platform)) ?? "amazon"
+        category = (try? c.decode(String.self, forKey: .category)) ?? "general"
+        
+        // Handle TINYINT booleans
+        func decodeBool(_ key: CodingKeys) -> Bool {
+            if let b = try? c.decode(Bool.self, forKey: key) { return b }
+            if let i = try? c.decode(Int.self, forKey: key) { return i != 0 }
+            return false
+        }
+        
+        isFeatured = decodeBool(.isFeatured)
+        isActive = decodeBool(.isActive)
+        expiresAt = try? c.decode(String.self, forKey: .expiresAt)
+    }
+}
