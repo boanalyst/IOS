@@ -355,6 +355,21 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/distributors/posts/\(id)/pin", method: .PATCH, body: body)
     }
 
+    // ── Tech Deals ────────────────────────────────────────────────────────────
+
+    static let getTechDealCategories = APIEndpoint(path: "/api/tech-deals/categories", method: .GET)
+    
+    static func getTechDeals(offset: Int = 0, limit: Int = 20, category: String = "all") -> APIEndpoint {
+        let items = [URLQueryItem(name: "offset", value: "\(offset)"),
+                     URLQueryItem(name: "limit", value: "\(limit)"),
+                     URLQueryItem(name: "category", value: category)]
+        return APIEndpoint(path: "/api/tech-deals", method: .GET, queryItems: items)
+    }
+    
+    static func trackTechDealClick(id: String) -> APIEndpoint {
+        return APIEndpoint(path: "/api/tech-deals/\(id)/click", method: .POST)
+    }
+
     // ── Apple In-App Purchase — Receipt Verification ──────────────────────────
     // After a successful StoreKit 2 transaction, send the transaction details
     // to our backend so it can mark the user as Pro in the database.
