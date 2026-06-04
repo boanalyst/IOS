@@ -54,6 +54,8 @@ struct BoxOfficeView: View {
     @State private var isSearching = false
     @State private var searchQuery = ""
     @State private var adInterval: Int = 10
+    @StateObject private var adManager = InterstitialAdManager()
+    @State private var hasShownAd = false
 
     let languages = [
         ("all", "Global (All)"),
@@ -231,6 +233,12 @@ struct BoxOfficeView: View {
             do {
                 let config = try await APIClient.shared.request(.getAdConfig, responseType: AdConfigResponse.self)
                 self.adInterval = config.adInterval
+                
+                // Show ad when entering box office
+                if !hasShownAd && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                    hasShownAd = true
+                    InterstitialAdController.showAd(manager: adManager) { }
+                }
             } catch {
                 print("⚠️ [BoxOfficeView] Failed to fetch dynamic ad-config: \(error.localizedDescription)")
             }

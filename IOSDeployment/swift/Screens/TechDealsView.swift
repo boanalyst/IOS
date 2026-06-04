@@ -116,7 +116,7 @@ struct TechDealsView: View {
                             Task { await viewModel.setCategory("all") }
                         }
                         
-                        ForEach(viewModel.categories) { category in
+                        ForEach(viewModel.categories.filter { $0.id.lowercased() != "all" }) { category in
                             CategoryPill(title: category.name, isSelected: viewModel.selectedCategory == category.id) {
                                 Task { await viewModel.setCategory(category.id) }
                             }
@@ -243,7 +243,7 @@ struct TechDealCard: View {
                 ZStack {
                     Color.white
                     
-                    if let imgStr = deal.imageUrl, let url = URL(string: imgStr) {
+                    if let imgStr = deal.resolvedImageUrl(), let url = URL(string: imgStr) {
                         AsyncImage(url: url) { phase in
                             switch phase {
                             case .empty:
