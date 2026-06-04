@@ -2,17 +2,11 @@ import SwiftUI
 
 struct MenuView: View {
     @Binding var selectedTab: Int
-    
-    // Tab Indices matching MainTabView
-    // 0: Home, 1: Buzz, 2: Flock, 3: Inside, 4: Hub, 5: Pro, 6: Box Office, 7: Deals
-    // Wait, the new tabs will be:
-    // 0: Home, 1: Flock, 2: InsideTalk, 3: TechDeals, 4: Menu
-    // We will route the others to new "hidden" indices in the ZStack:
-    // 5: Box Office, 6: Buzz Board, 7: Distributors Hub, 8: Pro, 9: Profile
+    @Binding var isPresented: Bool
     
     var body: some View {
         ZStack {
-            AppTheme.backgroundColor.edgesIgnoringSafeArea(.all)
+            Color.clear.edgesIgnoringSafeArea(.all)
             
             VStack(alignment: .leading, spacing: 0) {
                 Spacer().frame(height: 48)
@@ -29,23 +23,25 @@ struct MenuView: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 32)
                 
-                LazyVGrid(
-                    columns: [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)],
-                    spacing: 16
-                ) {
-                    MenuCardView(title: "Box Office", iconName: "chart.bar.fill", isPremium: false) {
+                VStack(spacing: 8) {
+                    MenuRowView(title: "Box Office", iconName: "chart.bar.fill", isPremium: false) {
+                        isPresented = false
                         selectedTab = 5
                     }
-                    MenuCardView(title: "Buzz Board", iconName: "flame.fill", isPremium: false) {
+                    MenuRowView(title: "Buzz Board", iconName: "flame.fill", isPremium: false) {
+                        isPresented = false
                         selectedTab = 6
                     }
-                    MenuCardView(title: "Distributors", iconName: "briefcase.fill", isPremium: true) {
+                    MenuRowView(title: "Distributors", iconName: "briefcase.fill", isPremium: true) {
+                        isPresented = false
                         selectedTab = 7
                     }
-                    MenuCardView(title: "BoAnalyst Pro", iconName: "star.fill", isPremium: true) {
+                    MenuRowView(title: "BoAnalyst Pro", iconName: "star.fill", isPremium: true) {
+                        isPresented = false
                         selectedTab = 8
                     }
-                    MenuCardView(title: "Profile & Settings", iconName: "person.fill", isPremium: false) {
+                    MenuRowView(title: "Profile & Settings", iconName: "person.fill", isPremium: false) {
+                        isPresented = false
                         selectedTab = 9 // Will open ProfileView sheet or tab
                     }
                 }
@@ -57,7 +53,7 @@ struct MenuView: View {
     }
 }
 
-struct MenuCardView: View {
+struct MenuRowView: View {
     let title: String
     let iconName: String
     let isPremium: Bool
@@ -65,42 +61,41 @@ struct MenuCardView: View {
     
     var body: some View {
         Button(action: action) {
-            ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(white: 0.15).opacity(0.8), Color(white: 0.08).opacity(0.9)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                    )
-                
-                VStack(alignment: .leading) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color.white.opacity(0.05))
-                            .frame(width: 48, height: 48)
-                        
-                        Image(systemName: iconName)
-                            .font(.system(size: 24))
-                            .foregroundColor(isPremium ? AppTheme.goldPrimary : .white)
-                    }
+            HStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color.white.opacity(0.05))
+                        .frame(width: 48, height: 48)
                     
-                    Spacer()
-                    
-                    Text(title)
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .fontWeight(.semibold)
-                        .multilineTextAlignment(.leading)
+                    Image(systemName: iconName)
+                        .font(.system(size: 24))
+                        .foregroundColor(isPremium ? AppTheme.goldPrimary : .white)
                 }
-                .padding(16)
+                
+                Text(title)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                if isPremium {
+                    Text("PRO")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(AppTheme.goldPrimary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(AppTheme.goldPrimary.opacity(0.1))
+                        .cornerRadius(6)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Color.white.opacity(0.3))
+                }
             }
-            .aspectRatio(1, contentMode: .fit)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 8)
+            .background(Color.white.opacity(0.01))
+            .cornerRadius(16)
         }
         .buttonStyle(PlainButtonStyle())
     }
