@@ -250,7 +250,7 @@ struct SubscriptionView: View {
                 )
                 .tracking(2)
 
-            Text("India's premier film intelligence platform")
+            Text("The premier film intelligence platform")
                 .font(.system(size: 13, weight: .regular))
                 .foregroundColor(Color(hex: "8A8A9A"))
                 .multilineTextAlignment(.center)
