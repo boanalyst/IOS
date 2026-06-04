@@ -1450,4 +1450,11 @@ struct TechDeal: Decodable, Identifiable {
         isActive = decodeBool(.isActive)
         expiresAt = try? c.decode(String.self, forKey: .expiresAt)
     }
+
+    func resolvedImageUrl() -> String? {
+        guard let path = imageUrl, !path.isEmpty else { return nil }
+        if path.hasPrefix("http") { return path }
+        let safePath = path.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? path
+        return APIConfig.baseURL + (safePath.hasPrefix("/") ? safePath : "/" + safePath)
+    }
 }
