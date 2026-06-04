@@ -188,6 +188,7 @@ struct MainTabView: View {
     @ObservedObject private var deepLinkManager = DeepLinkManager.shared
 
     @State private var selectedTab = 0
+    @State private var showMenuSheet = false
 
     // Backend is the sole source of truth for subscription status.
     // StoreKit currentEntitlements returns old transactions from previous
@@ -224,12 +225,7 @@ struct MainTabView: View {
                 .opacity(selectedTab == 3 ? 1 : 0)
                 .allowsHitTesting(selectedTab == 3)
                 
-                NavigationStack {
-                    MenuView(selectedTab: $selectedTab)
-                }
-                .opacity(selectedTab == 4 ? 1 : 0)
-                .allowsHitTesting(selectedTab == 4)
-                
+
                 // Hidden tabs accessed via Menu
                 NavigationStack {
                     BoxOfficeView()
@@ -262,23 +258,35 @@ struct MainTabView: View {
             
             // Custom 5-Tab Bar
             HStack(spacing: 0) {
-                Spacer()
                 TabBarItem(icon: "house.fill", title: "Home", isSelected: selectedTab == 0) { selectedTab = 0 }
-                Spacer()
+                    .frame(maxWidth: .infinity)
                 TabBarItem(icon: "bubble.left.and.bubble.right.fill", title: "Flock", isSelected: selectedTab == 1) { selectedTab = 1 }
-                Spacer()
+                    .frame(maxWidth: .infinity)
                 TabBarItem(icon: "eye.fill", title: "Talk", isSelected: selectedTab == 2) { selectedTab = 2 }
-                Spacer()
+                    .frame(maxWidth: .infinity)
                 TabBarItem(icon: "tag.fill", title: "Deals", isSelected: selectedTab == 3) { selectedTab = 3 }
-                Spacer()
-                TabBarItem(icon: "line.3.horizontal", title: "Menu", isSelected: selectedTab == 4) { selectedTab = 4 }
-                Spacer()
+                    .frame(maxWidth: .infinity)
+                TabBarItem(icon: "line.3.horizontal", title: "Menu", isSelected: false) { showMenuSheet = true }
+                    .frame(maxWidth: .infinity)
             }
             .padding(.vertical, 12)
             .background(AppTheme.surface)
             .overlay(Rectangle().frame(height: 1).foregroundColor(AppTheme.surfaceVariant), alignment: .top)
         }
         .environmentObject(flockVM)
+        .sheet(isPresented: $showMenuSheet) {
+            if #available(iOS 16.4, *) {
+                MenuView(selectedTab: $selectedTab, isPresented: $showMenuSheet)
+                    .presentationDetents([.fraction(0.55), .large])
+                    .presentationBackground(.ultraThinMaterial)
+                    .presentationCornerRadius(32)
+                    .presentationDragIndicator(.visible)
+            } else {
+                MenuView(selectedTab: $selectedTab, isPresented: $showMenuSheet)
+                    .presentationDetents([.fraction(0.55), .large])
+                    .presentationDragIndicator(.visible)
+            }
+        }
         .sheet(isPresented: $authViewModel.showProfileSheet) {
             NavigationStack {
                 ProfileView(
