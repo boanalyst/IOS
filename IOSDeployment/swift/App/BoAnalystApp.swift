@@ -207,79 +207,71 @@ struct MainTabView: View {
                 .allowsHitTesting(selectedTab == 0)
 
                 NavigationStack {
-                    BuzzBoardView()
+                    FlockFeedView()
                 }
                 .opacity(selectedTab == 1 ? 1 : 0)
                 .allowsHitTesting(selectedTab == 1)
 
                 NavigationStack {
-                    FlockFeedView()
+                    InsideTalkView(onSubscribeRequired: { selectedTab = 8 })
                 }
                 .opacity(selectedTab == 2 ? 1 : 0)
                 .allowsHitTesting(selectedTab == 2)
 
                 NavigationStack {
-                    BoxOfficeView()
-                }
-                .opacity(selectedTab == 6 ? 1 : 0)
-                .allowsHitTesting(selectedTab == 6)
-
-                NavigationStack {
-                    InsideTalkView(onSubscribeRequired: { selectedTab = 5 })
+                    TechDealsView()
                 }
                 .opacity(selectedTab == 3 ? 1 : 0)
                 .allowsHitTesting(selectedTab == 3)
                 
                 NavigationStack {
-                    DistributorsHubView(
-                        isUserDistributor: isDistributor,
-                        onSubscribeRequired: { selectedTab = 5 }
-                    )
+                    MenuView(selectedTab: $selectedTab)
                 }
                 .opacity(selectedTab == 4 ? 1 : 0)
                 .allowsHitTesting(selectedTab == 4)
-
+                
+                // Hidden tabs accessed via Menu
                 NavigationStack {
-                    SubscriptionView()
+                    BoxOfficeView()
                 }
                 .opacity(selectedTab == 5 ? 1 : 0)
                 .allowsHitTesting(selectedTab == 5)
                 
                 NavigationStack {
-                    TechDealsView()
+                    BuzzBoardView()
+                }
+                .opacity(selectedTab == 6 ? 1 : 0)
+                .allowsHitTesting(selectedTab == 6)
+                
+                NavigationStack {
+                    DistributorsHubView(
+                        isUserDistributor: isDistributor,
+                        onSubscribeRequired: { selectedTab = 8 }
+                    )
                 }
                 .opacity(selectedTab == 7 ? 1 : 0)
                 .allowsHitTesting(selectedTab == 7)
+                
+                NavigationStack {
+                    SubscriptionView()
+                }
+                .opacity(selectedTab == 8 ? 1 : 0)
+                .allowsHitTesting(selectedTab == 8)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            // Custom Tab Bar (Responsive, No empty space)
+            // Custom 5-Tab Bar
             HStack(spacing: 0) {
                 Spacer()
                 TabBarItem(icon: "house.fill", title: "Home", isSelected: selectedTab == 0) { selectedTab = 0 }
                 Spacer()
-                TabBarItem(icon: "bubble.left.and.bubble.right.fill", title: "Flock", isSelected: selectedTab == 2) { selectedTab = 2 }
+                TabBarItem(icon: "bubble.left.and.bubble.right.fill", title: "Flock", isSelected: selectedTab == 1) { selectedTab = 1 }
                 Spacer()
-                TabBarItem(icon: "tag.fill", title: "Deals", isSelected: selectedTab == 7) { selectedTab = 7 }
+                TabBarItem(icon: "eye.fill", title: "Talk", isSelected: selectedTab == 2) { selectedTab = 2 }
                 Spacer()
-                TabBarItem(icon: "eye.fill", title: "Inside", isSelected: selectedTab == 3) { selectedTab = 3 }
+                TabBarItem(icon: "tag.fill", title: "Deals", isSelected: selectedTab == 3) { selectedTab = 3 }
                 Spacer()
-                TabBarItem(icon: "chart.bar.fill", title: "Box Office", isSelected: selectedTab == 6) { 
-                    if selectedTab != 6 {
-                        if rewardedAdManager.isAdLoaded {
-                            RewardedAdController.showAd(manager: rewardedAdManager) {
-                                // Reload happens inside manager
-                            }
-                        }
-                        selectedTab = 6
-                    }
-                }
-                Spacer()
-                TabBarItem(icon: "flame.fill", title: "Buzz", isSelected: selectedTab == 1) { selectedTab = 1 }
-                Spacer()
-                TabBarItem(icon: "briefcase.fill", title: "Hub", isSelected: selectedTab == 4) { selectedTab = 4 }
-                Spacer()
-                TabBarItem(icon: "star.fill", title: "Pro", isSelected: selectedTab == 5) { selectedTab = 5 }
+                TabBarItem(icon: "line.3.horizontal", title: "Menu", isSelected: selectedTab == 4) { selectedTab = 4 }
                 Spacer()
             }
             .padding(.vertical, 12)
