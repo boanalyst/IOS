@@ -50,7 +50,7 @@ struct BuzzBoardView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(BuzzCategory.allCases) { category in
-                            CategoryPill(category: category, isSelected: selectedCategory == category) {
+                            BuzzCategoryPill(category: category, isSelected: selectedCategory == category) {
                                 selectedCategory = category
                                 refreshPosts()
                             }
@@ -241,7 +241,7 @@ struct BuzzBoardView: View {
 
 // MARK: - Subcomponents
 
-struct CategoryPill: View {
+struct BuzzCategoryPill: View {
     let category: BuzzCategory
     let isSelected: Bool
     let action: () -> Void
