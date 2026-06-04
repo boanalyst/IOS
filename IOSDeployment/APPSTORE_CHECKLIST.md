@@ -46,7 +46,7 @@
 
 ### Description (up to 4,000 characters)
 ```
-BoAnalyst is India's premier Box Office intelligence platform for
+BoAnalyst is the premier Box Office intelligence platform for
 film enthusiasts, industry professionals, and distributors.
 
 FEATURES:
@@ -67,7 +67,7 @@ box office,bollywood,film,movies,ticket sales,cinema,analytics,entertainment,ind
 
 ### Promotional Text (up to 170 characters, can change without new review)
 ```
-Track real-time box office collections, discover exclusive industry insights, and join India's film community.
+Track real-time box office collections, discover exclusive industry insights, and join the film community.
 ```
 
 ### What's New (for version 1.0)
