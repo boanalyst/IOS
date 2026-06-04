@@ -64,7 +64,7 @@ struct MenuRowView: View {
             HStack(spacing: 16) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.white.opacity(0.05))
+                        .fill(isPremium ? AppTheme.goldPrimary.opacity(0.15) : Color.white.opacity(0.08))
                         .frame(width: 48, height: 48)
                     
                     Image(systemName: iconName)
@@ -93,8 +93,18 @@ struct MenuRowView: View {
                 }
             }
             .padding(.vertical, 12)
-            .padding(.horizontal, 8)
-            .background(Color.white.opacity(0.01))
+            .padding(.horizontal, 16)
+            .background(
+                LinearGradient(
+                    colors: [Color(white: 0.15).opacity(0.8), Color(white: 0.08).opacity(0.9)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
             .cornerRadius(16)
         }
         .buttonStyle(PlainButtonStyle())
