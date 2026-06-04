@@ -106,7 +106,7 @@ struct TechDealsView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 12)
-            .background(AppTheme.surfaceColor)
+            .background(AppTheme.surface)
             
             // Categories
             if !viewModel.categories.isEmpty {
@@ -125,7 +125,7 @@ struct TechDealsView: View {
                     .padding(.horizontal)
                     .padding(.vertical, 8)
                 }
-                .background(AppTheme.surfaceColor)
+                .background(AppTheme.surface)
             }
             
             ScrollView {
@@ -205,7 +205,7 @@ struct TechDealsView: View {
                 await viewModel.fetchCategories()
             }
         }
-        .background(AppTheme.backgroundColor.edgesIgnoringSafeArea(.all))
+        .background(AppTheme.background.edgesIgnoringSafeArea(.all))
         .task {
             await viewModel.fetchCategories()
             await viewModel.fetchDeals(refresh: true)
@@ -225,7 +225,7 @@ struct CategoryPill: View {
                 .fontWeight(isSelected ? .bold : .medium)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(isSelected ? AppTheme.accentColor : Color.gray.opacity(0.15))
+                .background(isSelected ? AppTheme.goldPrimary : Color.gray.opacity(0.15))
                 .foregroundColor(isSelected ? .white : AppTheme.textPrimary)
                 .cornerRadius(20)
         }
@@ -306,7 +306,7 @@ struct TechDealCard: View {
                             Text("₹\(Int(deal.dealPrice))")
                                 .font(.title3)
                                 .fontWeight(.bold)
-                                .foregroundColor(AppTheme.accentColor)
+                                .foregroundColor(AppTheme.goldPrimary)
                         }
                         
                         Spacer()
@@ -326,7 +326,7 @@ struct TechDealCard: View {
                 .padding(.vertical, 4)
             }
             .padding(12)
-            .background(AppTheme.surfaceColor)
+            .background(AppTheme.surface)
             .cornerRadius(16)
             .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
             .padding(.horizontal)
@@ -339,7 +339,7 @@ struct TechDealCard: View {
         case "amazon": return Color.orange
         case "flipkart": return Color.blue
         case "croma": return Color.teal
-        default: return AppTheme.accentColor
+        default: return AppTheme.goldPrimary
         }
     }
 }
