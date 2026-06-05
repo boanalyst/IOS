@@ -94,6 +94,11 @@ struct BuzzBoardView: View {
                         LazyVStack(spacing: 16) {
                             ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
                                 let isUnlocked = unlockedRewardedPosts.contains(post.id)
+                                if index == 0 && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                    CustomNativeAdView(module: "buzz")
+                                        .padding(.vertical, 8)
+                                }
+
                                 BuzzPostCard(post: post, isUnlocked: isUnlocked)
                                     .contentShape(Rectangle())
                                     .onTapGesture {
@@ -127,7 +132,7 @@ struct BuzzBoardView: View {
                                         }
                                     }
 
-                                if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                if (index + 1) % 4 == 0 && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
                                     CustomNativeAdView(module: "buzz")
                                         .padding(.vertical, 8)
                                 }
