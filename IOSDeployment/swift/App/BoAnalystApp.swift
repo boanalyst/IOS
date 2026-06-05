@@ -305,6 +305,15 @@ struct MainTabView: View {
                 selectedTab = 2
             }
         }
+        .onChange(of: selectedTab) { newTab in
+            if newTab == 5 {
+                if rewardedAdManager.isAdLoaded {
+                    RewardedAdController.showAd(manager: rewardedAdManager) {
+                        rewardedAdManager.loadAd()
+                    }
+                }
+            }
+        }
     }
 }
 
