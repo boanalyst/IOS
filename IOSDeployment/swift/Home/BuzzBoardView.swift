@@ -132,7 +132,7 @@ struct BuzzBoardView: View {
                                         }
                                     }
 
-                                if (index + 1) % 4 == 0 && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                if (index + 1) % 10 == 0 && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
                                     CustomNativeAdView(module: "buzz")
                                         .padding(.vertical, 8)
                                 }
