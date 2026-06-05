@@ -128,7 +128,7 @@ struct BuzzBoardView: View {
                                     }
 
                                 if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
-                                    BoNativeAdView(index: index, listName: "buzz")
+                                    CustomNativeAdView(module: "buzz")
                                         .padding(.vertical, 8)
                                 }
                             }
