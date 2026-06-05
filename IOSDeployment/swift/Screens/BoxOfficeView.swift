@@ -204,7 +204,7 @@ struct BoxOfficeView: View {
                                         .padding(.vertical, 4)
 
                                     if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
-                                        BoNativeAdView(index: index, listName: "boxoffice")
+                                        CustomNativeAdView(module: "boxoffice")
                                             .padding(.horizontal, 16)
                                             .padding(.vertical, 8)
                                     }
