@@ -125,18 +125,6 @@ struct CustomNativeAdView: View {
                     
                     // Ad Content
                     VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("SPONSORED")
-                                .font(.system(size: 10, weight: .black))
-                                .foregroundColor(AppTheme.goldPrimary)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(AppTheme.goldPrimary.opacity(0.15))
-                                .cornerRadius(4)
-                            
-                            Spacer()
-                        }
-                        
                         Text(ad.title)
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(AppTheme.textPrimary)
@@ -153,14 +141,14 @@ struct CustomNativeAdView: View {
                         
                         HStack {
                             Spacer()
-                            Text(ad.callToAction)
+                            Text(ad.callToAction.uppercased())
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.black)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(AppTheme.goldGradient)
-                                .cornerRadius(20)
+                                .padding(.vertical, 12)
+                            Spacer()
                         }
+                        .background(AppTheme.goldGradient)
+                        .cornerRadius(8)
                         .padding(.top, 4)
                     }
                     .padding(12)
