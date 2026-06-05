@@ -32,7 +32,7 @@ class CustomAdViewModel: ObservableObject {
     func loadAd() async {
         self.isLoading = true
         do {
-            guard let url = URL(string: "\(APIConfig.baseURL)/api/ads/custom/native?module=\(targetModule)") else { return }
+            guard let url = URL(string: "\(APIConfig.baseURL)/api/custom-ads/native?module=\(targetModule)") else { return }
             var request = URLRequest(url: url)
             request.httpMethod = "GET"
             
@@ -58,7 +58,7 @@ class CustomAdViewModel: ObservableObject {
         guard let adId = adData?.id else { return }
         Task {
             do {
-                guard let url = URL(string: "\(APIConfig.baseURL)/api/ads/custom/click") else { return }
+                guard let url = URL(string: "\(APIConfig.baseURL)/api/custom-ads/click") else { return }
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")

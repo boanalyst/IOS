@@ -191,6 +191,12 @@ struct BoxOfficeView: View {
                                 .padding(.vertical, 8)
 
                                 ForEach(Array(filteredEntries.enumerated()), id: \.element.id) { index, entry in
+                                    if index == 0 && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                        CustomNativeAdView(module: "boxoffice")
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 8)
+                                    }
+
                                     BoxOfficeListRow(entry: entry)
                                         .background(
                                             RoundedRectangle(cornerRadius: 12)
@@ -203,7 +209,7 @@ struct BoxOfficeView: View {
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 4)
 
-                                    if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                    if (index + 1) % 4 == 0 && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
                                         CustomNativeAdView(module: "boxoffice")
                                             .padding(.horizontal, 16)
                                             .padding(.vertical, 8)

@@ -178,7 +178,13 @@ struct TechDealsView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.top, 64)
                     } else {
-                        ForEach(viewModel.deals) { deal in
+                        ForEach(Array(viewModel.deals.enumerated()), id: \.element.id) { index, deal in
+                            if index == 0 {
+                                CustomNativeAdView(module: "deals")
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                            }
+                            
                             TechDealCard(deal: deal) {
                                 viewModel.trackClick(dealId: deal.id)
                                 if let url = URL(string: deal.affiliateUrl) {
@@ -189,6 +195,12 @@ struct TechDealsView: View {
                                 if deal.id == viewModel.deals.last?.id {
                                     Task { await viewModel.fetchDeals() }
                                 }
+                            }
+
+                            if (index + 1) % 4 == 0 {
+                                CustomNativeAdView(module: "deals")
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
                             }
                         }
                     }
