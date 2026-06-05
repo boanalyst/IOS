@@ -303,10 +303,17 @@ struct TechDealCard: View {
                                     .foregroundColor(AppTheme.textSecondary)
                             }
                             
-                            Text("₹\(Int(deal.dealPrice))")
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(AppTheme.goldPrimary)
+                            if deal.dealPrice <= 0 {
+                                Text("Check Offer")
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(AppTheme.goldPrimary)
+                            } else {
+                                Text("₹\(Int(deal.dealPrice))")
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(AppTheme.goldPrimary)
+                            }
                         }
                         
                         Spacer()
