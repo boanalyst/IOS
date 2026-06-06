@@ -125,6 +125,7 @@ final class HomeViewModel: ObservableObject {
 
 struct HomeView: View {
     var onSubscribeRequired: () -> Void = {}
+    var onNavigateToTechDeals: () -> Void = {}
     @StateObject private var viewModel = HomeViewModel()
     @EnvironmentObject private var authViewModel: AuthViewModel
     @StateObject private var adManager = InterstitialAdManager()
@@ -159,6 +160,10 @@ struct HomeView: View {
                                 SectionHeader(title: "Trending Now", icon: "flame.fill")
                                 TrendingTopicsRibbon(topics: viewModel.trendingTopics)
                             }
+                            
+                            // ── Tech Deals ──────────────────────────────────
+                            TechDealsHomeBanner(onClick: onNavigateToTechDeals)
+                                .padding(.horizontal, 20)
                             
                             // ── Exclusive Content ───────────────────────────
                             if let exclusive = viewModel.exclusiveContent {
