@@ -202,7 +202,10 @@ struct MainTabView: View {
         VStack(spacing: 0) {
             ZStack {
                 NavigationStack {
-                    HomeView(onSubscribeRequired: { selectedTab = 5 })
+                    HomeView(
+                        onSubscribeRequired: { selectedTab = 5 },
+                        onNavigateToTechDeals: { selectedTab = 3 }
+                    )
                 }
                 .opacity(selectedTab == 0 ? 1 : 0)
                 .allowsHitTesting(selectedTab == 0)
