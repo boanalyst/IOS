@@ -280,12 +280,14 @@ struct MainTabView: View {
         .sheet(isPresented: $showMenuSheet) {
             if #available(iOS 16.4, *) {
                 MenuView(selectedTab: $selectedTab, isPresented: $showMenuSheet)
+                    .environmentObject(rewardedAdManager)
                     .presentationDetents([.fraction(0.55), .large])
                     .presentationBackground(.ultraThinMaterial)
                     .presentationCornerRadius(32)
                     .presentationDragIndicator(.visible)
             } else {
                 MenuView(selectedTab: $selectedTab, isPresented: $showMenuSheet)
+                    .environmentObject(rewardedAdManager)
                     .presentationDetents([.fraction(0.55), .large])
                     .presentationDragIndicator(.visible)
             }
@@ -306,15 +308,6 @@ struct MainTabView: View {
         .onChange(of: deepLinkManager.flockPostId) { postId in
             if postId != nil {
                 selectedTab = 2
-            }
-        }
-        .onChange(of: selectedTab) { newTab in
-            if newTab == 5 {
-                if rewardedAdManager.isAdLoaded {
-                    RewardedAdController.showAd(manager: rewardedAdManager) {
-                        rewardedAdManager.loadAd()
-                    }
-                }
             }
         }
     }
