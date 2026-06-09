@@ -3,6 +3,7 @@ import SwiftUI
 @MainActor
 final class BmsSalesViewModel: ObservableObject {
     @Published var data: [BmsSalesItem] = []
+    @Published var topList: [BmsSalesItem]? = nil
     @Published var isLoading = false
     @Published var error: String? = nil
     @Published var isIdle = true
@@ -10,6 +11,23 @@ final class BmsSalesViewModel: ObservableObject {
     @Published var isLimited = false
 
     private let api = APIClient.shared
+
+    init() {
+        Task {
+            await fetchTopMovies()
+        }
+    }
+
+    func fetchTopMovies() async {
+        do {
+            let r = try await api.request(.getTopBmsSales, responseType: BmsSalesResponse.self)
+            if let items = r.data {
+                self.topList = items
+            }
+        } catch {
+            print("Failed to fetch top bms sales: \(error)")
+        }
+    }
 
     func searchMovie(movieName: String) async {
         if movieName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return }
@@ -89,9 +107,23 @@ struct BmsSalesView: View {
 
                 // State Content
                 if viewModel.isIdle {
-                    Spacer()
-                    emptyState(message: "Search for a movie to see hourly sales data.", icon: "magnifyingglass")
-                    Spacer()
+                    if let top = viewModel.topList, !top.isEmpty {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Top 12 Tracked Movies")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(AppTheme.goldPrimary)
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 16)
+                                    .padding(.bottom, 8)
+                                SalesListView(items: top, showMovieColumn: true)
+                            }
+                        }
+                    } else {
+                        Spacer()
+                        emptyState(message: "Search for a movie to see hourly sales data.", icon: "magnifyingglass")
+                        Spacer()
+                    }
                 } else if viewModel.isLoading {
                     Spacer()
                     ProgressView()
@@ -104,64 +136,20 @@ struct BmsSalesView: View {
                     Spacer()
                 } else {
                     ScrollView {
-                        LazyVStack(spacing: 12) {
-                            HStack {
-                                Text("Date")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(AppTheme.goldPrimary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                Text("Time")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(AppTheme.goldPrimary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                Text("Tickets")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(AppTheme.goldPrimary)
-                                    .frame(maxWidth: .infinity, alignment: .trailing)
-                            }
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 12)
-                            .background(AppTheme.surface)
-                            
-                            ForEach(viewModel.data) { item in
-                                HStack {
-                                    Text(String(item.date.prefix(10)))
-                                        .font(.system(size: 14))
-                                        .foregroundColor(AppTheme.textPrimary)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    Text(item.time)
-                                        .font(.system(size: 14))
-                                        .foregroundColor(AppTheme.textPrimary.opacity(0.8))
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    Text("\(item.tickets_sold)")
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(AppTheme.textPrimary)
-                                        .frame(maxWidth: .infinity, alignment: .trailing)
-                                }
-                                .padding(.horizontal, 24)
-                                .padding(.vertical, 14)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(AppTheme.card)
-                                )
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Search Results")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(AppTheme.goldPrimary)
                                 .padding(.horizontal, 16)
-                            }
-                            
-                            if viewModel.isLimited && viewModel.hasMore {
-                                NavigationLink(destination: SubscriptionView()) {
-                                    Text("Subscribe to see full content")
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(.black)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 14)
-                                        .background(AppTheme.goldGradient)
-                                        .cornerRadius(8)
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 16)
-                            }
+                                .padding(.top, 16)
+                                .padding(.bottom, 8)
+                            SalesListView(
+                                items: viewModel.data, 
+                                showMovieColumn: false, 
+                                isLimited: viewModel.isLimited, 
+                                hasMore: viewModel.hasMore
+                            )
                         }
-                        .padding(.vertical, 16)
                     }
                 }
             }
@@ -188,5 +176,118 @@ struct BmsSalesView: View {
                 .multilineTextAlignment(.center)
         }
         .padding(32)
+    }
+}
+
+struct SalesListView: View {
+    let items: [BmsSalesItem]
+    let showMovieColumn: Bool
+    var isLimited: Bool = false
+    var hasMore: Bool = false
+
+    private let ticketCyan = Color(hex: "00E5FF")
+    private let dateColor = Color(hex: "AAAAAA")
+    private let timeColor = Color(hex: "888888")
+    private let headerColor = Color(hex: "555555")
+    private let borderColor = Color(hex: "2A2A2A")
+    private let cardBg = Color(hex: "0D0D0D")
+    private let headerBg = Color(hex: "111111")
+
+    var body: some View {
+        LazyVStack(spacing: 0) {
+            // ── Header Row ──
+            HStack(spacing: 0) {
+                if showMovieColumn {
+                    Text("MOVIE")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(headerColor)
+                        .kerning(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 10)
+                        .overlay(Rectangle().frame(width: 0.5).foregroundColor(borderColor), alignment: .trailing)
+                }
+                Text("DATE")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(headerColor)
+                    .kerning(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 10)
+                    .overlay(Rectangle().frame(width: 0.5).foregroundColor(borderColor), alignment: .trailing)
+                Text("TIME")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(headerColor)
+                    .kerning(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 10)
+                    .overlay(Rectangle().frame(width: 0.5).foregroundColor(borderColor), alignment: .trailing)
+                Text("TICKETS")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(AppTheme.goldPrimary)
+                    .kerning(1)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 10)
+            }
+            .background(headerBg)
+            .overlay(Rectangle().stroke(borderColor, lineWidth: 1))
+
+            // ── Data Rows ──
+            ForEach(items) { item in
+                HStack(spacing: 0) {
+                    if showMovieColumn {
+                        Text(item.movie_name ?? "—")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 14)
+                            .overlay(Rectangle().frame(width: 0.5).foregroundColor(borderColor), alignment: .trailing)
+                    }
+                    Text(String(item.date?.prefix(10) ?? ""))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(dateColor)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 14)
+                        .overlay(Rectangle().frame(width: 0.5).foregroundColor(borderColor), alignment: .trailing)
+                    Text(item.time ?? "")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(timeColor)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 14)
+                        .overlay(Rectangle().frame(width: 0.5).foregroundColor(borderColor), alignment: .trailing)
+                    Text("\(item.tickets_sold)")
+                        .font(.system(size: 15, weight: .heavy))
+                        .foregroundColor(ticketCyan)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 14)
+                }
+                .background(cardBg)
+                .overlay(Rectangle().stroke(borderColor, lineWidth: 0.5))
+            }
+
+            // ── Subscribe CTA ──
+            if isLimited && hasMore {
+                NavigationLink(destination: SubscriptionView()) {
+                    Text("Unlock Full Data")
+                        .font(.system(size: 15, weight: .heavy))
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(AppTheme.goldPrimary)
+                        .cornerRadius(25)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 28)
+                .padding(.bottom, 24)
+            }
+        }
+        .padding(.bottom, 24)
     }
 }

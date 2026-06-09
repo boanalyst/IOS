@@ -54,8 +54,9 @@ struct BoxOfficeView: View {
     @State private var isSearching = false
     @State private var searchQuery = ""
     @State private var adInterval: Int = 10
-    @StateObject private var adManager = InterstitialAdManager()
+    @StateObject private var rewardedAdManager = RewardedAdManager()
     @State private var hasShownAd = false
+    @State private var navigateToBmsSales = false
 
     let languages = [
         ("all", "Global (All)"),
@@ -164,7 +165,22 @@ struct BoxOfficeView: View {
                         LazyVStack(spacing: 12) {
                             
                             // ── Hourly BMS Sales Button ──────────────────────────────
-                            NavigationLink(destination: BmsSalesView()) {
+                            // ── Hourly BMS Sales Button ──────────────────────────────
+                            Button(action: {
+                                if !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                    if rewardedAdManager.isAdLoaded {
+                                        RewardedAdController.showAd(manager: rewardedAdManager) {
+                                            rewardedAdManager.loadAd()
+                                            navigateToBmsSales = true
+                                        }
+                                    } else {
+                                        rewardedAdManager.loadAd()
+                                        navigateToBmsSales = true
+                                    }
+                                } else {
+                                    navigateToBmsSales = true
+                                }
+                            }) {
                                 HStack {
                                     Text("View Hourly BMS Sales")
                                         .font(.system(size: 14, weight: .bold))
@@ -175,13 +191,14 @@ struct BoxOfficeView: View {
                                 .background(AppTheme.goldGradient)
                                 .cornerRadius(8)
                             }
-                            .simultaneousGesture(TapGesture().onEnded {
-                                if !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
-                                    InterstitialAdController.showAd(manager: adManager) { }
-                                }
-                            })
                             .padding(.horizontal, 16)
                             .padding(.top, 8)
+                            .background(
+                                NavigationLink(destination: BmsSalesView(), isActive: $navigateToBmsSales) {
+                                    EmptyView()
+                                }
+                                .hidden()
+                            )
 
                             // ── Top 3 Podium Showcase (Only when not searching) ────
                             if filteredEntries.count >= 3 && searchQuery.isEmpty {
