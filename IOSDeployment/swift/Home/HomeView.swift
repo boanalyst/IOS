@@ -670,6 +670,17 @@ struct ExclusiveContentCard: View {
     }
 }
 
+// MARK: - TechDealsHomeBanner
+struct TechDealsHomeBanner: View {
+    var onClick: () -> Void
+    var body: some View {
+        Button(action: onClick) {
+            CustomNativeAdView(module: "all", isTechDealStyle: true)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Exclusive Content Admin Edit Sheet
 import PhotosUI
 
