@@ -1458,3 +1458,41 @@ struct TechDeal: Decodable, Identifiable {
         return APIConfig.baseURL + (safePath.hasPrefix("/") ? safePath : "/" + safePath)
     }
 }
+
+// MARK: - BMS Sales
+
+struct BmsSalesItem: Decodable, Identifiable {
+    var id: String { "\(date)_\(time)" }
+    let date: String
+    let time: String
+    let tickets_sold: Int
+}
+
+struct BmsSalesResponse: Decodable {
+    let success: Bool
+    let data: [BmsSalesItem]?
+    let message: String?
+    let hasMore: Bool
+    let isLimited: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case success, data, message, hasMore, isLimited
+    }
+    
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let b = try? c.decode(Bool.self, forKey: .success) { success = b }
+        else if let i = try? c.decode(Int.self, forKey: .success) { success = (i != 0) }
+        else { success = false }
+        data = try? c.decode([BmsSalesItem].self, forKey: .data)
+        message = try? c.decode(String.self, forKey: .message)
+        
+        if let b = try? c.decode(Bool.self, forKey: .hasMore) { hasMore = b }
+        else if let i = try? c.decode(Int.self, forKey: .hasMore) { hasMore = (i != 0) }
+        else { hasMore = false }
+        
+        if let b = try? c.decode(Bool.self, forKey: .isLimited) { isLimited = b }
+        else if let i = try? c.decode(Int.self, forKey: .isLimited) { isLimited = (i != 0) }
+        else { isLimited = false }
+    }
+}
