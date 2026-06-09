@@ -181,15 +181,31 @@ struct BoxOfficeView: View {
                                     navigateToBmsSales = true
                                 }
                             }) {
-                                HStack {
-                                    Text("View Hourly BMS Sales")
-                                        .font(.system(size: 14, weight: .bold))
+                                HStack(spacing: 10) {
+                                    Image(systemName: "chart.line.uptrend.xyaxis")
+                                        .font(.system(size: 20))
                                         .foregroundColor(.black)
+                                    
+                                    Text("VIEW HOURLY BMS SALES")
+                                        .font(.system(size: 14, weight: .heavy))
+                                        .tracking(1)
+                                        .foregroundColor(.black)
+                                    
+                                    Image(systemName: "ticket.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(.black.opacity(0.7))
                                 }
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(AppTheme.goldGradient)
-                                .cornerRadius(8)
+                                .padding(.vertical, 14)
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color(hex: "D4AF37"), Color(hex: "F3E5AB"), Color(hex: "D4AF37")],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .cornerRadius(16)
+                                .shadow(color: Color(hex: "D4AF37").opacity(0.3), radius: 8, x: 0, y: 4)
                             }
                             .padding(.horizontal, 16)
                             .padding(.top, 8)

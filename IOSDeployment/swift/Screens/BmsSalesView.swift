@@ -66,6 +66,7 @@ struct BmsSalesView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = BmsSalesViewModel()
     @State private var searchQuery = ""
+    @StateObject private var rewardedAdManager = RewardedAdManager()
 
     var body: some View {
         ZStack {
@@ -91,8 +92,18 @@ struct BmsSalesView: View {
                     }
                     
                     Button {
-                        Task {
-                            await viewModel.searchMovie(movieName: searchQuery)
+                        if rewardedAdManager.isAdLoaded {
+                            RewardedAdController.showAd(manager: rewardedAdManager) {
+                                rewardedAdManager.loadAd()
+                                Task {
+                                    await viewModel.searchMovie(movieName: searchQuery)
+                                }
+                            }
+                        } else {
+                            rewardedAdManager.loadAd()
+                            Task {
+                                await viewModel.searchMovie(movieName: searchQuery)
+                            }
                         }
                     } label: {
                         Text("Search")
