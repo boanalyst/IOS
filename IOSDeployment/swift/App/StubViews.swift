@@ -864,6 +864,7 @@ struct InsideTalkView: View {
     @StateObject private var rewardedAdManager = RewardedAdManager()
     @State private var unlockedRewardedPosts: Set<String> = []
     @State private var adInterval: Int = 10
+    @State private var navigateToBmsSales = false
 
     var body: some View {
         ZStack {
@@ -876,6 +877,56 @@ struct InsideTalkView: View {
                     LazyVStack(spacing: 16) { // Bug #2 fix: increased from 12 to 16
                         let isUserProGlobal = (authViewModel.currentUser?.isPro ?? false) || (authViewModel.currentUser?.isAdmin == true)
                         
+                        // ── Hourly BMS Sales Button ──────────────────────────────
+                        Button(action: {
+                            if !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                if rewardedAdManager.isAdLoaded {
+                                    RewardedAdController.showAd(manager: rewardedAdManager) {
+                                        rewardedAdManager.loadAd()
+                                        navigateToBmsSales = true
+                                    }
+                                } else {
+                                    rewardedAdManager.loadAd()
+                                    navigateToBmsSales = true
+                                }
+                            } else {
+                                navigateToBmsSales = true
+                            }
+                        }) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.black)
+                                
+                                Text("VIEW HOURLY BMS SALES")
+                                    .font(.system(size: 14, weight: .heavy))
+                                    .tracking(1)
+                                    .foregroundColor(.black)
+                                
+                                Image(systemName: "ticket.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.black.opacity(0.7))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(hex: "D4AF37"), Color(hex: "F3E5AB"), Color(hex: "D4AF37")],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(16)
+                            .shadow(color: Color(hex: "D4AF37").opacity(0.3), radius: 8, x: 0, y: 4)
+                        }
+                        .padding(.horizontal, 16)
+                        .background(
+                            NavigationLink(destination: BmsSalesView(), isActive: $navigateToBmsSales) {
+                                EmptyView()
+                            }
+                            .hidden()
+                        )
+
                         // Non-pro upgrade banner (scrollable, mirrors Android)
                         if !isUserProGlobal && viewModel.count > 0 {
                             proUpgradeBanner
