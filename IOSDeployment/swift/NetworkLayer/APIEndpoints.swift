@@ -152,6 +152,11 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/box-office/top-grossers", method: .GET, queryItems: items)
     }
     static let getBmsLiveTickets = APIEndpoint(path: "/api/box-office/live", method: .GET)
+    
+    static func searchBmsSales(movie: String) -> APIEndpoint {
+        let items = [URLQueryItem(name: "movie", value: movie)]
+        return APIEndpoint(path: "/api/bms-sales/search", method: .GET, queryItems: items)
+    }
 
     // ── Polls ─────────────────────────────────────────────────────────────────
 
