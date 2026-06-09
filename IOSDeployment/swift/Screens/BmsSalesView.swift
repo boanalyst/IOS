@@ -21,10 +21,9 @@ final class BmsSalesViewModel: ObservableObject {
     func fetchTopMovies() async {
         do {
             let r = try await api.request(.getTopBmsSales, responseType: BmsSalesResponse.self)
-            if let items = r.data {
-                self.topList = items
-            }
+            self.topList = r.data ?? []
         } catch {
+            self.topList = []
             print("Failed to fetch top bms sales: \(error)")
         }
     }
@@ -118,7 +117,13 @@ struct BmsSalesView: View {
 
                 // State Content
                 if viewModel.isIdle {
-                    if let top = viewModel.topList, !top.isEmpty {
+                    if viewModel.topList == nil {
+                        Spacer()
+                        ProgressView()
+                            .tint(AppTheme.goldPrimary)
+                            .scaleEffect(1.2)
+                        Spacer()
+                    } else if let top = viewModel.topList, !top.isEmpty {
                         ScrollView {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Top 12 Tracked Movies")
@@ -252,7 +257,8 @@ struct SalesListView: View {
                         Text(item.movie_name ?? "—")
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(.white)
-                            .lineLimit(1)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 14)
