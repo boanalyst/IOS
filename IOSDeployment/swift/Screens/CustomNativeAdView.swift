@@ -226,7 +226,7 @@ struct CustomNativeAdView: View {
                         }
                         .padding(12)
                     }
-                    .background(AppTheme.surfaceElevated)
+                    .background(AppTheme.card)
                     .cornerRadius(12)
                     .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
                     .padding(.vertical, 8)
