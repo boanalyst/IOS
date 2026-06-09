@@ -158,6 +158,8 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/bms-sales/search", method: .GET, queryItems: items)
     }
 
+    static let getTopBmsSales = APIEndpoint(path: "/api/bms-sales/top", method: .GET)
+
     // ── Polls ─────────────────────────────────────────────────────────────────
 
     static let getPolls = APIEndpoint(path: "/api/polls", method: .GET)
