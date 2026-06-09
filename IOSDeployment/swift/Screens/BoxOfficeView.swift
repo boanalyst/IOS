@@ -296,7 +296,7 @@ struct BoxOfficeView: View {
                 // Show ad when entering box office
                 if !hasShownAd && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
                     hasShownAd = true
-                    InterstitialAdController.showAd(manager: adManager) { }
+                    RewardedAdController.showAd(manager: rewardedAdManager) { }
                 }
             } catch {
                 print("⚠️ [BoxOfficeView] Failed to fetch dynamic ad-config: \(error.localizedDescription)")

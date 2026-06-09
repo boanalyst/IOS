@@ -134,7 +134,7 @@ struct CustomNativeAdView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("PARTNER DEAL")
                                 .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(AppTheme.accent)
+                                .foregroundColor(AppTheme.goldPrimary)
                                 .padding(.bottom, 2)
                             
                             Text(ad.title)
