@@ -163,6 +163,26 @@ struct BoxOfficeView: View {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             
+                            // ── Hourly BMS Sales Button ──────────────────────────────
+                            NavigationLink(destination: BmsSalesView()) {
+                                HStack {
+                                    Text("View Hourly BMS Sales")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(.black)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(AppTheme.goldGradient)
+                                .cornerRadius(8)
+                            }
+                            .simultaneousGesture(TapGesture().onEnded {
+                                if !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                    InterstitialAdController.showAd(manager: adManager) { }
+                                }
+                            })
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+
                             // ── Top 3 Podium Showcase (Only when not searching) ────
                             if filteredEntries.count >= 3 && searchQuery.isEmpty {
                                 podiumShowcase
