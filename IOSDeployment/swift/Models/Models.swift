@@ -1462,7 +1462,7 @@ struct TechDeal: Decodable, Identifiable {
 // MARK: - BMS Sales
 
 struct BmsSalesItem: Decodable, Identifiable {
-    var id: String { "\(movie_name ?? "")_\(date)_\(time)" }
+    var id: String { "\(movie_name ?? "")_\(date ?? "")_\(time ?? "")" }
     let movie_name: String?
     let date: String?
     let time: String?
