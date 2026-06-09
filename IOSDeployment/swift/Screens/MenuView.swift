@@ -3,6 +3,7 @@ import SwiftUI
 struct MenuView: View {
     @Binding var selectedTab: Int
     @Binding var isPresented: Bool
+    @EnvironmentObject var rewardedAdManager: RewardedAdManager
     
     var body: some View {
         ZStack {
@@ -25,8 +26,17 @@ struct MenuView: View {
                 
                 VStack(spacing: 8) {
                     MenuRowView(title: "Box Office", iconName: "chart.bar.fill", isPremium: false) {
-                        isPresented = false
-                        selectedTab = 5
+                        if rewardedAdManager.isAdLoaded {
+                            RewardedAdController.showAd(manager: rewardedAdManager) {
+                                rewardedAdManager.loadAd()
+                                isPresented = false
+                                selectedTab = 5
+                            }
+                        } else {
+                            rewardedAdManager.loadAd()
+                            isPresented = false
+                            selectedTab = 5
+                        }
                     }
                     MenuRowView(title: "Buzz Board", iconName: "flame.fill", isPremium: false) {
                         isPresented = false
