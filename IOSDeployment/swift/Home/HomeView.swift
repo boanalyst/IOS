@@ -1099,7 +1099,7 @@ struct DailyBmsSalesTeaserView: View {
                     HStack(spacing: 12) {
                         ForEach(items) { item in
                             VStack(alignment: .leading, spacing: 8) {
-                                Text(item.movie_name.replacingOccurrences(of: "\"", with: ""))
+                                Text((item.movie_name ?? "").replacingOccurrences(of: "\"", with: ""))
                                     .font(.subheadline)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.white)
