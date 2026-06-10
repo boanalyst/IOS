@@ -14,6 +14,7 @@ final class HomeViewModel: ObservableObject {
     @Published var recentFlockPosts: [FlockPost] = []
     @Published var trendingTopics: [TrendingTrend] = []
     @Published var exclusiveContent: ExclusiveContent? = nil
+    @Published var dailyBmsSalesTeaser: [BmsSalesItem] = []
     @Published var isLoading = false
     @Published var error: String? = nil
     @Published var showExclusiveEditor = false
@@ -32,6 +33,7 @@ final class HomeViewModel: ObservableObject {
         async let flockTask     = api.request(.getFlockPosts(offset: 0, limit: 5), responseType: FlockFeedResponse.self)
         async let trendingTask  = api.request(.getTrendingTopics, responseType: TrendingResponse.self)
         async let exclusiveTask = api.request(.getExclusiveContent, responseType: ExclusiveContentResponse.self)
+        async let bmsTeaserTask = api.request(.getDailyBmsSales, responseType: BmsSalesResponse.self)
 
         if let movies   = try? await moviesTask   { nowPlayingMovies = sortMoviesByDateDesc(movies.movies) }
         if let upcoming = try? await upcomingTask { upcomingMovies = sortMoviesByDateDesc(upcoming.movies) }
@@ -40,6 +42,10 @@ final class HomeViewModel: ObservableObject {
         if let flock    = try? await flockTask    { recentFlockPosts = flock.posts }
         if let trending = try? await trendingTask { trendingTopics = trending.trends }
         if let excl     = try? await exclusiveTask{ exclusiveContent = excl.content }
+        if let bmsTeaser = try? await bmsTeaserTask {
+            let allItems = bmsTeaser.data ?? []
+            dailyBmsSalesTeaser = Array(allItems.sorted(by: { $0.tickets_sold > $1.tickets_sold }).prefix(3))
+        }
 
         isLoading = false
     }
@@ -131,10 +137,12 @@ struct HomeView: View {
     @StateObject private var adManager = InterstitialAdManager()
     @State private var selectedMovieForSynopsis: Movie? = nil
     @StateObject private var rewardedAdManager = RewardedAdManager()
+    @State private var navigateToBmsSales = false
 
     var body: some View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
+            NavigationLink(destination: BmsSalesView(), isActive: $navigateToBmsSales) { EmptyView() }.hidden()
 
             VStack(spacing: 0) {
             if viewModel.isLoading && viewModel.nowPlayingMovies.isEmpty {
@@ -152,6 +160,16 @@ struct HomeView: View {
                         // ── Live Ticker ──────────────────────────────
                         LiveTickerBanner()
                             .padding(.top, 8)
+                            
+                        // ── Daily BMS Sales Teaser ──────────────────────────
+                        if !viewModel.dailyBmsSalesTeaser.isEmpty || viewModel.isLoading {
+                            DailyBmsSalesTeaserView(
+                                items: viewModel.dailyBmsSalesTeaser,
+                                isLoading: viewModel.isLoading,
+                                onSeeAll: { navigateToBmsSales = true }
+                            )
+                            .padding(.top, 16)
+                        }
 
                         VStack(alignment: .leading, spacing: 24) {
 
@@ -1026,10 +1044,95 @@ struct LoadingView: View {
     }
 }
 
-#Preview {
-    NavigationStack {
+struct HomeView_Previews: PreviewProvider {
+    static var previews: some View {
         HomeView()
+            .environmentObject(AuthViewModel())
     }
-    .environmentObject(AuthViewModel())
 }
 
+// MARK: - DailyBmsSalesTeaserView
+
+struct DailyBmsSalesTeaserView: View {
+    let items: [BmsSalesItem]
+    let isLoading: Bool
+    let onSeeAll: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("📈 Highest Hourly Sales Today")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                }
+                Spacer()
+                Button(action: onSeeAll) {
+                    Text("See All")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppTheme.goldPrimary)
+                }
+            }
+            .padding(.horizontal, 20)
+
+            // Content
+            if isLoading {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(0..<3, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(AppTheme.navyCard)
+                                .frame(width: 160, height: 80)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+            } else if items.isEmpty {
+                Text("No sales data currently available.")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                    .padding(.horizontal, 20)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(items) { item in
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(item.movie_name.replacingOccurrences(of: "\"", with: ""))
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                                    .lineLimit(1)
+                                
+                                Text(item.time ?? "")
+                                    .font(.caption)
+                                    .foregroundColor(AppTheme.ticketCyan.opacity(0.8))
+                                
+                                HStack(alignment: .bottom, spacing: 4) {
+                                    Text("\(item.tickets_sold)")
+                                        .font(.title3)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(AppTheme.ticketCyan)
+                                    Text("tix")
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                        .padding(.bottom, 2)
+                                }
+                            }
+                            .padding(12)
+                            .frame(width: 160, alignment: .leading)
+                            .background(AppTheme.navyCard)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(AppTheme.ticketCyan.opacity(0.3), lineWidth: 1)
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+            }
+        }
+    }
+}
