@@ -159,6 +159,8 @@ extension APIEndpoint {
     }
 
     static let getTopBmsSales = APIEndpoint(path: "/api/bms-sales/top", method: .GET)
+    static let getDailyBmsSales = APIEndpoint(path: "/api/bms-sales/daily", method: .GET)
+    static let getLatestHourBmsSales = APIEndpoint(path: "/api/bms-sales/latest-hour", method: .GET)
 
     // ── Polls ─────────────────────────────────────────────────────────────────
 
