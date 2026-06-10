@@ -1083,7 +1083,7 @@ struct DailyBmsSalesTeaserView: View {
                     HStack(spacing: 12) {
                         ForEach(0..<3, id: \.self) { _ in
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(AppTheme.navyCard)
+                                .fill(AppTheme.card)
                                 .frame(width: 160, height: 80)
                         }
                     }
@@ -1107,13 +1107,13 @@ struct DailyBmsSalesTeaserView: View {
                                 
                                 Text(item.time ?? "")
                                     .font(.caption)
-                                    .foregroundColor(AppTheme.ticketCyan.opacity(0.8))
+                                    .foregroundColor(AppTheme.goldPrimary.opacity(0.8))
                                 
                                 HStack(alignment: .bottom, spacing: 4) {
                                     Text("\(item.tickets_sold)")
                                         .font(.title3)
                                         .fontWeight(.bold)
-                                        .foregroundColor(AppTheme.ticketCyan)
+                                        .foregroundColor(AppTheme.goldPrimary)
                                     Text("tix")
                                         .font(.caption2)
                                         .foregroundColor(.gray)
@@ -1122,11 +1122,11 @@ struct DailyBmsSalesTeaserView: View {
                             }
                             .padding(12)
                             .frame(width: 160, alignment: .leading)
-                            .background(AppTheme.navyCard)
+                            .background(AppTheme.card)
                             .cornerRadius(12)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(AppTheme.ticketCyan.opacity(0.3), lineWidth: 1)
+                                    .stroke(AppTheme.goldPrimary.opacity(0.3), lineWidth: 1)
                             )
                         }
                     }
