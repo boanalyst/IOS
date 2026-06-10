@@ -4,6 +4,7 @@ import SwiftUI
 final class BmsSalesViewModel: ObservableObject {
     @Published var data: [BmsSalesItem] = []
     @Published var topList: [BmsSalesItem]? = nil
+    @Published var dailyList: [BmsSalesItem]? = nil
     @Published var isLoading = false
     @Published var error: String? = nil
     @Published var isIdle = true
@@ -25,6 +26,14 @@ final class BmsSalesViewModel: ObservableObject {
         } catch {
             self.topList = []
             print("Failed to fetch top bms sales: \(error)")
+        }
+        
+        do {
+            let r = try await api.request(.getDailyBmsSales, responseType: BmsSalesResponse.self)
+            self.dailyList = r.data ?? []
+        } catch {
+            self.dailyList = []
+            print("Failed to fetch daily bms sales: \(error)")
         }
     }
 
@@ -65,6 +74,7 @@ struct BmsSalesView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = BmsSalesViewModel()
     @State private var searchQuery = ""
+    @State private var selectedTabIndex = 0
     @StateObject private var rewardedAdManager = RewardedAdManager()
 
     var body: some View {
@@ -117,28 +127,42 @@ struct BmsSalesView: View {
 
                 // State Content
                 if viewModel.isIdle {
-                    if viewModel.topList == nil {
+                    if viewModel.topList == nil && viewModel.dailyList == nil {
                         Spacer()
                         ProgressView()
                             .tint(AppTheme.goldPrimary)
                             .scaleEffect(1.2)
                         Spacer()
-                    } else if let top = viewModel.topList, !top.isEmpty {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Top 12 Tracked Movies")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(AppTheme.goldPrimary)
-                                    .padding(.horizontal, 16)
-                                    .padding(.top, 16)
-                                    .padding(.bottom, 8)
-                                SalesListView(items: top, showMovieColumn: true)
+                    } else {
+                        VStack(spacing: 0) {
+                            Picker("Select Data", selection: $selectedTabIndex) {
+                                Text("Latest Data").tag(0)
+                                Text("Top 12").tag(1)
+                            }
+                            .pickerStyle(SegmentedPickerStyle())
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    if selectedTabIndex == 0 {
+                                        if let daily = viewModel.dailyList, !daily.isEmpty {
+                                            SalesListView(items: daily, showMovieColumn: true)
+                                        } else {
+                                            emptyState(message: "No daily data available.", icon: "doc.text.magnifyingglass")
+                                                .padding(.top, 40)
+                                        }
+                                    } else {
+                                        if let top = viewModel.topList, !top.isEmpty {
+                                            SalesListView(items: top, showMovieColumn: true)
+                                        } else {
+                                            emptyState(message: "No top data available.", icon: "doc.text.magnifyingglass")
+                                                .padding(.top, 40)
+                                        }
+                                    }
+                                }
                             }
                         }
-                    } else {
-                        Spacer()
-                        emptyState(message: "Search for a movie to see hourly sales data.", icon: "magnifyingglass")
-                        Spacer()
                     }
                 } else if viewModel.isLoading {
                     Spacer()
