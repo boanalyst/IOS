@@ -310,56 +310,60 @@ struct FlockPostCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Author header
-            HStack(spacing: 10) {
-                // BoAnalystAvatarView: perfectly circular avatar (fixes flat/broken look)
-                BoAnalystAvatarView(size: 40, padding: 5)
+            // Tappable header area (does not cover URL text, so links remain clickable)
+            Button(action: onTap) {
+                // Author header
+                HStack(spacing: 10) {
+                    // BoAnalystAvatarView: perfectly circular avatar (fixes flat/broken look)
+                    BoAnalystAvatarView(size: 40, padding: 5)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(post.authorName)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(AppTheme.textPrimary)
-                    }
-                    Text(formatRelativeDate(post.createdAt))
-                        .font(.system(size: 11))
-                        .foregroundColor(AppTheme.textMuted)
-                }
-                Spacer()
-
-                // Right side: pin indicator + admin menu
-                HStack(spacing: 8) {
-                    if post.isPinned {
-                        Image(systemName: "pin.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(AppTheme.goldGradient)
-                    }
-                    // Bug #1 fix: admin sees a context menu button
-                    if isAdmin {
-                        Menu {
-                            if let edit = onEdit {
-                                Button(action: edit) {
-                                    Label("Edit Post", systemImage: "pencil")
-                                }
-                            }
-                            Button(role: .destructive) { onDelete() } label: {
-                                Label("Delete Post", systemImage: "trash")
-                            }
-                            Button { onPin() } label: {
-                                Label(post.isPinned ? "Unpin Post" : "Pin Post",
-                                      systemImage: post.isPinned ? "pin.slash" : "pin")
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(AppTheme.textMuted)
-                                .padding(8)
-                                .contentShape(Rectangle())
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(post.authorName)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(AppTheme.textPrimary)
                         }
-                        .buttonStyle(.plain)
+                        Text(formatRelativeDate(post.createdAt))
+                            .font(.system(size: 11))
+                            .foregroundColor(AppTheme.textMuted)
+                    }
+                    Spacer()
+
+                    // Right side: pin indicator + admin menu
+                    HStack(spacing: 8) {
+                        if post.isPinned {
+                            Image(systemName: "pin.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(AppTheme.goldGradient)
+                        }
+                        // Bug #1 fix: admin sees a context menu button
+                        if isAdmin {
+                            Menu {
+                                if let edit = onEdit {
+                                    Button(action: edit) {
+                                        Label("Edit Post", systemImage: "pencil")
+                                    }
+                                }
+                                Button(role: .destructive) { onDelete() } label: {
+                                    Label("Delete Post", systemImage: "trash")
+                                }
+                                Button { onPin() } label: {
+                                    Label(post.isPinned ? "Unpin Post" : "Pin Post",
+                                          systemImage: post.isPinned ? "pin.slash" : "pin")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(AppTheme.textMuted)
+                                    .padding(8)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
             }
+            .buttonStyle(.plain)
 
             // Content — extract social embeds first, strip their URLs from text
             let isRewardedContent = post.showRewarded || post.content.lowercased().contains("#boanalystexclusive") || post.content.lowercased().contains("#boanalystsuper")
@@ -371,6 +375,7 @@ struct FlockPostCard: View {
                 ? String(rawCleanContent.prefix(25)) + "... See more"
                 : rawCleanContent
 
+            // URL text is OUTSIDE the Button so SwiftUI handles link taps natively
             let attrString = ParsedTextCache.shared.parseFlock(cleanContent, id: post.id)
             Text(attrString)
                 .tint(AppTheme.goldPrimary)
@@ -402,6 +407,7 @@ struct FlockPostCard: View {
                         .stroke(AppTheme.goldPrimary.opacity(0.3), lineWidth: 1)
                 )
                 .padding(.top, 6)
+                .onTapGesture { onTap() }
             }
 
             // ── Uploaded Media ───────────────────────────────────────
@@ -462,10 +468,6 @@ struct FlockPostCard: View {
         }
         .padding(16)
         .cardStyle()
-        .contentShape(Rectangle())
-        .onTapGesture {
-            onTap()
-        }
     }
 }
 
@@ -602,6 +604,21 @@ func parseBoAnalystHTML(_ text: String) -> AttributedString {
                 if let startIdx = AttributedString.Index(swiftRange.lowerBound, within: attrResult),
                    let endIdx = AttributedString.Index(swiftRange.upperBound, within: attrResult) {
                     attrResult[startIdx..<endIdx].link = URL(string: "boanalyst://hashtag")
+                }
+            }
+        }
+    }
+
+    // Detect URLs and make them clickable (SwiftUI Text will automatically open them)
+    if let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) {
+        let plainText = String(attrResult.characters)
+        let matches = detector.matches(in: plainText, options: [], range: NSRange(location: 0, length: plainText.utf16.count))
+        for match in matches.reversed() {
+            if let url = match.url,
+               let swiftRange = Range(match.range, in: plainText) {
+                if let startIdx = AttributedString.Index(swiftRange.lowerBound, within: attrResult),
+                   let endIdx = AttributedString.Index(swiftRange.upperBound, within: attrResult) {
+                    attrResult[startIdx..<endIdx].link = url
                 }
             }
         }
