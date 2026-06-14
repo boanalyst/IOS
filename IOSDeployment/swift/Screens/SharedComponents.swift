@@ -296,6 +296,7 @@ struct BoAnalystAvatarView: View {
 // isAdmin enables admin context menu (delete / pin) — Bug #1 fix.
 
 struct FlockPostCard: View {
+    @EnvironmentObject var rewardedAdManager: RewardedAdManager
     let post: FlockPost
     let isAdmin: Bool
     var isLiked: Bool = false
@@ -386,6 +387,23 @@ struct FlockPostCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 4)
+                .environment(\.openURL, OpenURLAction { url in
+                    let urlString = url.absoluteString.lowercased()
+                    if urlString.contains("boanalyst.com") || urlString.contains("boaanalyst.com") {
+                        if rewardedAdManager.isAdLoaded {
+                            RewardedAdController.showAd(manager: rewardedAdManager, onRewardEarned: {
+                                UIApplication.shared.open(url)
+                                rewardedAdManager.loadAd()
+                            }, onDismissedWithoutReward: {
+                                rewardedAdManager.loadAd()
+                            })
+                        } else {
+                            UIApplication.shared.open(url)
+                        }
+                        return .handled
+                    }
+                    return .systemAction
+                })
 
             if shouldObscure {
                 HStack(spacing: 6) {
