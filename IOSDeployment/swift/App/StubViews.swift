@@ -242,6 +242,7 @@ final class FlockViewModel: ObservableObject {
     @Published var nextOffset = 0
     @Published var error: String? = nil
     @Published var isPosting = false
+    @Published var selectedCategory: String = "All"
 
     // Trending
     @Published var trendingTopics: [TrendingTrend] = []
@@ -267,8 +268,9 @@ final class FlockViewModel: ObservableObject {
     }
 
     private func fetchPosts(offset: Int, reset: Bool) async {
+        let catParam = selectedCategory == "All" ? nil : (selectedCategory == "Technology" ? "tech" : selectedCategory.lowercased())
         if let result = try? await api.request(
-            .getFlockPosts(offset: offset, limit: 20),
+            .getFlockPosts(offset: offset, limit: 20, category: catParam),
             responseType: FlockFeedResponse.self
         ) {
             let returned = result.posts
@@ -341,8 +343,9 @@ final class FlockViewModel: ObservableObject {
         }
     }
 
-    func createPost(content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = [], pollData: PollCreationData? = nil) async {
-        guard let endpoint = try? APIEndpoint.createFlockPost(content: content, mediaFiles: mediaFiles, pollQuestion: pollData?.question, pollOptions: pollData?.options, pollEndsAt: pollData?.endsAt) else { return }
+    func createPost(content: String, category: String? = nil, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = [], pollData: PollCreationData? = nil) async {
+        let apiCat = category == "Technology" ? "tech" : category?.lowercased()
+        guard let endpoint = try? APIEndpoint.createFlockPost(content: content, category: apiCat, mediaFiles: mediaFiles, pollQuestion: pollData?.question, pollOptions: pollData?.options, pollEndsAt: pollData?.endsAt) else { return }
         _ = try? await api.request(endpoint, responseType: MessageResponse.self)
         await loadFeed()
     }
@@ -524,6 +527,29 @@ struct FlockFeedView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 16) {   // Bug #2 fix: increased from 12 to 16 for better spacing
+                        // ── Categories ──────────────────────────────
+                        let categories = ["All", "Entertainment", "Politics", "Sports", "Business", "Technology"]
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(categories, id: \.self) { cat in
+                                    Button(action: {
+                                        flockVM.selectedCategory = cat
+                                        Task { await flockVM.loadFeed() }
+                                    }) {
+                                        Text(cat)
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundColor(flockVM.selectedCategory == cat ? AppTheme.goldPrimary : AppTheme.textSecondary)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 8)
+                                            .background(flockVM.selectedCategory == cat ? AppTheme.goldPrimary.opacity(0.2) : AppTheme.surfaceVariant)
+                                            .clipShape(Capsule())
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                        }
+                        .padding(.top, 8)
+
                         // ── Trending strip ──────────────────────────────
                         if !flockVM.trendingTopics.isEmpty {
                             TrendingStrip(trends: flockVM.trendingTopics)
@@ -634,8 +660,8 @@ struct FlockFeedView: View {
             }
         }
         .fullScreenCover(isPresented: $showCreatePost) {
-            CreatePostSheet(title: "New Flock Post", onSubmitWithPoll: { text, mediaFiles, existingUrls, pollData in
-                await flockVM.createPost(content: text, mediaFiles: mediaFiles, pollData: pollData)
+            CreatePostSheet(title: "New Flock Post", showCategoryPicker: true, onSubmitWithPollAndCategory: { text, cat, mediaFiles, existingUrls, pollData in
+                await flockVM.createPost(content: text, category: cat, mediaFiles: mediaFiles, pollData: pollData)
             })
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -1976,35 +2002,54 @@ struct CreatePostSheet: View {
     let title: String
     let initialText: String
     let initialMediaUrls: [String]
+    let showCategoryPicker: Bool
     let onSubmitText: ((String) async -> Void)?           // plain-text only (legacy)
     let onSubmitMedia: ((String, [(data: Data, mimeType: String, fileName: String)], [String]) async -> Void)?  // text + media + existingUrls
     let onSubmitPoll: ((String, [(data: Data, mimeType: String, fileName: String)], [String], PollCreationData?) async -> Void)?
+    let onSubmitPollAndCategory: ((String, String?, [(data: Data, mimeType: String, fileName: String)], [String], PollCreationData?) async -> Void)?
 
     init(title: String, initialText: String = "", initialMediaUrls: [String] = [], onSubmit: @escaping (String) async -> Void) {
         self.title = title
         self.initialText = initialText
         self.initialMediaUrls = initialMediaUrls
+        self.showCategoryPicker = false
         self.onSubmitText = onSubmit
         self.onSubmitMedia = nil
         self.onSubmitPoll = nil
+        self.onSubmitPollAndCategory = nil
     }
 
     init(title: String, initialText: String = "", initialMediaUrls: [String] = [], onSubmitWithMedia: @escaping (String, [(data: Data, mimeType: String, fileName: String)], [String]) async -> Void) {
         self.title = title
         self.initialText = initialText
         self.initialMediaUrls = initialMediaUrls
+        self.showCategoryPicker = false
         self.onSubmitText = nil
         self.onSubmitMedia = onSubmitWithMedia
         self.onSubmitPoll = nil
+        self.onSubmitPollAndCategory = nil
     }
 
     init(title: String, initialText: String = "", initialMediaUrls: [String] = [], onSubmitWithPoll: @escaping (String, [(data: Data, mimeType: String, fileName: String)], [String], PollCreationData?) async -> Void) {
         self.title = title
         self.initialText = initialText
         self.initialMediaUrls = initialMediaUrls
+        self.showCategoryPicker = false
         self.onSubmitText = nil
         self.onSubmitMedia = nil
         self.onSubmitPoll = onSubmitWithPoll
+        self.onSubmitPollAndCategory = nil
+    }
+
+    init(title: String, initialText: String = "", initialMediaUrls: [String] = [], showCategoryPicker: Bool = false, onSubmitWithPollAndCategory: @escaping (String, String?, [(data: Data, mimeType: String, fileName: String)], [String], PollCreationData?) async -> Void) {
+        self.title = title
+        self.initialText = initialText
+        self.initialMediaUrls = initialMediaUrls
+        self.showCategoryPicker = showCategoryPicker
+        self.onSubmitText = nil
+        self.onSubmitMedia = nil
+        self.onSubmitPoll = nil
+        self.onSubmitPollAndCategory = onSubmitWithPollAndCategory
     }
 
     private let maxLength = 5000
@@ -2025,6 +2070,7 @@ struct CreatePostSheet: View {
     @State private var mediaFiles: [PostMediaFile] = []
     @State private var existingMediaUrls: [String] = []  // seeded from initialMediaUrls on appear; mutable so user can delete
     @State private var showAudioPicker = false
+    @State private var selectedCategory: String = "Entertainment"
 
     @State private var isPollEnabled = false
     @State private var pollQuestion = ""
@@ -2042,6 +2088,29 @@ struct CreatePostSheet: View {
                 AppTheme.background.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 16) {
+                        if showCategoryPicker {
+                            let postCategories = ["Entertainment", "Politics", "Sports", "Business", "Technology"]
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(postCategories, id: \.self) { cat in
+                                        Button(action: {
+                                            selectedCategory = cat
+                                        }) {
+                                            Text(cat)
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundColor(selectedCategory == cat ? AppTheme.goldPrimary : AppTheme.textSecondary)
+                                                .padding(.horizontal, 16)
+                                                .padding(.vertical, 8)
+                                                .background(selectedCategory == cat ? AppTheme.goldPrimary.opacity(0.2) : AppTheme.surfaceVariant)
+                                                .clipShape(Capsule())
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                            }
+                            .padding(.top, 16)
+                        }
+
                         // Text editor
                         ZStack(alignment: .topLeading) {
                             TextEditor(text: $text)
@@ -2400,7 +2469,16 @@ struct CreatePostSheet: View {
         isPosting = true
         let files = mediaFiles.map { (data: $0.data, mimeType: $0.mimeType, fileName: $0.fileName) }
         
-        if let pollHandler = onSubmitPoll {
+        if let pollAndCatHandler = onSubmitPollAndCategory {
+            var pollData: PollCreationData? = nil
+            if isPollEnabled {
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                let endsAtStr = pollEndsAt != nil ? formatter.string(from: pollEndsAt!) : nil
+                pollData = PollCreationData(question: pollQuestion.trimmingCharacters(in: .whitespacesAndNewlines), options: pollOptions.filter { !$0.isEmpty }, endsAt: endsAtStr)
+            }
+            await pollAndCatHandler(trimmed, selectedCategory, files, existingMediaUrls, pollData)
+        } else if let pollHandler = onSubmitPoll {
             var pollData: PollCreationData? = nil
             if isPollEnabled {
                 let formatter = ISO8601DateFormatter()
