@@ -23,6 +23,7 @@ struct BoAnalystApp: App {
     @StateObject private var themeManager = ThemeManager()
     @StateObject private var iapManager = IAPManager.shared
     @StateObject private var flockVM = FlockViewModel()
+    @StateObject private var rewardedAdManager = RewardedAdManager()
     @Environment(\.scenePhase) private var scenePhase
     
     @State private var detectedPostIdToOpen: String? = nil
@@ -48,6 +49,7 @@ struct BoAnalystApp: App {
                 .environmentObject(themeManager)
                 .environmentObject(iapManager)
                 .environmentObject(flockVM)
+                .environmentObject(rewardedAdManager)
                 .preferredColorScheme(themeManager.isDarkMode ? .dark : .light)
                 .onOpenURL { url in
                     handleDeepLink(url: url)
@@ -184,7 +186,7 @@ struct MainTabView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
     @EnvironmentObject private var iapManager: IAPManager
     @EnvironmentObject private var flockVM: FlockViewModel
-    @StateObject private var rewardedAdManager = RewardedAdManager()
+    @EnvironmentObject private var rewardedAdManager: RewardedAdManager
     @ObservedObject private var deepLinkManager = DeepLinkManager.shared
 
     @State private var selectedTab = 0

@@ -513,7 +513,7 @@ struct FlockFeedView: View {
     @State private var showCreatePost = false
     @State private var editingPost: FlockPost?
     @StateObject private var adManager = InterstitialAdManager()
-    @StateObject private var rewardedAdManager = RewardedAdManager()
+    @EnvironmentObject private var rewardedAdManager: RewardedAdManager
     @State private var unlockedRewardedPosts: Set<String> = []
     @State private var adInterval: Int = 10
 
@@ -888,7 +888,7 @@ struct InsideTalkView: View {
     @State private var activeCommentTweetId: String? = nil
     @State private var showCreatePost = false
     @State private var editingPost: InsideTalkContent?
-    @StateObject private var rewardedAdManager = RewardedAdManager()
+    @EnvironmentObject private var rewardedAdManager: RewardedAdManager
     @State private var unlockedRewardedPosts: Set<String> = []
     @State private var adInterval: Int = 10
     @State private var navigateToBmsSales = false
@@ -2522,7 +2522,7 @@ struct FlockPostDetailSheet: View {
     @State private var isLoading = true
     @State private var adStep = "INITIAL"
     @StateObject private var adManager = InterstitialAdManager()
-    @StateObject private var rewardedAdManager = RewardedAdManager()
+    @EnvironmentObject private var rewardedAdManager: RewardedAdManager
     @State private var showLoginAlert = false
     @State private var loginAlertMessage = ""
     
