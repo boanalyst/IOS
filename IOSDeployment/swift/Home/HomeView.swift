@@ -136,7 +136,7 @@ struct HomeView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
     @StateObject private var adManager = InterstitialAdManager()
     @State private var selectedMovieForSynopsis: Movie? = nil
-    @StateObject private var rewardedAdManager = RewardedAdManager()
+    @EnvironmentObject private var rewardedAdManager: RewardedAdManager
     @State private var navigateToBmsSales = false
 
     var body: some View {

@@ -19,7 +19,7 @@ struct BuzzBoardView: View {
     @State private var showError = false
     @State private var errorMessage = ""
     @StateObject private var adManager = InterstitialAdManager()
-    @StateObject private var rewardedAdManager = RewardedAdManager()
+    @EnvironmentObject private var rewardedAdManager: RewardedAdManager
     @State private var selectedPost: BuzzPost?
     @State private var isNavigatingToPost = false
     @State private var adInterval: Int = 10
