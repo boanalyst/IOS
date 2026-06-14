@@ -527,6 +527,13 @@ struct FlockFeedView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 16) {   // Bug #2 fix: increased from 12 to 16 for better spacing
+                        // ── Trending strip ──────────────────────────────
+                        if !flockVM.trendingTopics.isEmpty {
+                            TrendingStrip(trends: flockVM.trendingTopics)
+                                .padding(.top, 8)
+                                .padding(.bottom, 8)
+                        }
+
                         // ── Categories ──────────────────────────────
                         let categories = ["All", "Entertainment", "Politics", "Sports", "Business", "Technology"]
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -549,12 +556,6 @@ struct FlockFeedView: View {
                             .padding(.horizontal, 16)
                         }
                         .padding(.top, 8)
-
-                        // ── Trending strip ──────────────────────────────
-                        if !flockVM.trendingTopics.isEmpty {
-                            TrendingStrip(trends: flockVM.trendingTopics)
-                                .padding(.bottom, 8)
-                        }
 
                         // ── Posts ────────────────────────────────────────
                         if flockVM.posts.isEmpty {
