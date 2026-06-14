@@ -52,20 +52,21 @@ extension APIEndpoint {
 
     // ── Flock Feed ────────────────────────────────────────────────────────────
 
-    static func getFlockPosts(offset: Int = 0, limit: Int = 20, topic: String? = nil) -> APIEndpoint {
+    static func getFlockPosts(offset: Int = 0, limit: Int = 20, category: String? = nil) -> APIEndpoint {
         var items = [URLQueryItem(name: "offset", value: "\(offset)"),
                      URLQueryItem(name: "limit", value: "\(limit)")]
-        if let topic = topic { items.append(URLQueryItem(name: "topic", value: topic)) }
+        if let cat = category { items.append(URLQueryItem(name: "category", value: cat)) }
         return APIEndpoint(path: "/api/flock/posts", method: .GET, queryItems: items)
     }
 
     static let getTrendingTopics = APIEndpoint(path: "/api/flock/trending", method: .GET)
 
-    static func createFlockPost(content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = [], pollQuestion: String? = nil, pollOptions: [String]? = nil, pollEndsAt: String? = nil) throws -> APIEndpoint {
+    static func createFlockPost(content: String, category: String? = nil, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = [], pollQuestion: String? = nil, pollOptions: [String]? = nil, pollEndsAt: String? = nil) throws -> APIEndpoint {
         let hasPoll = pollQuestion != nil && !(pollQuestion?.isEmpty ?? true)
         if !mediaFiles.isEmpty || hasPoll {
             var multipart = MultipartFormData()
             multipart.append(name: "content", string: content)
+            if let cat = category { multipart.append(name: "category", string: cat) }
             if let pq = pollQuestion { multipart.append(name: "poll_question", string: pq) }
             if let opts = pollOptions, let optsData = try? JSONSerialization.data(withJSONObject: opts), let optsString = String(data: optsData, encoding: .utf8) {
                 multipart.append(name: "poll_options", string: optsString)
@@ -79,6 +80,7 @@ extension APIEndpoint {
             return endpoint
         }
         var bodyDict: [String: Any] = ["content": content]
+        if let cat = category { bodyDict["category"] = cat }
         if let pq = pollQuestion { bodyDict["poll_question"] = pq }
         if let opts = pollOptions { bodyDict["poll_options"] = opts }
         if let pe = pollEndsAt { bodyDict["poll_ends_at"] = pe }
