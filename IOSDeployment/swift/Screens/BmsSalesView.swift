@@ -75,7 +75,7 @@ struct BmsSalesView: View {
     @StateObject private var viewModel = BmsSalesViewModel()
     @State private var searchQuery = ""
     @State private var selectedTabIndex = 0
-    @StateObject private var rewardedAdManager = RewardedAdManager()
+    @EnvironmentObject private var rewardedAdManager: RewardedAdManager
 
     var body: some View {
         ZStack {

@@ -54,7 +54,7 @@ struct BoxOfficeView: View {
     @State private var isSearching = false
     @State private var searchQuery = ""
     @State private var adInterval: Int = 10
-    @StateObject private var rewardedAdManager = RewardedAdManager()
+    @EnvironmentObject private var rewardedAdManager: RewardedAdManager
     @State private var hasShownAd = false
     @State private var navigateToBmsSales = false
 

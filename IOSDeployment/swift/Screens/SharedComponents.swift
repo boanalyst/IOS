@@ -309,7 +309,6 @@ struct FlockPostCard: View {
     var onEdit: (() -> Void)? = nil
     var onVote: ((String, String) -> Void)? = nil
     
-    @Environment(\.openURL) private var defaultOpenURL
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -396,7 +395,7 @@ struct FlockPostCard: View {
                             DispatchQueue.main.async {
                                 RewardedAdController.showAd(manager: rewardedAdManager, onRewardEarned: {
                                     DispatchQueue.main.async {
-                                        defaultOpenURL(url)
+                                        UIApplication.shared.open(url)
                                     }
                                     rewardedAdManager.loadAd()
                                 }, onDismissedWithoutReward: {
@@ -405,7 +404,7 @@ struct FlockPostCard: View {
                             }
                         } else {
                             DispatchQueue.main.async {
-                                defaultOpenURL(url)
+                                UIApplication.shared.open(url)
                             }
                         }
                         return .handled
