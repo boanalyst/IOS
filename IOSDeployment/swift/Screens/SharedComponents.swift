@@ -391,14 +391,20 @@ struct FlockPostCard: View {
                     let urlString = url.absoluteString.lowercased()
                     if urlString.contains("boanalyst.com") || urlString.contains("boaanalyst.com") {
                         if rewardedAdManager.isAdLoaded {
-                            RewardedAdController.showAd(manager: rewardedAdManager, onRewardEarned: {
-                                UIApplication.shared.open(url)
-                                rewardedAdManager.loadAd()
-                            }, onDismissedWithoutReward: {
-                                rewardedAdManager.loadAd()
-                            })
+                            DispatchQueue.main.async {
+                                RewardedAdController.showAd(manager: rewardedAdManager, onRewardEarned: {
+                                    DispatchQueue.main.async {
+                                        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                                    }
+                                    rewardedAdManager.loadAd()
+                                }, onDismissedWithoutReward: {
+                                    rewardedAdManager.loadAd()
+                                })
+                            }
                         } else {
-                            UIApplication.shared.open(url)
+                            DispatchQueue.main.async {
+                                UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                            }
                         }
                         return .handled
                     }
