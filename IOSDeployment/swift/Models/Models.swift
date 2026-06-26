@@ -363,15 +363,25 @@ struct TrendingTrend: Decodable, Identifiable {
     var id: String { topic }
     let topic: String
     let count: Int
+    let category: String?
+    let contextTitle: String?
+    let contextUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case topic = "name"
         case count = "post_count"
+        case category
+        case contextTitle = "contextTitle"
+        case contextUrl = "contextUrl"
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         topic = (try? c.decode(String.self, forKey: .topic)) ?? ""
+        category = try? c.decode(String.self, forKey: .category)
+        contextTitle = try? c.decode(String.self, forKey: .contextTitle)
+        contextUrl = try? c.decode(String.self, forKey: .contextUrl)
+        
         // post_count may be a String ("42") or Int
         if let intVal = try? c.decode(Int.self, forKey: .count) {
             count = intVal
