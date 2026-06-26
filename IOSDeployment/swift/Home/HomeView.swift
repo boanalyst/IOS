@@ -2,6 +2,7 @@
 // iOS port of Android's HomeScreen.kt — the main dashboard tab
 
 import SwiftUI
+import Combine
 
 // MARK: - HomeViewModel
 
@@ -157,8 +158,8 @@ struct HomeView: View {
                             isPro: authViewModel.currentUser?.isPro ?? false
                         )
 
-                        // ── Live Ticker ──────────────────────────────
-                        LiveTickerBanner()
+                        // ── Animated Trending Searches Hero Banner ──
+                        HomeTrendingHeroBanner(trendingTopics: viewModel.trendingTopics)
                             .padding(.top, 8)
                             
                         // ── Daily BMS Sales Teaser ──────────────────────────
@@ -172,12 +173,6 @@ struct HomeView: View {
                         }
 
                         VStack(alignment: .leading, spacing: 24) {
-
-                            // ── Trending Now ────────────────────────────────
-                            if !viewModel.trendingTopics.isEmpty {
-                                SectionHeader(title: "Trending Now", icon: "flame.fill")
-                                TrendingTopicsRibbon(topics: viewModel.trendingTopics)
-                            }
                             
                             // ── Tech Deals ──────────────────────────────────
                             TechDealsHomeBanner(onClick: onNavigateToTechDeals)
@@ -952,34 +947,241 @@ struct ExclusiveContentEditSheet: View {
 }
 
 // MARK: - Trending Topics Ribbon
-struct TrendingTopicsRibbon: View {
-    let topics: [TrendingTrend]
+// MARK: - Trending Helpers & Banner (iOS parity with Android HomeScreen.kt HeroBanner)
+
+private let TREND_FILTERS = [
+    "All", "Entertainment", "Sports", "Cricket",
+    "Politics", "Business", "Music", "OTT", "Tech"
+]
+
+private func inferTrendCategory(text: String) -> String {
+    let t = text.lowercased()
+    let has: (String...) -> Bool = { words in
+        words.contains { t.contains($0) }
+    }
+    if has("cricket", "ipl", "bcci", "t20", "test match", "odi", "virat", "kohli", "rohit", "dhoni", "rcb", "csk", "mi ", "kkr", "srh", "lsg", "rr ") {
+        return "Cricket"
+    }
+    if has("football", "fifa", "premier league", "la liga", "champions league", "bundesliga", "serie a", "epl", "uefa", "arsenal", "chelsea", "liverpool", "man city", "barcelona", "real madrid", "tottenham", "west ham", "aston villa", "nottm", "bologna", "lazio", " vs ") {
+        return "Sports"
+    }
+    if has("sport", "olympic", "nba", "nfl", "tennis", "badminton", "wrestling", "kabaddi", "hockey", "marathon", "athlete", "gold medal", "silver medal") {
+        return "Sports"
+    }
+    if has("film", "movie", "box office", "bollywood", "hollywood", "ott", "netflix", "prime video", "disney", "release", "trailer", "actor", "actress", "director", "cinema", "theatre") {
+        return "Entertainment"
+    }
+    if has("music", "song", "album", "singer", "rapper", "concert", "playlist", "spotify", "grammy") {
+        return "Music"
+    }
+    if has("modi", "pm ", "government", "parliament", "election", "congress", "bjp", "aap ", "politics", "minister", "political", "vote", "budget", "policy", "lok sabha", "rajya sabha") {
+        return "Politics"
+    }
+    if has("market", "stock", "nifty", "sensex", "rupee", "economy", "gdp", "inflation", "rbi", "interest rate", "startup", "funding", "ipo ", "revenue", "profit", "company", "business", "trade", "export", "import") {
+        return "Business"
+    }
+    if has("iphone", "android", "google", "apple", "samsung", "microsoft", "artificial intelligence", "ai model", "tech", "software", "smartphone", "gadget") {
+        return "Tech"
+    }
+    return "Trending"
+}
+
+private func categoryColor(category: String) -> Color {
+    let cat = category.lowercased()
+    if cat.contains("entertain") || cat.contains("film") || cat.contains("movie") || cat.contains("box") {
+        return AppTheme.goldPrimary
+    }
+    if cat.contains("cricket") || cat.contains("sport") {
+        return Color(hex: "2ECC71") // Success green / Cricket green
+    }
+    if cat.contains("politic") {
+        return Color(hex: "EF4444") // Politics red
+    }
+    if cat.contains("business") {
+        return AppTheme.goldPrimary
+    }
+    if cat.contains("music") {
+        return Color(hex: "9B59B6") // Music violet
+    }
+    if cat.contains("ott") || cat.contains("web") {
+        return Color(hex: "818CF8") // OTT indigo
+    }
+    if cat.contains("tech") {
+        return AppTheme.indigoLight
+    }
+    return AppTheme.goldPrimary
+}
+
+struct HomeTrendingHeroBanner: View {
+    let trendingTopics: [TrendingTrend]
+    @State private var selectedFilter = "All"
+    @State private var currentIndex = 0
+    @State private var pulseScale: CGFloat = 0.8
+    
+    private let timer = Timer.publish(every: 3.2, on: .main, in: .common).autoconnect()
+
+    private var filteredTopics: [TrendingTrend] {
+        let taken = trendingTopics.prefix(10)
+        if selectedFilter == "All" {
+            return Array(taken)
+        } else {
+            return taken.filter {
+                let inferred = inferTrendCategory(text: "\($0.topic) \($0.contextTitle ?? "")")
+                return inferred == selectedFilter
+            }
+        }
+    }
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(topics) { topic in
-                    HStack {
-                        Text("#\(topic.topic)")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(AppTheme.textPrimary)
-                        if topic.count > 0 {
-                            Text("\(topic.count)")
+        VStack(spacing: 0) {
+            // Main content box
+            ZStack(alignment: .leading) {
+                // Background gradient
+                LinearGradient(
+                    colors: [AppTheme.surfaceVariant.opacity(0.8), AppTheme.surface.opacity(0.4), AppTheme.background],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                
+                VStack(alignment: .leading, spacing: 10) {
+                    // LIVE badge
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(AppTheme.success)
+                            .frame(width: 6, height: 6)
+                            .scaleEffect(pulseScale)
+                            .onAppear {
+                                withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) {
+                                    pulseScale = 1.2
+                                }
+                            }
+                        
+                        Text("TRENDING NOW")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(AppTheme.success)
+                            .tracking(2)
+                    }
+                    
+                    if filteredTopics.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(AppTheme.surfaceVariant)
+                                .frame(width: 200, height: 26)
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(AppTheme.surfaceVariant)
+                                .frame(width: 120, height: 14)
+                            Text(trendingTopics.isEmpty ? "Loading trends…" : "No trends in this category yet")
                                 .font(.system(size: 12))
                                 .foregroundColor(AppTheme.textMuted)
                         }
+                    } else {
+                        let activeIndex = currentIndex < filteredTopics.count ? currentIndex : 0
+                        let topic = filteredTopics[activeIndex]
+                        let categoryText = inferTrendCategory(text: "\(topic.topic) \(topic.contextTitle ?? "")")
+                        let accentColor = categoryColor(category: categoryText)
+                        
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("#\(topic.topic)")
+                                .font(.system(size: 20, weight: .black))
+                                .foregroundColor(AppTheme.textPrimary)
+                                .lineLimit(2)
+                                .id("topic-\(topic.topic)-\(activeIndex)")
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                                    removal: .move(edge: .top).combined(with: .opacity)
+                                ))
+                            
+                            if let context = topic.contextTitle, !context.isEmpty {
+                                Text(context)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(AppTheme.textSecondary)
+                                    .lineLimit(1)
+                                    .transition(.opacity)
+                            }
+                            
+                            HStack(spacing: 8) {
+                                Text(categoryText)
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(accentColor)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(accentColor.opacity(0.15))
+                                    .clipShape(Capsule())
+                                
+                                if topic.count > 0 {
+                                    Text("\(topic.count) posts")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(AppTheme.textMuted)
+                                }
+                            }
+                        }
+                        .animation(.easeInOut(duration: 0.4), value: activeIndex)
+                        
+                        // Dot indicators
+                        if filteredTopics.count > 1 {
+                            HStack(spacing: 4) {
+                                ForEach(0..<filteredTopics.count, id: \.self) { i in
+                                    Circle()
+                                        .fill(i == activeIndex ? accentColor : AppTheme.textMuted.opacity(0.3))
+                                        .frame(width: i == activeIndex ? 8 : 4, height: i == activeIndex ? 8 : 4)
+                                        .animation(.easeInOut, value: activeIndex)
+                                }
+                            }
+                            .padding(.top, 4)
+                        }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(AppTheme.surfaceVariant)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(AppTheme.goldPrimary.opacity(0.3), lineWidth: 1)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 18)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 180)
+            
+            // Category scroll row
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(TREND_FILTERS, id: \.self) { filter in
+                        let isSelected = filter == selectedFilter
+                        let chipColor = filter == "All" ? AppTheme.goldPrimary : categoryColor(category: filter)
+                        
+                        Button {
+                            withAnimation {
+                                selectedFilter = filter
+                                currentIndex = 0
+                            }
+                        } label: {
+                            Text(filter)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(isSelected ? chipColor : AppTheme.textSecondary)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(isSelected ? chipColor.opacity(0.15) : AppTheme.surface)
+                                .clipShape(Capsule())
+                                .overlay(
+                                    Capsule()
+                                        .stroke(isSelected ? chipColor.opacity(0.4) : Color.white.opacity(0.08), lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+            }
+            .background(AppTheme.surfaceVariant)
+            
+            Divider()
+                .background(Color.white.opacity(0.08))
+        }
+        .onReceive(timer) { _ in
+            if filteredTopics.count > 1 {
+                withAnimation {
+                    currentIndex = (currentIndex + 1) % filteredTopics.count
                 }
             }
-            .padding(.horizontal, 20)
+        }
+        .onChange(of: selectedFilter) { _ in
+            currentIndex = 0
         }
     }
 }
