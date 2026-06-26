@@ -93,7 +93,7 @@ final class TechDealsViewModel: ObservableObject {
 struct TechDealsView: View {
     @StateObject private var viewModel = TechDealsViewModel()
     @Environment(\.openURL) var openURL
-    @State private var showDisclosure = true
+    @State private var showDisclosureDialog = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -131,37 +131,20 @@ struct TechDealsView: View {
             ScrollView {
                 LazyVStack(spacing: 16) {
                     // Disclosure Banner
-                    if showDisclosure {
-                        HStack(alignment: .top, spacing: 12) {
-                            Image(systemName: "info.circle.fill")
+                    Button(action: { showDisclosureDialog = true }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "info.circle")
                                 .foregroundColor(AppTheme.textSecondary)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Affiliate Disclosure")
-                                    .font(.subheadline)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(AppTheme.textSecondary)
-                                
-                                Text("BoAnalyst is a participant in various affiliate programs (e.g. Amazon, Flipkart). We may earn a commission from qualifying purchases at no extra cost to you.")
-                                    .font(.caption)
-                                    .foregroundColor(AppTheme.textSecondary)
-                            }
-                            
+                                .font(.system(size: 14))
+                            Text("Affiliate Disclosure")
+                                .font(.subheadline)
+                                .fontWeight(.bold)
+                                .foregroundColor(AppTheme.textSecondary)
                             Spacer()
-                            
-                            Button {
-                                withAnimation {
-                                    showDisclosure = false
-                                }
-                            } label: {
-                                Image(systemName: "xmark")
-                                    .font(.caption)
-                                    .foregroundColor(AppTheme.textSecondary)
-                            }
                         }
-                        .padding()
+                        .padding(12)
                         .background(Color.gray.opacity(0.1))
-                        .cornerRadius(12)
+                        .cornerRadius(8)
                         .padding(.horizontal)
                         .padding(.top, 8)
                     }
@@ -209,6 +192,11 @@ struct TechDealsView: View {
         .task {
             await viewModel.fetchCategories()
             await viewModel.fetchDeals(refresh: true)
+        }
+        .alert("Affiliate Disclosure", isPresented: $showDisclosureDialog) {
+            Button("Got it", role: .cancel) { }
+        } message: {
+            Text("As an affiliate partner, BoAnalyst earns from qualifying purchases. When you click on links to various merchants (such as Amazon, Flipkart, etc.) on this site and make a purchase, this can result in this site earning a commission. This does not affect the price you pay.")
         }
     }
 }
