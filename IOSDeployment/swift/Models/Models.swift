@@ -60,7 +60,7 @@ struct MessageResponse: Decodable {
 }
 
 // MARK: - User
-// IMPORTANT: Mirrors Android's User.kt — isPro/isAdmin/isDistributor are COMPUTED
+// IMPORTANT: Mirrors Android's User.kt — isPro/isAdmin are COMPUTED
 // from subscriptionPlan + role, NOT decoded directly. This matches the server schema.
 
 struct User: Decodable, Identifiable {
@@ -68,7 +68,7 @@ struct User: Decodable, Identifiable {
     let name: String
     let email: String
     let role: String            // "member" | "admin" | "superadmin" | "moderator"
-    let subscriptionPlan: String?  // "premium-monthly" | "premium-yearly" | "distributors-hub"
+    let subscriptionPlan: String?  // "premium-monthly" | "premium-yearly"
     let username: String?
     let bio: String?
     let profileBio: String?
@@ -90,15 +90,10 @@ struct User: Decodable, Identifiable {
 
     var isPro: Bool {
         isAdmin ||
-        subscriptionPlan == "distributors-hub" ||
         subscriptionPlan == "premium-monthly" ||
         subscriptionPlan == "premium-yearly" ||
         subscriptionPlan?.contains("premium") == true ||
         subscriptionPlan?.contains("pro") == true
-    }
-
-    var isDistributor: Bool {
-        isAdmin || subscriptionPlan == "distributors-hub"
     }
 
     // memberSinceDate: derived from createdAt ISO string
@@ -879,106 +874,17 @@ struct InsideTalkReplyResponse: Decodable {
     }
 }
 
-// MARK: - Distributors
-
-struct DistributorsResponse: Decodable {
-    let success: Bool
-    let posts: [DistributorsPost]
-    let pagination: DistributorsPagination?
-}
-
-struct DistributorsPagination: Decodable {
-    let offset: Int
-    let limit: Int
-    let total: Int
-}
-
-// Matches Android DistributorsPost flat schema
-struct DistributorsPost: Decodable, Identifiable {
-    let id: String
-    let content: String
-    let authorName: String
-    let authorHandle: String?
-    let mediaUrls: [String]?
-    let tags: [String]?
-    let postType: String
-    let priority: Int
-    let isPinned: Bool
-    let isFeatured: Bool
-    let likeCount: Int
-    let viewCount: Int
-    let createdAt: String
-
-    enum CodingKeys: String, CodingKey {
-        case id = "_id"
-        case id2 = "id"
-        case content
-        case authorName = "author_name"
-        case authorHandle = "author_handle"
-        case mediaUrls = "media_urls"
-        case tags
-        case postType = "post_type"
-        case priority
-        case isPinned = "is_pinned"
-        case isFeatured = "is_featured"
-        case likeCount = "like_count"
-        case viewCount = "view_count"
-        case createdAt = "created_at"
-    }
-
-    // Memberwise copy initializer for optimistic UI mutations
-    init(from existing: DistributorsPost, likeCount: Int? = nil, isPinned: Bool? = nil) {
-        self.id = existing.id
-        self.content = existing.content
-        self.authorName = existing.authorName
-        self.authorHandle = existing.authorHandle
-        self.mediaUrls = existing.mediaUrls
-        self.tags = existing.tags
-        self.postType = existing.postType
-        self.priority = existing.priority
-        self.isPinned = isPinned ?? existing.isPinned
-        self.isFeatured = existing.isFeatured
-        self.likeCount = likeCount ?? existing.likeCount
-        self.viewCount = existing.viewCount
-        self.createdAt = existing.createdAt
-    }
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = (try? c.decode(String.self, forKey: .id)) ?? (try? c.decode(String.self, forKey: .id2)) ?? UUID().uuidString
-        content = (try? c.decode(String.self, forKey: .content)) ?? ""
-        authorName = (try? c.decode(String.self, forKey: .authorName)) ?? "BoAnalyst"
-        authorHandle = try? c.decode(String.self, forKey: .authorHandle)
-        mediaUrls = try? c.decode([String].self, forKey: .mediaUrls)
-        tags = try? c.decode([String].self, forKey: .tags)
-        postType = (try? c.decode(String.self, forKey: .postType)) ?? "premium"
-        priority = (try? c.decode(Int.self, forKey: .priority)) ?? 0
-        likeCount = (try? c.decode(Int.self, forKey: .likeCount)) ?? 0
-        viewCount = (try? c.decode(Int.self, forKey: .viewCount)) ?? 0
-        createdAt = (try? c.decode(String.self, forKey: .createdAt)) ?? ""
-        func decodeBool(_ key: CodingKeys) -> Bool {
-            if let b = try? c.decode(Bool.self, forKey: key) { return b }
-            if let i = try? c.decode(Int.self, forKey: key) { return i != 0 }
-            return false
-        }
-        isPinned = decodeBool(.isPinned)
-        isFeatured = decodeBool(.isFeatured)
-    }
-}
-
 // MARK: - Subscription / Razorpay
 
 struct AppConfig: Decodable {
     let razorpayKeyId: String?
     let razorpayPlanIdMonthly: String?
     let razorpayPlanIdYearly: String?
-    let razorpayPlanIdDistributors: String?
 
     enum CodingKeys: String, CodingKey {
         case razorpayKeyId = "RAZORPAY_KEY_ID"
         case razorpayPlanIdMonthly = "RAZORPAY_PLAN_ID_MONTHLY"
         case razorpayPlanIdYearly = "RAZORPAY_PLAN_ID_YEARLY"
-        case razorpayPlanIdDistributors = "RAZORPAY_PLAN_ID_DISTRIBUTORS"
     }
 }
 
@@ -993,7 +899,6 @@ struct PricingData: Decodable {
 
 struct PricingPlans: Decodable {
     let premium: PricingPlan?
-    let distributors: PricingPlan?
 }
 
 struct PricingPlan: Decodable {
