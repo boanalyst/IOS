@@ -673,7 +673,10 @@ struct FlockFeedView: View {
                     .foregroundStyle(AppTheme.goldGradient)
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button { authViewModel.showProfileSheet = true } label: { Image(systemName: "person.crop.circle").font(.title3).foregroundColor(AppTheme.goldPrimary) }
+                HStack(spacing: 16) {
+                    Button { Task { await flockVM.loadFeed() } } label: { Image(systemName: "arrow.clockwise").font(.title3).foregroundColor(AppTheme.textMuted) }
+                    Button { authViewModel.showProfileSheet = true } label: { Image(systemName: "person.crop.circle").font(.title3).foregroundColor(AppTheme.goldPrimary) }
+                }
             }
         }
         .sheet(item: $editingPost) { post in
@@ -1041,7 +1044,10 @@ struct InsideTalkView: View {
                     .foregroundStyle(AppTheme.goldGradient)
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button { authViewModel.showProfileSheet = true } label: { Image(systemName: "person.crop.circle").font(.title3).foregroundColor(AppTheme.goldPrimary) }
+                HStack(spacing: 16) {
+                    Button { Task { await viewModel.loadAll() } } label: { Image(systemName: "arrow.clockwise").font(.title3).foregroundColor(AppTheme.textMuted) }
+                    Button { authViewModel.showProfileSheet = true } label: { Image(systemName: "person.crop.circle").font(.title3).foregroundColor(AppTheme.goldPrimary) }
+                }
             }
         }
         .overlay(alignment: .bottomTrailing) {
