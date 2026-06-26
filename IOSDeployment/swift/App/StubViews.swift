@@ -1194,7 +1194,7 @@ struct InsideTalkCard: View {
             Text(attrText)
                 .tint(AppTheme.goldPrimary)
                 .font(.system(size: 14))
-                .foregroundColor((isLocked || isRewarded) ? AppTheme.goldPrimary : AppTheme.textPrimary)
+                .foregroundColor((isLocked || isRewarded) ? AppTheme.goldPrimary : AppTheme.textSecondary)
                 .lineLimit((isLocked || isRewarded) ? 2 : nil)
                 .lineSpacing(6)
                 .fixedSize(horizontal: false, vertical: true)
