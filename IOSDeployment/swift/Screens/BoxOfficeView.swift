@@ -167,7 +167,7 @@ struct BoxOfficeView: View {
                             // ── Hourly BMS Sales Button ──────────────────────────────
                             // ── Hourly BMS Sales Button ──────────────────────────────
                             Button(action: {
-                                if !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                if !(authViewModel.currentUser?.isPro == true) {
                                     if rewardedAdManager.isAdLoaded {
                                         RewardedAdController.showAd(manager: rewardedAdManager) {
                                             rewardedAdManager.loadAd()
@@ -244,7 +244,7 @@ struct BoxOfficeView: View {
                                 .padding(.vertical, 8)
 
                                 ForEach(Array(filteredEntries.enumerated()), id: \.element.id) { index, entry in
-                                    if index == 0 && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                    if index == 0 && !(authViewModel.currentUser?.isPro == true) {
                                         CustomNativeAdView(module: "boxoffice")
                                             .padding(.horizontal, 16)
                                             .padding(.vertical, 8)
@@ -262,7 +262,7 @@ struct BoxOfficeView: View {
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 4)
 
-                                    if (index + 1) % 10 == 0 && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                    if (index + 1) % 10 == 0 && !(authViewModel.currentUser?.isPro == true) {
                                         CustomNativeAdView(module: "boxoffice")
                                             .padding(.horizontal, 16)
                                             .padding(.vertical, 8)
@@ -279,7 +279,7 @@ struct BoxOfficeView: View {
                 }
 
                 // Anchored AdMob Banner at the bottom (persistent across scroll, matches Android exactly)
-                if !viewModel.isLoading && viewModel.error == nil && !viewModel.boxOfficeEntries.isEmpty && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                if !viewModel.isLoading && viewModel.error == nil && !viewModel.boxOfficeEntries.isEmpty && !(authViewModel.currentUser?.isPro == true) {
                     SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
                         .frame(height: 50)
                         .padding(.vertical, 4)
@@ -294,7 +294,7 @@ struct BoxOfficeView: View {
                 self.adInterval = config.adInterval
                 
                 // Show ad when entering box office
-                if !hasShownAd && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                if !hasShownAd && !(authViewModel.currentUser?.isPro == true) {
                     hasShownAd = true
                     RewardedAdController.showAd(manager: rewardedAdManager) { }
                 }

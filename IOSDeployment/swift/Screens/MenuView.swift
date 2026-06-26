@@ -42,10 +42,6 @@ struct MenuView: View {
                         isPresented = false
                         selectedTab = 6
                     }
-                    MenuRowView(title: "Distributors", iconName: "briefcase.fill", isPremium: true) {
-                        isPresented = false
-                        selectedTab = 7
-                    }
                     MenuRowView(title: "BoAnalyst Pro", iconName: "star.fill", isPremium: true) {
                         isPresented = false
                         selectedTab = 8
