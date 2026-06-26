@@ -3,7 +3,6 @@
 // Plans:
 //   Pro Monthly       — com.boanalyst.app.pro.monthly       ₹399/month
 //   Pro Yearly        — com.boanalyst.app.pro.yearly        ₹3,999/year
-//   Distributors Hub  — com.boanalyst.app.distributor.yearly ₹24,999/year
 
 import SwiftUI
 import StoreKit
@@ -66,25 +65,6 @@ private let planInfos: [PlanInfo] = [
             FeatureItem(icon: "bolt.fill",             text: "Early Access To New Features"),
             FeatureItem(icon: "sparkles",              text: "Limited Ads")
         ]
-    ),
-    PlanInfo(
-        productID: .distributorYearly,
-        badge: "DISTRIBUTORS",
-        badgeColor: platA,
-        tagline: "Exclusive intelligence for trade professionals",
-        savings: nil,
-        accentColors: [Color(hex: "1A1A2E"), Color(hex: "0D0D1A")],
-        features: [
-            FeatureItem(icon: "film.stack.fill",       text: "Early Inside Updates on Movie Projects"),
-            FeatureItem(icon: "chart.line.uptrend.xyaxis", text: "Box Office Predictions & Analysis"),
-            FeatureItem(icon: "chart.bar.fill",        text: "Analytical Pre-Release Projections"),
-            FeatureItem(icon: "bubble.left.and.bubble.right.fill", text: "Box Office Buzz Commentary & Sentiment"),
-            FeatureItem(icon: "headphones",            text: "Priority Support & Consultation"),
-            FeatureItem(icon: "clock.fill",            text: "Scrap Inside Talk (Prior to a Month)"),
-            FeatureItem(icon: "eye.slash.fill",        text: "Inside Talk (Prior to 7 Days)"),
-            FeatureItem(icon: "sparkles",              text: "Ad-Free Experience"),
-            FeatureItem(icon: "gavel.fill",            text: "Speculative Analysis Disclaimer")
-        ]
     )
 ]
 
@@ -116,8 +96,6 @@ struct SubscriptionView: View {
         // Fallback to backend source of truth
         let subscriptionPlan = authVM.currentUser?.subscriptionPlan ?? ""
         switch planInfo.productID {
-        case .distributorYearly:
-            return subscriptionPlan == "distributors-hub"
         case .proMonthly:
             return subscriptionPlan == "premium-monthly"
         case .proYearly:
@@ -278,9 +256,8 @@ struct SubscriptionView: View {
                 // Map period to human-readable subscription length
                 let lengthStr: String = {
                     switch selectedPlan.productID {
-                    case .proMonthly:        return "1-month subscription"
-                    case .proYearly:         return "1-year subscription"
-                    case .distributorYearly: return "1-year subscription"
+                    case .proMonthly: return "1-month subscription"
+                    case .proYearly:  return "1-year subscription"
                     }
                 }()
                 Text("\(selectedPlan.productID.displayName) · \(lengthStr) · \(priceStr)")
@@ -337,12 +314,11 @@ struct SubscriptionView: View {
                             Label("Current Plan", systemImage: "checkmark.seal.fill")
                                 .font(.system(size: 15, weight: .semibold))
                         } else {
-                            let icon = selectedPlan.productID.isDistributorPlan ? "film.stack.fill" : "crown.fill"
                             let priceLabel: String = {
                                 if let p = storeProduct(for: selectedPlan) { return p.displayPrice }
                                 return selectedPlan.productID.fallbackPrice
                             }()
-                            Label("Subscribe · \(priceLabel)", systemImage: icon)
+                            Label("Subscribe · \(priceLabel)", systemImage: "crown.fill")
                                 .font(.system(size: 15, weight: .semibold))
                         }
                     }

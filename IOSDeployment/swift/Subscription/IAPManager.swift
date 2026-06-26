@@ -4,9 +4,8 @@
 // PRODUCTS (must match App Store Connect exactly):
 //   com.boanalyst.app.pro.monthly      — Auto-Renewable, ₹399/month
 //   com.boanalyst.app.pro.yearly       — Auto-Renewable, ₹3,999/year
-//   com.boanalyst.app.distributor.yearly — Auto-Renewable, ₹24,999/year
 //
-// All three products live in the SAME subscription group "BoAnalyst Pro"
+// All two products live in the SAME subscription group "BoAnalyst Pro"
 // so a user can only hold one active subscription at a time.
 //
 // Apple Small Business Program (enrolled via developer.apple.com):
@@ -21,13 +20,11 @@ import Foundation
 enum IAPProduct: String, CaseIterable {
     case proMonthly       = "com.boanalyst.app.pro.monthly"
     case proYearly        = "com.boanalyst.app.pro.yearly"
-    case distributorYearly = "com.boanalyst.app.distributor.yearly"
 
     var displayName: String {
         switch self {
         case .proMonthly:        return "Pro Monthly"
         case .proYearly:         return "Pro Yearly"
-        case .distributorYearly: return "Distributors Hub"
         }
     }
 
@@ -35,7 +32,6 @@ enum IAPProduct: String, CaseIterable {
         switch self {
         case .proMonthly:        return "STARTER"
         case .proYearly:         return "⭐ BEST VALUE"
-        case .distributorYearly: return "🎬 DISTRIBUTORS"
         }
     }
 
@@ -43,7 +39,6 @@ enum IAPProduct: String, CaseIterable {
         switch self {
         case .proMonthly:        return "₹499"
         case .proYearly:         return "₹1,399"
-        case .distributorYearly: return "₹24,999"
         }
     }
 
@@ -51,11 +46,9 @@ enum IAPProduct: String, CaseIterable {
         switch self {
         case .proMonthly:        return "per month"
         case .proYearly:         return "per year"
-        case .distributorYearly: return "per year"
         }
     }
 
-    var isDistributorPlan: Bool { self == .distributorYearly }
     var isProPlan: Bool        { self == .proMonthly || self == .proYearly }
 }
 
@@ -79,7 +72,6 @@ final class IAPManager: ObservableObject {
 
     @Published var products: [Product] = []
     @Published var isProActive: Bool = false
-    @Published var isDistributorActive: Bool = false
     @Published var isPurchasing: Bool = false
     @Published var errorMessage: String? = nil
     @Published var activeTransaction: Transaction? = nil
@@ -159,12 +151,11 @@ final class IAPManager: ObservableObject {
         do {
             let ids = IAPProduct.allCases.map { $0.rawValue }
             let fetched = try await Product.products(for: ids)
-            // Sort: monthly first, yearly second, distributor third
+            // Sort: monthly first, yearly second
             self.products = fetched.sorted { a, b in
                 let order: [String] = [
                     IAPProduct.proMonthly.rawValue,
-                    IAPProduct.proYearly.rawValue,
-                    IAPProduct.distributorYearly.rawValue
+                    IAPProduct.proYearly.rawValue
                 ]
                 let ai = order.firstIndex(of: a.id) ?? 99
                 let bi = order.firstIndex(of: b.id) ?? 99
@@ -253,11 +244,10 @@ final class IAPManager: ObservableObject {
     }
 
     // MARK: - Refresh Subscription Status
-    // Call on app launch and after sign-in to sync Pro/Distributor badge.
+    // Call on app launch and after sign-in to sync Pro badge.
 
     func refreshSubscriptionStatus() async {
         var hasPro = false
-        var hasDistributor = false
         var latestTransaction: Transaction? = nil
 
         for await result in Transaction.currentEntitlements {
@@ -268,10 +258,6 @@ final class IAPManager: ObservableObject {
                      IAPProduct.proYearly.rawValue:
                     hasPro = true
                     latestTransaction = transaction
-                case IAPProduct.distributorYearly.rawValue:
-                    hasDistributor = true
-                    hasPro = true // distributor also gets pro features
-                    latestTransaction = transaction
                 default:
                     break
                 }
@@ -279,7 +265,6 @@ final class IAPManager: ObservableObject {
         }
 
         isProActive = hasPro
-        isDistributorActive = hasDistributor
         activeTransaction = latestTransaction
     }
 
@@ -386,15 +371,12 @@ final class IAPManager: ObservableObject {
         return false
     }
 
-    // MARK: - Private: Update local Pro/Distributor state after purchase
+    // MARK: - Private: Update local Pro state after purchase
 
     private func updateProStatus(for transaction: Transaction) {
         switch transaction.productID {
         case IAPProduct.proMonthly.rawValue, IAPProduct.proYearly.rawValue:
             isProActive = true
-        case IAPProduct.distributorYearly.rawValue:
-            isProActive = true
-            isDistributorActive = true
         default:
             break
         }
@@ -444,8 +426,7 @@ final class IAPManager: ObservableObject {
     private func getHighestActiveEntitlement() async -> Transaction? {
         let planRank: [String: Int] = [
             IAPProduct.proMonthly.rawValue: 1,
-            IAPProduct.proYearly.rawValue: 2,
-            IAPProduct.distributorYearly.rawValue: 3
+            IAPProduct.proYearly.rawValue: 2
         ]
 
         var highestTransaction: Transaction? = nil
@@ -474,10 +455,6 @@ final class IAPManager: ObservableObject {
                     // will handle this, and the user's plan should be downgraded to free.
                     await MainActor.run {
                         switch transaction.productID {
-                        case IAPProduct.distributorYearly.rawValue:
-                            isDistributorActive = false
-                            isProActive = false
-                            activeTransaction = nil
                         case IAPProduct.proMonthly.rawValue,
                              IAPProduct.proYearly.rawValue:
                             isProActive = false
