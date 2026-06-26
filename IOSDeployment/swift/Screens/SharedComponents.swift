@@ -382,7 +382,7 @@ struct FlockPostCard: View {
             Text(attrString)
                 .tint(AppTheme.goldPrimary)
                 .font(.system(size: 14))
-                .foregroundColor(AppTheme.textPrimary)
+                .foregroundColor(AppTheme.textSecondary)
                 .lineLimit(nil)
                 .lineSpacing(6)
                 .fixedSize(horizontal: false, vertical: true)
