@@ -1057,6 +1057,19 @@ struct DailyBmsSalesTeaserView: View {
     let items: [BmsSalesItem]
     let isLoading: Bool
     let onSeeAll: () -> Void
+    
+    private let ticketCyan = Color(hex: "00E5FF")
+    private let ticketCyanDark = Color(hex: "0083B0")
+    private let movieGold = Color(hex: "DFBA7D")
+    private let subtitleColor = Color(hex: "AAAAAA")
+    private let cardBg = Color(hex: "0D0D0D")
+    private let borderColor = Color(hex: "2A2A2A")
+    private let accentGold = Color(hex: "D4AF37")
+
+    private var maxTickets: Int {
+        let max = items.map { $0.tickets_sold }.max() ?? 1
+        return max > 0 ? max : 1
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -1079,60 +1092,102 @@ struct DailyBmsSalesTeaserView: View {
 
             // Content
             if isLoading {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(0..<3, id: \.self) { _ in
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(AppTheme.card)
-                                .frame(width: 160, height: 80)
-                        }
+                VStack(spacing: 8) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(AppTheme.card)
+                            .frame(height: 80)
                     }
-                    .padding(.horizontal, 20)
                 }
+                .padding(.horizontal, 20)
             } else if items.isEmpty {
                 Text("No sales data currently available.")
                     .font(.subheadline)
                     .foregroundColor(.gray)
                     .padding(.horizontal, 20)
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(items) { item in
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text((item.movie_name ?? "").replacingOccurrences(of: "\"", with: ""))
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                                    .lineLimit(1)
+                VStack(spacing: 8) {
+                    ForEach(Array(items.prefix(3).enumerated()), id: \.element.id) { index, item in
+                        let rank = index + 1
+                        let fraction = CGFloat(item.tickets_sold) / CGFloat(maxTickets)
+                        
+                        VStack(spacing: 12) {
+                            HStack(alignment: .top, spacing: 12) {
+                                // Rank
+                                Text("\(rank)")
+                                    .font(.system(size: 16, weight: .heavy))
+                                    .foregroundColor(accentGold)
+                                    .frame(width: 24, alignment: .leading)
                                 
-                                Text(item.time ?? "")
-                                    .font(.caption)
-                                    .foregroundColor(AppTheme.goldPrimary.opacity(0.8))
+                                // Movie Info
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text((item.movie_name ?? "—").replacingOccurrences(of: "\"", with: "").uppercased())
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(movieGold)
+                                        .lineLimit(1)
+                                    
+                                    let rawDate = String(item.date?.prefix(10) ?? "")
+                                    let formattedDate: String = {
+                                        let dfIn = DateFormatter()
+                                        dfIn.dateFormat = "yyyy-MM-dd"
+                                        if let d = dfIn.date(from: rawDate) {
+                                            let dfOut = DateFormatter()
+                                            dfOut.dateFormat = "dd MMM yyyy"
+                                            return dfOut.string(from: d)
+                                        }
+                                        return rawDate
+                                    }()
+                                    
+                                    let timeStr = item.time ?? ""
+                                    let subtitle = (formattedDate.isEmpty || timeStr.isEmpty) ? formattedDate + timeStr : "\(formattedDate) • \(timeStr)"
+                                    
+                                    Text(subtitle)
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(subtitleColor)
+                                }
                                 
-                                HStack(alignment: .bottom, spacing: 4) {
-                                    Text("\(item.tickets_sold)")
-                                        .font(.title3)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(AppTheme.goldPrimary)
-                                    Text("tix")
-                                        .font(.caption2)
-                                        .foregroundColor(.gray)
-                                        .padding(.bottom, 2)
+                                Spacer()
+                                
+                                // Tickets
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text(formatNumber(item.tickets_sold))
+                                        .font(.system(size: 16, weight: .heavy))
+                                        .foregroundColor(ticketCyan)
+                                    Text("TICKETS")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundColor(subtitleColor)
+                                        .kerning(1)
                                 }
                             }
-                            .padding(12)
-                            .frame(width: 160, alignment: .leading)
-                            .background(AppTheme.card)
-                            .cornerRadius(12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(AppTheme.goldPrimary.opacity(0.3), lineWidth: 1)
-                            )
+                            
+                            // Progress Bar
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(Color(hex: "222222"))
+                                        .frame(height: 6)
+                                    
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(LinearGradient(colors: [ticketCyanDark, ticketCyan], startPoint: .leading, endPoint: .trailing))
+                                        .frame(width: max(0, geo.size.width * fraction), height: 6)
+                                }
+                            }
+                            .frame(height: 6)
                         }
+                        .padding(16)
+                        .background(cardBg)
+                        .cornerRadius(12)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(borderColor, lineWidth: 1))
                     }
-                    .padding(.horizontal, 20)
                 }
+                .padding(.horizontal, 20)
             }
         }
+    }
+    
+    private func formatNumber(_ n: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: n)) ?? "\(n)"
     }
 }
