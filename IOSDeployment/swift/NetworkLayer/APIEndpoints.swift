@@ -312,59 +312,6 @@ extension APIEndpoint {
         return APIEndpoint(path: "/api/buzz/posts/\(postId)/comments/\(commentId)", method: .DELETE)
     }
 
-    // ── Distributors Hub ──────────────────────────────────────────────────────
-
-    static func getDistributorsHub(offset: Int = 0, limit: Int = 10) -> APIEndpoint {
-        let items = [URLQueryItem(name: "offset", value: "\(offset)"),
-                     URLQueryItem(name: "limit", value: "\(limit)")]
-        return APIEndpoint(path: "/api/distributors/posts", method: .GET, queryItems: items)
-    }
-
-    static func createDistributorsPost(content: String, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) throws -> APIEndpoint {
-        if !mediaFiles.isEmpty {
-            var multipart = MultipartFormData()
-            multipart.append(name: "content", string: content)
-            for file in mediaFiles {
-                multipart.append(name: "media", data: file.data, filename: file.fileName, mimeType: file.mimeType)
-            }
-            var endpoint = APIEndpoint(path: "/api/distributors/posts", method: .POST)
-            endpoint.multipartData = multipart
-            return endpoint
-        }
-        let body = try JSONSerialization.data(withJSONObject: ["content": content])
-        return APIEndpoint(path: "/api/distributors/posts", method: .POST, body: body)
-    }
-
-    static func updateDistributorsPost(id: String, content: String, existingMediaUrls: [String]? = nil, mediaFiles: [(data: Data, mimeType: String, fileName: String)] = []) throws -> APIEndpoint {
-        if !mediaFiles.isEmpty || existingMediaUrls != nil {
-            var multipart = MultipartFormData()
-            multipart.append(name: "content", string: content)
-            if let existing = existingMediaUrls, let jsonData = try? JSONSerialization.data(withJSONObject: existing), let jsonStr = String(data: jsonData, encoding: .utf8) {
-                multipart.append(name: "existingMedia", string: jsonStr)
-            }
-            for file in mediaFiles {
-                multipart.append(name: "media", data: file.data, filename: file.fileName, mimeType: file.mimeType)
-            }
-            var endpoint = APIEndpoint(path: "/api/distributors/posts/\(id)", method: .PUT)
-            endpoint.multipartData = multipart
-            return endpoint
-        }
-        let body = try JSONSerialization.data(withJSONObject: ["content": content])
-        return APIEndpoint(path: "/api/distributors/posts/\(id)", method: .PUT, body: body)
-    }
-
-    static func deleteDistributorsPost(id: String) -> APIEndpoint {
-        APIEndpoint(path: "/api/distributors/posts/\(id)", method: .DELETE)
-    }
-
-    static func likeDistributorsPost(id: String) -> APIEndpoint {
-        APIEndpoint(path: "/api/distributors/posts/\(id)/like", method: .POST)
-    }
-
-    static func pinDistributorsPost(id: String, isPinned: Bool) throws -> APIEndpoint {
-        let body = try JSONSerialization.data(withJSONObject: ["pinned": isPinned])
-        return APIEndpoint(path: "/api/distributors/posts/\(id)/pin", method: .PATCH, body: body)
-    }
 
     // ── Tech Deals ────────────────────────────────────────────────────────────
 
