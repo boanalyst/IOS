@@ -202,7 +202,7 @@ struct HomeView: View {
                             
                             // ── Top Topics in Trending ──────────────────────
                             if !viewModel.recentFlockPosts.isEmpty {
-                                SectionHeader(title: "Top topics in trending sections", icon: "bubble.left.and.bubble.right")
+                                SectionHeader(title: "Top Trending Topics", icon: "bubble.left.and.bubble.right")
 
                                 VStack(spacing: 12) {
                                     ForEach(viewModel.recentFlockPosts.prefix(3)) { post in
