@@ -177,15 +177,15 @@ struct BmsSalesView: View {
                 } else {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Search Results")
-                                .font(.system(size: 18, weight: .bold))
+                            Text("SEARCH RESULTS")
+                                .font(.system(size: 14, weight: .heavy))
+                                .kerning(2)
                                 .foregroundColor(AppTheme.goldPrimary)
                                 .padding(.horizontal, 16)
                                 .padding(.top, 16)
                                 .padding(.bottom, 8)
-                            SalesListView(
+                            SearchTimelineListView(
                                 items: viewModel.data, 
-                                showMovieColumn: false, 
                                 isLimited: viewModel.isLimited, 
                                 hasMore: viewModel.hasMore
                             )
@@ -226,94 +226,97 @@ struct SalesListView: View {
     var hasMore: Bool = false
 
     private let ticketCyan = Color(hex: "00E5FF")
-    private let dateColor = Color(hex: "AAAAAA")
-    private let timeColor = Color(hex: "888888")
-    private let headerColor = Color(hex: "555555")
-    private let borderColor = Color(hex: "2A2A2A")
+    private let ticketCyanDark = Color(hex: "0083B0")
+    private let movieGold = Color(hex: "DFBA7D") // Rich goldish shade, not just yellow
+    private let subtitleColor = Color(hex: "AAAAAA")
     private let cardBg = Color(hex: "0D0D0D")
-    private let headerBg = Color(hex: "111111")
+    private let borderColor = Color(hex: "2A2A2A")
+    private let accentGold = Color(hex: "D4AF37")
+
+    private var maxTickets: Int {
+        let max = items.map { $0.tickets_sold }.max() ?? 1
+        return max > 0 ? max : 1
+    }
 
     var body: some View {
-        LazyVStack(spacing: 0) {
-            // ── Header Row ──
-            HStack(spacing: 0) {
-                if showMovieColumn {
-                    Text("MOVIE")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(headerColor)
-                        .kerning(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 10)
-                        .overlay(Rectangle().frame(width: 0.5).foregroundColor(borderColor), alignment: .trailing)
-                }
-                Text("DATE")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(headerColor)
-                    .kerning(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 10)
-                    .overlay(Rectangle().frame(width: 0.5).foregroundColor(borderColor), alignment: .trailing)
-                Text("TIME")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(headerColor)
-                    .kerning(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 10)
-                    .overlay(Rectangle().frame(width: 0.5).foregroundColor(borderColor), alignment: .trailing)
-                Text("TICKETS")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(AppTheme.goldPrimary)
-                    .kerning(1)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 10)
-            }
-            .background(headerBg)
-            .overlay(Rectangle().stroke(borderColor, lineWidth: 1))
-
-            // ── Data Rows ──
-            ForEach(items) { item in
-                HStack(spacing: 0) {
-                    if showMovieColumn {
-                        Text(item.movie_name ?? "—")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
-                            .lineLimit(nil)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 14)
-                            .overlay(Rectangle().frame(width: 0.5).foregroundColor(borderColor), alignment: .trailing)
+        LazyVStack(spacing: 16) {
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                let rank = index + 1
+                let fraction = CGFloat(item.tickets_sold) / CGFloat(maxTickets)
+                
+                VStack(spacing: 16) {
+                    HStack(alignment: .top, spacing: 12) {
+                        // Rank
+                        Text("\(rank)")
+                            .font(.system(size: 18, weight: .heavy))
+                            .foregroundColor(accentGold)
+                            .frame(width: 28, alignment: .leading)
+                        
+                        // Movie Info
+                        VStack(alignment: .leading, spacing: 4) {
+                            if showMovieColumn {
+                                Text((item.movie_name ?? "—").uppercased())
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(movieGold)
+                                    .lineLimit(2)
+                            }
+                            
+                            let rawDate = String(item.date?.prefix(10) ?? "")
+                            let formattedDate: String = {
+                                let dfIn = DateFormatter()
+                                dfIn.dateFormat = "yyyy-MM-dd"
+                                if let d = dfIn.date(from: rawDate) {
+                                    let dfOut = DateFormatter()
+                                    dfOut.dateFormat = "dd MMM yyyy"
+                                    return dfOut.string(from: d)
+                                }
+                                return rawDate
+                            }()
+                            
+                            let timeStr = item.time ?? ""
+                            let subtitle = (formattedDate.isEmpty || timeStr.isEmpty) ? formattedDate + timeStr : "\(formattedDate) • \(timeStr)"
+                            
+                            Text(subtitle)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(subtitleColor)
+                        }
+                        
+                        Spacer()
+                        
+                        // Tickets
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(formatNumber(item.tickets_sold))
+                                .font(.system(size: 18, weight: .heavy))
+                                .foregroundColor(ticketCyan)
+                            Text("TICKETS")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(subtitleColor)
+                                .kerning(1)
+                        }
                     }
-                    Text(String(item.date?.prefix(10) ?? ""))
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(dateColor)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 14)
-                        .overlay(Rectangle().frame(width: 0.5).foregroundColor(borderColor), alignment: .trailing)
-                    Text(item.time ?? "")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(timeColor)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 14)
-                        .overlay(Rectangle().frame(width: 0.5).foregroundColor(borderColor), alignment: .trailing)
-                    Text("\(item.tickets_sold)")
-                        .font(.system(size: 15, weight: .heavy))
-                        .foregroundColor(ticketCyan)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 14)
+                    
+                    // Progress Bar
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color(hex: "222222"))
+                                .frame(height: 8)
+                            
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(LinearGradient(colors: [ticketCyanDark, ticketCyan], startPoint: .leading, endPoint: .trailing))
+                                .frame(width: max(0, geo.size.width * fraction), height: 8)
+                        }
+                    }
+                    .frame(height: 8)
                 }
+                .padding(16)
                 .background(cardBg)
-                .overlay(Rectangle().stroke(borderColor, lineWidth: 0.5))
+                .cornerRadius(12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(borderColor, lineWidth: 1))
+                .padding(.horizontal, 16)
             }
 
-            // ── Subscribe CTA ──
+            // Subscribe CTA
             if isLimited && hasMore {
                 NavigationLink(destination: SubscriptionView()) {
                     Text("Unlock Full Data")
@@ -325,10 +328,165 @@ struct SalesListView: View {
                         .cornerRadius(25)
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 28)
+                .padding(.top, 12)
                 .padding(.bottom, 24)
             }
         }
-        .padding(.bottom, 24)
+        .padding(.vertical, 8)
+    }
+    
+    private func formatNumber(_ n: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: n)) ?? "\(n)"
+    }
+}
+
+// MARK: - SearchTimelineListView
+struct SearchTimelineListView: View {
+    let items: [BmsSalesItem]
+    var isLimited: Bool = false
+    var hasMore: Bool = false
+
+    private let timelineColors = [
+        Color(hex: "D4AF37"), // Muted Gold
+        Color(hex: "00B8D4"), // Muted Cyan
+        Color(hex: "E67E22"), // Muted Orange
+        Color(hex: "9B59B6"), // Muted Purple
+        Color(hex: "2ECC71"), // Muted Green
+    ]
+
+    private let subtitleColor = Color(hex: "AAAAAA")
+    private let cardBg = Color(hex: "0D0D0D")
+
+    private var maxTickets: Int {
+        let max = items.map { $0.tickets_sold }.max() ?? 1
+        return max > 0 ? max : 1
+    }
+
+    var body: some View {
+        LazyVStack(spacing: 0) {
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                let neonColor = timelineColors[index % timelineColors.count]
+                let fraction = CGFloat(item.tickets_sold) / CGFloat(maxTickets)
+                let isLast = index == items.count - 1
+                
+                let rawDate = String(item.date?.prefix(10) ?? "")
+                let formattedDate: String = {
+                    let dfIn = DateFormatter()
+                    dfIn.dateFormat = "yyyy-MM-dd"
+                    if let d = dfIn.date(from: rawDate) {
+                        let dfOut = DateFormatter()
+                        dfOut.dateFormat = "dd MMM yyyy"
+                        return dfOut.string(from: d)
+                    }
+                    return rawDate
+                }()
+                let timeStr = item.time ?? "—"
+
+                HStack(alignment: .top, spacing: 12) {
+                    // Left Timeline
+                    VStack(spacing: 0) {
+                        // Clock Icon
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: "0A0A0A"))
+                                .frame(width: 36, height: 36)
+                                .overlay(Circle().stroke(neonColor, lineWidth: 2))
+                            
+                            Image(systemName: "clock")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(neonColor)
+                        }
+                        
+                        // Dashed line
+                        if !isLast {
+                            Line()
+                                .stroke(style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
+                                .foregroundColor(neonColor.opacity(0.5))
+                                .frame(width: 2)
+                        } else {
+                            Spacer()
+                        }
+                    }
+                    .frame(width: 36)
+
+                    // Right Card
+                    VStack(spacing: 12) {
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(timeStr)
+                                    .font(.system(size: 18, weight: .heavy))
+                                    .foregroundColor(.white)
+                                Text(formattedDate)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(subtitleColor)
+                            }
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(formatNumber(item.tickets_sold))
+                                    .font(.system(size: 18, weight: .heavy))
+                                    .foregroundColor(neonColor)
+                                Text("TICKETS")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(subtitleColor)
+                                    .kerning(1)
+                            }
+                        }
+                        
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(Color(hex: "222222"))
+                                    .frame(height: 6)
+                                
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(LinearGradient(colors: [neonColor.opacity(0.6), neonColor], startPoint: .leading, endPoint: .trailing))
+                                    .frame(width: max(0, geo.size.width * fraction), height: 6)
+                            }
+                        }
+                        .frame(height: 6)
+                    }
+                    .padding(16)
+                    .background(cardBg)
+                    .cornerRadius(12)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(neonColor, lineWidth: 1.5))
+                    .padding(.bottom, 24)
+                }
+                .padding(.horizontal, 16)
+            }
+            
+            // Subscribe CTA
+            if isLimited && hasMore {
+                NavigationLink(destination: SubscriptionView()) {
+                    Text("Unlock Full Data")
+                        .font(.system(size: 15, weight: .heavy))
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(AppTheme.goldPrimary)
+                        .cornerRadius(25)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 24)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    private func formatNumber(_ n: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: n)) ?? "\(n)"
+    }
+}
+
+struct Line: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: 0))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+        return path
     }
 }
