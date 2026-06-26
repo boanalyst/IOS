@@ -12,6 +12,7 @@ enum AppTheme {
     static let goldDim        = Color(hex: "B8860B")  // Dark Goldenrod
     static let goldSoft       = Color(hex: "DAA520")  // Goldenrod
     static let goldMuted      = Color(hex: "9A7D0A")  // Muted Gold
+    static let indigoLight    = Color(hex: "818CF8")  // Indigo Light
 
     // ── Background Palette ────────────────────────────────────────────────────
     static let background     = Color(lightHex: "F5F6FA", darkHex: "0A101C")  // True Deep Navy Blue
