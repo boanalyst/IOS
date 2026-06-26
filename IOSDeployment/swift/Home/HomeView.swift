@@ -688,7 +688,39 @@ struct TechDealsHomeBanner: View {
     var onClick: () -> Void
     var body: some View {
         Button(action: onClick) {
-            CustomNativeAdView(module: "all", isTechDealStyle: true)
+            HStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(AppTheme.goldPrimary.opacity(0.15))
+                        .frame(width: 48, height: 48)
+                    
+                    Image(systemName: "cart.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(AppTheme.goldPrimary)
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("🔥 Best Tech Deals")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(AppTheme.textPrimary)
+                    Text("Handpicked deals on gadgets & gear")
+                        .font(.system(size: 12))
+                        .foregroundColor(AppTheme.textMuted)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(AppTheme.goldPrimary)
+            }
+            .padding(16)
+            .background(AppTheme.surface)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(AppTheme.goldPrimary.opacity(0.15), lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
     }
