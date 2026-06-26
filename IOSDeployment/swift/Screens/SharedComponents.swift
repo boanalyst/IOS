@@ -311,7 +311,11 @@ struct FlockPostCard: View {
     
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let lowerPostContent = post.content.lowercased()
+        let hasSourceBlock = lowerPostContent.contains("\nsource:")
+        let isTrendPost = post.content.hasPrefix("🚨") || hasSourceBlock
+
+        VStack(alignment: .leading, spacing: 12) {
             // Tappable header area (does not cover URL text, so links remain clickable)
             Button(action: onTap) {
                 // Author header
@@ -358,7 +362,6 @@ struct FlockPostCard: View {
                                     .font(.system(size: 16, weight: .medium))
                                     .foregroundColor(AppTheme.textMuted)
                                     .padding(8)
-                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                         }
@@ -370,47 +373,79 @@ struct FlockPostCard: View {
             // Content — extract social embeds first, strip their URLs from text
             let isRewardedContent = post.showRewarded || post.content.lowercased().contains("#boanalystexclusive") || post.content.lowercased().contains("#boanalystsuper")
             let shouldObscure = isRewardedContent && !isUnlocked
+            
             let socialEmbeds = shouldObscure ? [] : extractSocialEmbeds(from: post.content)
             let rawCleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
+            var mainContentRaw = rawCleanContent
+            var sourceContentRaw: String? = nil
             
-            let cleanContent: String = (shouldObscure && rawCleanContent.count > 25)
-                ? String(rawCleanContent.prefix(25)) + "... See more"
-                : rawCleanContent
+            if let range = rawCleanContent.range(of: "\nsource:", options: .caseInsensitive) {
+                mainContentRaw = String(rawCleanContent[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+                sourceContentRaw = String(rawCleanContent[range.lowerBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            
+            if isTrendPost {
+                mainContentRaw = mainContentRaw.replacingOccurrences(of: "**", with: "")
+                if let src = sourceContentRaw {
+                    sourceContentRaw = src.replacingOccurrences(of: "**", with: "")
+                }
+            }
+            
+            let cleanMainContent: String = (shouldObscure && mainContentRaw.count > 25)
+                ? String(mainContentRaw.prefix(25)) + "... See more"
+                : mainContentRaw
 
-            // URL text is OUTSIDE the Button so SwiftUI handles link taps natively
-            let attrString = ParsedTextCache.shared.parseFlock(cleanContent, id: post.id)
-            Text(attrString)
-                .tint(AppTheme.goldPrimary)
-                .font(.system(size: 14))
-                .foregroundColor(AppTheme.textSecondary)
-                .lineLimit(nil)
-                .lineSpacing(6)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 4)
-                .environment(\.openURL, OpenURLAction { url in
-                    let urlString = url.absoluteString.lowercased()
-                    if urlString.contains("boanalyst.com") || urlString.contains("boaanalyst.com") {
-                        if rewardedAdManager.isAdLoaded {
-                            DispatchQueue.main.async {
-                                RewardedAdController.showAd(manager: rewardedAdManager, onRewardEarned: {
-                                    DispatchQueue.main.async {
-                                        UIApplication.shared.open(url)
-                                    }
-                                    rewardedAdManager.loadAd()
-                                }, onDismissedWithoutReward: {
-                                    rewardedAdManager.loadAd()
-                                })
-                            }
-                        } else {
-                            DispatchQueue.main.async {
-                                UIApplication.shared.open(url)
-                            }
+            let mainAttrString = ParsedTextCache.shared.parseFlock(cleanMainContent, id: post.id)
+            
+            VStack(alignment: .leading, spacing: 0) {
+                Text(mainAttrString)
+                    .tint(isTrendPost ? Color(hex: "3B82F6") : AppTheme.goldPrimary)
+                    .font(.system(size: 14))
+                    .foregroundColor(AppTheme.textSecondary)
+                    .lineLimit(nil)
+                    .lineSpacing(6)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 4)
+                
+                if let sourceText = sourceContentRaw, !shouldObscure {
+                    Spacer().frame(height: 12)
+                    
+                    let sourceAttrString = ParsedTextCache.shared.parseFlock(sourceText, id: post.id + "_src")
+                    Text(sourceAttrString)
+                        .tint(Color(hex: "3B82F6"))
+                        .font(.system(size: 14))
+                        .foregroundColor(Color(hex: "3B82F6"))
+                        .lineLimit(nil)
+                        .lineSpacing(6)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.top, 4)
+            .environment(\.openURL, OpenURLAction { url in
+                let urlString = url.absoluteString.lowercased()
+                if urlString.contains("boanalyst.com") || urlString.contains("boaanalyst.com") {
+                    if rewardedAdManager.isAdLoaded {
+                        DispatchQueue.main.async {
+                            RewardedAdController.showAd(manager: rewardedAdManager, onRewardEarned: {
+                                DispatchQueue.main.async {
+                                    UIApplication.shared.open(url)
+                                }
+                                rewardedAdManager.loadAd()
+                            }, onDismissedWithoutReward: {
+                                rewardedAdManager.loadAd()
+                            })
                         }
-                        return .handled
+                    } else {
+                        DispatchQueue.main.async {
+                            UIApplication.shared.open(url)
+                        }
                     }
-                    return .systemAction
-                })
+                    return .handled
+                }
+                return .systemAction
+            })
 
             if shouldObscure {
                 HStack(spacing: 6) {
