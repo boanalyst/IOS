@@ -314,6 +314,36 @@ struct FlockPostCard: View {
         let lowerPostContent = post.content.lowercased()
         let hasSourceBlock = lowerPostContent.contains("\nsource:")
         let isTrendPost = post.content.hasPrefix("🚨") || hasSourceBlock
+        
+        let isRewardedContent = post.showRewarded || lowerPostContent.contains("#boanalystexclusive") || lowerPostContent.contains("#boanalystsuper")
+        let shouldObscure = isRewardedContent && !isUnlocked
+        let socialEmbeds = shouldObscure ? [] : extractSocialEmbeds(from: post.content)
+        let rawCleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
+        
+        let parsedContents: (main: String, source: String?) = {
+            var mainContentRaw = rawCleanContent
+            var sourceContentRaw: String? = nil
+            
+            if let range = rawCleanContent.range(of: "\nsource:", options: .caseInsensitive) {
+                mainContentRaw = String(rawCleanContent[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+                sourceContentRaw = String(rawCleanContent[range.lowerBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            
+            if isTrendPost {
+                mainContentRaw = mainContentRaw.replacingOccurrences(of: "**", with: "")
+                if let src = sourceContentRaw {
+                    sourceContentRaw = src.replacingOccurrences(of: "**", with: "")
+                }
+            }
+            
+            let cleanMainContent = (shouldObscure && mainContentRaw.count > 25)
+                ? String(mainContentRaw.prefix(25)) + "... See more"
+                : mainContentRaw
+                
+            return (cleanMainContent, sourceContentRaw)
+        }()
+        
+        let mainAttrString = ParsedTextCache.shared.parseFlock(parsedContents.main, id: post.id)
 
         VStack(alignment: .leading, spacing: 12) {
             // Tappable header area (does not cover URL text, so links remain clickable)
@@ -370,33 +400,7 @@ struct FlockPostCard: View {
             }
             .buttonStyle(.plain)
 
-            // Content — extract social embeds first, strip their URLs from text
-            let isRewardedContent = post.showRewarded || post.content.lowercased().contains("#boanalystexclusive") || post.content.lowercased().contains("#boanalystsuper")
-            let shouldObscure = isRewardedContent && !isUnlocked
-            
-            let socialEmbeds = shouldObscure ? [] : extractSocialEmbeds(from: post.content)
-            let rawCleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
-            var mainContentRaw = rawCleanContent
-            var sourceContentRaw: String? = nil
-            
-            if let range = rawCleanContent.range(of: "\nsource:", options: .caseInsensitive) {
-                mainContentRaw = String(rawCleanContent[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
-                sourceContentRaw = String(rawCleanContent[range.lowerBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-            
-            if isTrendPost {
-                mainContentRaw = mainContentRaw.replacingOccurrences(of: "**", with: "")
-                if let src = sourceContentRaw {
-                    sourceContentRaw = src.replacingOccurrences(of: "**", with: "")
-                }
-            }
-            
-            let cleanMainContent: String = (shouldObscure && mainContentRaw.count > 25)
-                ? String(mainContentRaw.prefix(25)) + "... See more"
-                : mainContentRaw
-
-            let mainAttrString = ParsedTextCache.shared.parseFlock(cleanMainContent, id: post.id)
-            
+            // Content
             VStack(alignment: .leading, spacing: 0) {
                 Text(mainAttrString)
                     .tint(isTrendPost ? Color(hex: "3B82F6") : AppTheme.goldPrimary)
@@ -408,7 +412,7 @@ struct FlockPostCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 4)
                 
-                if let sourceText = sourceContentRaw, !shouldObscure {
+                if let sourceText = parsedContents.source, !shouldObscure {
                     Spacer().frame(height: 12)
                     
                     let sourceAttrString = ParsedTextCache.shared.parseFlock(sourceText, id: post.id + "_src")
