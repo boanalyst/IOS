@@ -4,6 +4,7 @@ struct MenuView: View {
     @Binding var selectedTab: Int
     @Binding var isPresented: Bool
     @EnvironmentObject var rewardedAdManager: RewardedAdManager
+    @EnvironmentObject var authViewModel: AuthViewModel
     
     var body: some View {
         ZStack {
@@ -46,9 +47,9 @@ struct MenuView: View {
                         isPresented = false
                         selectedTab = 8
                     }
-                    MenuRowView(title: "Profile & Settings", iconName: "person.fill", isPremium: false) {
+                    MenuRowView(title: "Profile", iconName: "person.fill", isPremium: false) {
                         isPresented = false
-                        selectedTab = 9 // Will open ProfileView sheet or tab
+                        authViewModel.showProfileSheet = true
                     }
                 }
                 .padding(.horizontal, 16)
