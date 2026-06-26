@@ -601,7 +601,7 @@ struct FlockFeedView: View {
                                 )
                                 .padding(.horizontal, 16)
 
-                                 if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                                 if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isPro == true) {
                                     BoNativeAdView(index: index, listName: "flock")
                                         .padding(.horizontal, 16)
                                 }
@@ -627,7 +627,7 @@ struct FlockFeedView: View {
             }
 
             // Anchored AdMob Banner — separated from scrollable content (Google recommended)
-            if !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+            if !(authViewModel.currentUser?.isPro == true) {
                 SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
                     .frame(height: 50)
                     .padding(.vertical, 4)
@@ -906,7 +906,7 @@ struct InsideTalkView: View {
                         
                         // ── Hourly BMS Sales Button ──────────────────────────────
                         Button(action: {
-                            if !(authViewModel.currentUser?.isDistributor == true) && !(authViewModel.currentUser?.isAdmin == true) {
+                            if !(authViewModel.currentUser?.isPro == true) {
                                 if rewardedAdManager.isAdLoaded {
                                     RewardedAdController.showAd(manager: rewardedAdManager) {
                                         rewardedAdManager.loadAd()
@@ -1362,7 +1362,6 @@ struct BoxOfficeRow: View {
 
 struct ProfileView: View {
     var onSubscribeRequired: () -> Void = {}
-    var isDistributor: Bool = false
     var isPro: Bool = false
     var isAdmin: Bool = false          // Bug #1 fix: was not passed, so admin badge never showed
     @EnvironmentObject private var authViewModel: AuthViewModel
@@ -1447,37 +1446,6 @@ struct ProfileView: View {
 
 
 
-                        // Distributors Hub — gated
-                        if isDistributor || isAdmin {
-                            NavigationLink {
-                                DistributorsHubView(
-                                    isUserDistributor: true,
-                                    onSubscribeRequired: onSubscribeRequired
-                                )
-                            } label: {
-                                HStack(spacing: 14) {
-                                    Image(systemName: "film.stack.fill")
-                                        .font(.system(size: 16))
-                                        .foregroundStyle(AppTheme.goldGradient)
-                                        .frame(width: 24)
-                                    Text("Distributors Hub")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(AppTheme.textPrimary)
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(AppTheme.textMuted)
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 14)
-                            }
-                        } else {
-                            ProfileRow(icon: "film.stack.fill", title: "Distributors Hub") {
-                                onSubscribeRequired()
-                            }
-                        }
-
-                        Divider().background(Color.white.opacity(0.05))
 
                         // Appearance Toggle
                         Toggle(isOn: $themeManager.isDarkMode) {
@@ -1598,8 +1566,6 @@ struct ProfileView: View {
         // Now uses the explicit `isAdmin` parameter passed from MainTabView.
         if isAdmin || authViewModel.currentUser?.isAdmin == true {
             badgePill(label: "⚡ ADMIN", color: AppTheme.error)
-        } else if isDistributor {
-            badgePill(label: "🎬 DISTRIBUTOR", color: AppTheme.goldPrimary)
         } else if isPro {
             badgePill(label: "⭐ PRO MEMBER", color: AppTheme.goldPrimary)
         } else {

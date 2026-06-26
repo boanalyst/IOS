@@ -1,7 +1,6 @@
 // BoAnalystApp.swift — UPDATED v3
 // Entry point — mirrors Android's MainActivity + BoAnalystApp.kt
 // Tabs: Home | BoxOffice | Flock | Inside Talk | Profile
-// DistributorsHub is accessed via Profile tab (drawer-style, same as some Android nav patterns)
 
 import SwiftUI
 import GoogleMobileAds
@@ -196,8 +195,7 @@ struct MainTabView: View {
     // StoreKit currentEntitlements returns old transactions from previous
     // accounts, giving every new user distributor/pro access incorrectly.
     // StoreKit is still used for purchase/restore in IAPManager.
-    private var isDistributor: Bool { authViewModel.currentUser?.isDistributor ?? false }
-    private var isPro: Bool         { authViewModel.currentUser?.isPro ?? false || isDistributor }
+    private var isPro: Bool         { authViewModel.currentUser?.isPro ?? false }
     private var isAdmin: Bool       { authViewModel.currentUser?.isAdmin ?? false }
 
     var body: some View {
@@ -244,15 +242,7 @@ struct MainTabView: View {
                 .opacity(selectedTab == 6 ? 1 : 0)
                 .allowsHitTesting(selectedTab == 6)
                 
-                NavigationStack {
-                    DistributorsHubView(
-                        isUserDistributor: isDistributor,
-                        onSubscribeRequired: { selectedTab = 8 }
-                    )
-                }
-                .opacity(selectedTab == 7 ? 1 : 0)
-                .allowsHitTesting(selectedTab == 7)
-                
+
                 NavigationStack {
                     SubscriptionView()
                 }
@@ -301,7 +291,6 @@ struct MainTabView: View {
                         authViewModel.showProfileSheet = false
                         selectedTab = 5
                     },
-                    isDistributor: isDistributor,
                     isPro: isPro,
                     isAdmin: isAdmin
                 )
