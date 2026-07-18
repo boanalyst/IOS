@@ -901,6 +901,75 @@ struct PostMediaView: View {
 }
 
 // MARK: - Full-Screen Lightbox
+// MARK: - Zoomable Image View
+struct ZoomableImageView: View {
+    let url: URL
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+    
+    var body: some View {
+        CachedAsyncImage(url: url) { phase in
+            switch phase {
+            case .success(let image):
+                image.resizable()
+                    .scaledToFit()
+                    .scaleEffect(scale)
+                    .offset(offset)
+                    .gesture(
+                        MagnificationGesture()
+                            .onChanged { val in
+                                let delta = val / lastScale
+                                lastScale = val
+                                let newScale = scale * delta
+                                scale = min(max(newScale, 1.0), 5.0)
+                            }
+                            .onEnded { _ in
+                                lastScale = 1.0
+                                if scale < 1.0 {
+                                    withAnimation {
+                                        scale = 1.0
+                                        offset = .zero
+                                    }
+                                }
+                            }
+                    )
+                    .simultaneousGesture(
+                        DragGesture()
+                            .onChanged { val in
+                                guard scale > 1.0 else { return }
+                                offset = CGSize(
+                                    width: lastOffset.width + val.translation.width,
+                                    height: lastOffset.height + val.translation.height
+                                )
+                            }
+                            .onEnded { _ in
+                                guard scale > 1.0 else { return }
+                                lastOffset = offset
+                            }
+                    )
+                    .onTapGesture(count: 2) {
+                        withAnimation {
+                            if scale > 1.0 {
+                                scale = 1.0
+                                offset = .zero
+                                lastOffset = .zero
+                            } else {
+                                scale = 2.5
+                            }
+                        }
+                    }
+            case .empty:
+                ProgressView().tint(.white)
+            default:
+                Image(systemName: "photo").foregroundColor(.gray).font(.largeTitle)
+            }
+        }
+    }
+}
+
+// MARK: - Full-Screen Lightbox
 struct MediaLightboxView: View {
     let urls: [String]
     let startIndex: Int
@@ -920,18 +989,7 @@ struct MediaLightboxView: View {
                 ForEach(urls.indices, id: \.self) { i in
                     Group {
                         if let url = URL(string: urls[i]) {
-                            CachedAsyncImage(url: url) { phase in
-                                switch phase {
-                                case .success(let image):
-                                    image.resizable()
-                                        .scaledToFit()
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                case .empty:
-                                    ProgressView().tint(.white)
-                                default:
-                                    Image(systemName: "photo").foregroundColor(.gray).font(.largeTitle)
-                                }
-                            }
+                            ZoomableImageView(url: url)
                         } else {
                             Image(systemName: "photo").foregroundColor(.gray).font(.largeTitle)
                         }
