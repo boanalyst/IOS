@@ -48,6 +48,12 @@ class AppOpenAdManager: NSObject, FullScreenContentDelegate {
     }
     
     func fetchConfigAndLoad() {
+        if UserDefaults.standard.bool(forKey: "is_user_pro") {
+            print("ℹ️ [AppOpenAdManager] Local Pro status active. Bypassing configuration fetch.")
+            self.appOpenAd = nil
+            return
+        }
+        
         Task { @MainActor in
             do {
                 let config = try await APIClient.shared.request(.getAdConfig, responseType: AdConfigResponse.self)
@@ -74,6 +80,10 @@ class AppOpenAdManager: NSObject, FullScreenContentDelegate {
     }
     
     private func loadAd() {
+        if UserDefaults.standard.bool(forKey: "is_user_pro") {
+            self.appOpenAd = nil
+            return
+        }
         guard !isLoadingAd && appOpenAd == nil else { return }
         
         isLoadingAd = true
@@ -98,6 +108,12 @@ class AppOpenAdManager: NSObject, FullScreenContentDelegate {
     }
     
     func showAdIfAvailable() {
+        if UserDefaults.standard.bool(forKey: "is_user_pro") {
+            print("ℹ️ [AppOpenAdManager] Local Pro status active. Bypassing App Open Ad delivery.")
+            self.appOpenAd = nil
+            return
+        }
+        
         // Enforce cooldown
         if let lastShown = lastShownTime, Date().timeIntervalSince(lastShown) < cooldownSeconds {
             let remaining = Int(cooldownSeconds - Date().timeIntervalSince(lastShown))
@@ -111,13 +127,6 @@ class AppOpenAdManager: NSObject, FullScreenContentDelegate {
         guard let rootController = getTopMostViewController() else {
             print("⚠️ [AppOpenAdManager] Unable to resolve topmost view controller for presentation.")
             return
-        }
-        
-        // Final Pro status guard using the keychain token state (Pro users bypass ads)
-        if KeychainManager.shared.hasToken() {
-            // Note: Server config automatically returns enabled=false for Pro users.
-            // But if the server was offline and we fell back to test credentials, this client guard is key.
-            // In a real app we'd decode token or check local session.
         }
         
         if let ad = appOpenAd {

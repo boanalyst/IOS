@@ -567,14 +567,16 @@ struct FlockFeedView: View {
                                     post: post,
                                     isAdmin: isAdmin,
                                     isLiked: flockVM.likedPostIds.contains(post.id),
-                                    isUnlocked: unlockedRewardedPosts.contains(post.id),
+                                    isUnlocked: (authViewModel.currentUser?.isPro == true) || unlockedRewardedPosts.contains(post.id),
                                     onTap: {
                                         let contentLower = post.content.lowercased()
                                         let hasSuperTag = contentLower.contains("#boanalystsuper")
                                         let hasAdTag = post.showInterstitial || contentLower.contains("#boad") || contentLower.contains("#interstitial")
                                         let hasRewardedTag = post.showRewarded || contentLower.contains("#boanalystexclusive")
                                         
-                                        if hasSuperTag {
+                                        if authViewModel.currentUser?.isPro == true {
+                                            flockDetailPostId = post.id
+                                        } else if hasSuperTag {
                                             flockDetailPostId = post.id
                                         } else if hasRewardedTag && !unlockedRewardedPosts.contains(post.id) {
                                             RewardedAdController.showAd(manager: rewardedAdManager) {
@@ -1021,10 +1023,12 @@ struct InsideTalkView: View {
             }
 
             // Anchored AdMob Banner — separated from scrollable content (Google recommended)
-            SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
-                .frame(height: 50)
-                .padding(.vertical, 4)
-                .background(AppTheme.surface)
+            if !(authViewModel.currentUser?.isPro == true) {
+                SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
+                    .frame(height: 50)
+                    .padding(.vertical, 4)
+                    .background(AppTheme.surface)
+            }
             } // end VStack
         }
         .task {
@@ -1276,6 +1280,7 @@ struct InsideTalkCard: View {
 // MARK: - AnalyticsView (TODO: Full implementation)
 
 struct AnalyticsView: View {
+    @EnvironmentObject private var authViewModel: AuthViewModel
     @State private var entries: [BoxOfficeEntry] = []
     @State private var isLoading = false
     private let api = APIClient.shared
@@ -1301,10 +1306,12 @@ struct AnalyticsView: View {
             }
 
             // Anchored AdMob Banner — separated from scrollable content (Google recommended)
-            SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
-                .frame(height: 50)
-                .padding(.vertical, 4)
-                .background(AppTheme.surface)
+            if !(authViewModel.currentUser?.isPro == true) {
+                SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
+                    .frame(height: 50)
+                    .padding(.vertical, 4)
+                    .background(AppTheme.surface)
+            }
             } // end VStack
         }
         .task { await load() }
