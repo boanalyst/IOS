@@ -94,7 +94,7 @@ struct BuzzBoardView: View {
                         LazyVStack(spacing: 16) {
                             ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
                                 let isUnlocked = unlockedRewardedPosts.contains(post.id)
-                                if index == 0 && !(authViewModel.currentUser?.isPro == true) {
+                                if index == 0 && !(authViewModel.currentUser?.isAdFree == true) {
                                     CustomNativeAdView(module: "buzz")
                                         .padding(.vertical, 8)
                                 }
@@ -132,7 +132,7 @@ struct BuzzBoardView: View {
                                         }
                                     }
 
-                                if (index + 1) % 10 == 0 && !(authViewModel.currentUser?.isPro == true) {
+                                if (index + 1) % 10 == 0 && !(authViewModel.currentUser?.isAdFree == true) {
                                     CustomNativeAdView(module: "buzz")
                                         .padding(.vertical, 8)
                                 }
@@ -158,7 +158,7 @@ struct BuzzBoardView: View {
                 }
 
                 // Anchored AdMob Banner — separated from scrollable content (Google recommended)
-                if !(authViewModel.currentUser?.isPro == true) {
+                if !(authViewModel.currentUser?.isAdFree == true) {
                     SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
                         .frame(height: 50)
                         .padding(.vertical, 4)

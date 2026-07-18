@@ -308,7 +308,7 @@ struct HomeView: View {
             }
 
             // Anchored AdMob Banner — separated from scrollable content (Google recommended)
-            if !(authViewModel.currentUser?.isPro ?? false) {
+            if !(authViewModel.currentUser?.isAdFree ?? false) {
                 SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
                     .frame(height: 50)
                     .padding(.vertical, 4)
