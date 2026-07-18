@@ -199,89 +199,103 @@ struct MainTabView: View {
     private var isAdmin: Bool       { authViewModel.currentUser?.isAdmin ?? false }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ZStack {
-                NavigationStack {
-                    HomeView(
-                        onSubscribeRequired: { selectedTab = 5 },
-                        onNavigateToTechDeals: { selectedTab = 3 }
-                    )
-                }
-                .opacity(selectedTab == 0 ? 1 : 0)
-                .allowsHitTesting(selectedTab == 0)
+        ZStack(alignment: .bottomTrailing) {
+            VStack(spacing: 0) {
+                ZStack {
+                    NavigationStack {
+                        HomeView(
+                            onSubscribeRequired: { selectedTab = 5 },
+                            onNavigateToTechDeals: { selectedTab = 3 }
+                        )
+                    }
+                    .opacity(selectedTab == 0 ? 1 : 0)
+                    .allowsHitTesting(selectedTab == 0)
 
-                NavigationStack {
-                    FlockFeedView()
-                }
-                .opacity(selectedTab == 1 ? 1 : 0)
-                .allowsHitTesting(selectedTab == 1)
+                    NavigationStack {
+                        FlockFeedView()
+                    }
+                    .opacity(selectedTab == 1 ? 1 : 0)
+                    .allowsHitTesting(selectedTab == 1)
 
-                NavigationStack {
-                    InsideTalkView(onSubscribeRequired: { selectedTab = 8 })
-                }
-                .opacity(selectedTab == 2 ? 1 : 0)
-                .allowsHitTesting(selectedTab == 2)
+                    NavigationStack {
+                        InsideTalkView(onSubscribeRequired: { selectedTab = 8 })
+                    }
+                    .opacity(selectedTab == 2 ? 1 : 0)
+                    .allowsHitTesting(selectedTab == 2)
 
-                NavigationStack {
-                    TechDealsView()
+                    NavigationStack {
+                        TechDealsView()
+                    }
+                    .opacity(selectedTab == 3 ? 1 : 0)
+                    .allowsHitTesting(selectedTab == 3)
+                    
+
+                    // Hidden tabs accessed via Menu
+                    NavigationStack {
+                        BoxOfficeView()
+                    }
+                    .opacity(selectedTab == 5 ? 1 : 0)
+                    .allowsHitTesting(selectedTab == 5)
+                    
+                    NavigationStack {
+                        BuzzBoardView()
+                    }
+                    .opacity(selectedTab == 6 ? 1 : 0)
+                    .allowsHitTesting(selectedTab == 6)
+                    
+
+                    NavigationStack {
+                        SubscriptionView()
+                    }
+                    .opacity(selectedTab == 8 ? 1 : 0)
+                    .allowsHitTesting(selectedTab == 8)
                 }
-                .opacity(selectedTab == 3 ? 1 : 0)
-                .allowsHitTesting(selectedTab == 3)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 
-
-                // Hidden tabs accessed via Menu
-                NavigationStack {
-                    BoxOfficeView()
+                // Custom 5-Tab Bar
+                HStack(spacing: 0) {
+                    TabBarItem(icon: "house.fill", title: "Home", isSelected: selectedTab == 0) { selectedTab = 0 }
+                        .frame(maxWidth: .infinity)
+                    TabBarItem(icon: "bubble.left.and.bubble.right.fill", title: "Flock", isSelected: selectedTab == 1) { selectedTab = 1 }
+                        .frame(maxWidth: .infinity)
+                    TabBarItem(icon: "eye.fill", title: "Talk", isSelected: selectedTab == 2) { selectedTab = 2 }
+                        .frame(maxWidth: .infinity)
+                    TabBarItem(icon: "tag.fill", title: "Deals", isSelected: selectedTab == 3) { selectedTab = 3 }
+                        .frame(maxWidth: .infinity)
+                    TabBarItem(icon: "line.3.horizontal", title: "Menu", isSelected: showMenuSheet) {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
+                            showMenuSheet.toggle()
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .opacity(selectedTab == 5 ? 1 : 0)
-                .allowsHitTesting(selectedTab == 5)
-                
-                NavigationStack {
-                    BuzzBoardView()
-                }
-                .opacity(selectedTab == 6 ? 1 : 0)
-                .allowsHitTesting(selectedTab == 6)
-                
-
-                NavigationStack {
-                    SubscriptionView()
-                }
-                .opacity(selectedTab == 8 ? 1 : 0)
-                .allowsHitTesting(selectedTab == 8)
+                .padding(.vertical, 12)
+                .background(AppTheme.surface)
+                .overlay(Rectangle().frame(height: 1).foregroundColor(AppTheme.surfaceVariant), alignment: .top)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .environmentObject(flockVM)
             
-            // Custom 5-Tab Bar
-            HStack(spacing: 0) {
-                TabBarItem(icon: "house.fill", title: "Home", isSelected: selectedTab == 0) { selectedTab = 0 }
-                    .frame(maxWidth: .infinity)
-                TabBarItem(icon: "bubble.left.and.bubble.right.fill", title: "Flock", isSelected: selectedTab == 1) { selectedTab = 1 }
-                    .frame(maxWidth: .infinity)
-                TabBarItem(icon: "eye.fill", title: "Talk", isSelected: selectedTab == 2) { selectedTab = 2 }
-                    .frame(maxWidth: .infinity)
-                TabBarItem(icon: "tag.fill", title: "Deals", isSelected: selectedTab == 3) { selectedTab = 3 }
-                    .frame(maxWidth: .infinity)
-                TabBarItem(icon: "line.3.horizontal", title: "Menu", isSelected: false) { showMenuSheet = true }
-                    .frame(maxWidth: .infinity)
-            }
-            .padding(.vertical, 12)
-            .background(AppTheme.surface)
-            .overlay(Rectangle().frame(height: 1).foregroundColor(AppTheme.surfaceVariant), alignment: .top)
-        }
-        .environmentObject(flockVM)
-        .sheet(isPresented: $showMenuSheet) {
-            if #available(iOS 16.4, *) {
+            if showMenuSheet {
+                // Background tap-to-dismiss overlay
+                Color.black.opacity(0.01)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
+                            showMenuSheet = false
+                        }
+                    }
+                
+                // Popover Menu Card
                 MenuView(selectedTab: $selectedTab, isPresented: $showMenuSheet)
                     .environmentObject(rewardedAdManager)
-                    .presentationDetents([.fraction(0.55), .large])
-                    .presentationBackground(.ultraThinMaterial)
-                    .presentationCornerRadius(32)
-                    .presentationDragIndicator(.visible)
-            } else {
-                MenuView(selectedTab: $selectedTab, isPresented: $showMenuSheet)
-                    .environmentObject(rewardedAdManager)
-                    .presentationDetents([.fraction(0.55), .large])
-                    .presentationDragIndicator(.visible)
+                    .frame(width: 220)
+                    .padding(.bottom, 72)
+                    .padding(.trailing, 16)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.8, anchor: .bottomTrailing).combined(with: .opacity),
+                        removal: .scale(scale: 0.8, anchor: .bottomTrailing).combined(with: .opacity)
+                    ))
+                    .zIndex(100)
             }
         }
         .sheet(isPresented: $authViewModel.showProfileSheet) {
