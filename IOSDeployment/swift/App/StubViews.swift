@@ -603,7 +603,7 @@ struct FlockFeedView: View {
                                 )
                                 .padding(.horizontal, 16)
 
-                                 if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isPro == true) {
+                                 if (index + 1) % adInterval == 0 && !(authViewModel.currentUser?.isAdFree == true) {
                                     BoNativeAdView(index: index, listName: "flock")
                                         .padding(.horizontal, 16)
                                 }
@@ -629,7 +629,7 @@ struct FlockFeedView: View {
             }
 
             // Anchored AdMob Banner — separated from scrollable content (Google recommended)
-            if !(authViewModel.currentUser?.isPro == true) {
+            if !(authViewModel.currentUser?.isAdFree == true) {
                 SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
                     .frame(height: 50)
                     .padding(.vertical, 4)
@@ -908,6 +908,7 @@ struct InsideTalkView: View {
                 ScrollView {
                     LazyVStack(spacing: 16) { // Bug #2 fix: increased from 12 to 16
                         let isUserProGlobal = (authViewModel.currentUser?.isPro ?? false) || (authViewModel.currentUser?.isAdmin == true)
+                        let isUserAdFreeGlobal = authViewModel.currentUser?.isAdFree == true
                         
                         // ── Hourly BMS Sales Button ──────────────────────────────
                         Button(action: {
@@ -1002,7 +1003,7 @@ struct InsideTalkView: View {
                             )
                             .padding(.horizontal, 16)
 
-                            if (index + 1) % adInterval == 0 && !isUserProGlobal {
+                            if (index + 1) % adInterval == 0 && !isUserAdFreeGlobal {
                                 BoNativeAdView(index: index, listName: "insidetalk")
                                     .padding(.horizontal, 16)
                             }
@@ -1023,7 +1024,7 @@ struct InsideTalkView: View {
             }
 
             // Anchored AdMob Banner — separated from scrollable content (Google recommended)
-            if !(authViewModel.currentUser?.isPro == true) {
+            if !(authViewModel.currentUser?.isAdFree == true) {
                 SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
                     .frame(height: 50)
                     .padding(.vertical, 4)
@@ -1306,7 +1307,7 @@ struct AnalyticsView: View {
             }
 
             // Anchored AdMob Banner — separated from scrollable content (Google recommended)
-            if !(authViewModel.currentUser?.isPro == true) {
+            if !(authViewModel.currentUser?.isAdFree == true) {
                 SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
                     .frame(height: 50)
                     .padding(.vertical, 4)
