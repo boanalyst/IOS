@@ -96,6 +96,12 @@ struct User: Decodable, Identifiable {
         subscriptionPlan?.contains("pro") == true
     }
 
+    var isAdFree: Bool {
+        isAdmin ||
+        subscriptionPlan == "premium-adfree" ||
+        subscriptionPlan?.contains("adfree") == true
+    }
+
     // memberSinceDate: derived from createdAt ISO string
     var memberSinceDays: Int? {
         guard let raw = createdAt else { return nil }
