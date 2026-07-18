@@ -65,6 +65,21 @@ private let planInfos: [PlanInfo] = [
             FeatureItem(icon: "bolt.fill",             text: "Early Access To New Features"),
             FeatureItem(icon: "sparkles",              text: "Limited Ads")
         ]
+    ),
+    PlanInfo(
+        productID: .adfreeYearly,
+        badge: "AD-FREE",
+        badgeColor: Color(hex: "E040FB"),
+        tagline: "Completely ad-free experience",
+        savings: "No ads whatsoever!",
+        accentColors: [Color(hex: "4A0033"), Color(hex: "1C0014")],
+        features: [
+            FeatureItem(icon: "sparkles",              text: "No Ads Anywhere in App"),
+            FeatureItem(icon: "chart.bar.fill",        text: "Advanced Movie Analytics"),
+            FeatureItem(icon: "mic.fill",              text: "Inside Talks Exclusive Content"),
+            FeatureItem(icon: "headphones",            text: "Priority Support"),
+            FeatureItem(icon: "bolt.fill",             text: "Early Access To New Features")
+        ]
     )
 ]
 
@@ -100,6 +115,8 @@ struct SubscriptionView: View {
             return subscriptionPlan == "premium-monthly"
         case .proYearly:
             return subscriptionPlan == "premium-yearly"
+        case .adfreeYearly:
+            return subscriptionPlan == "premium-adfree"
         }
     }
 
@@ -257,7 +274,7 @@ struct SubscriptionView: View {
                 let lengthStr: String = {
                     switch selectedPlan.productID {
                     case .proMonthly: return "1-month subscription"
-                    case .proYearly:  return "1-year subscription"
+                    case .proYearly, .adfreeYearly:  return "1-year subscription"
                     }
                 }()
                 Text("\(selectedPlan.productID.displayName) · \(lengthStr) · \(priceStr)")

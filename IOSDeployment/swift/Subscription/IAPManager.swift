@@ -20,11 +20,13 @@ import Foundation
 enum IAPProduct: String, CaseIterable {
     case proMonthly       = "com.boanalyst.app.pro.monthly"
     case proYearly        = "com.boanalyst.app.pro.yearly"
+    case adfreeYearly     = "com.boanalyst.app.adfree.yearly"
 
     var displayName: String {
         switch self {
         case .proMonthly:        return "Pro Monthly"
         case .proYearly:         return "Pro Yearly"
+        case .adfreeYearly:      return "Ad-Free Yearly"
         }
     }
 
@@ -32,6 +34,7 @@ enum IAPProduct: String, CaseIterable {
         switch self {
         case .proMonthly:        return "STARTER"
         case .proYearly:         return "⭐ BEST VALUE"
+        case .adfreeYearly:      return "👑 AD-FREE"
         }
     }
 
@@ -39,6 +42,7 @@ enum IAPProduct: String, CaseIterable {
         switch self {
         case .proMonthly:        return "₹499"
         case .proYearly:         return "₹1,399"
+        case .adfreeYearly:      return "₹3,699"
         }
     }
 
@@ -46,10 +50,11 @@ enum IAPProduct: String, CaseIterable {
         switch self {
         case .proMonthly:        return "per month"
         case .proYearly:         return "per year"
+        case .adfreeYearly:      return "per year"
         }
     }
 
-    var isProPlan: Bool        { self == .proMonthly || self == .proYearly }
+    var isProPlan: Bool        { self == .proMonthly || self == .proYearly || self == .adfreeYearly }
 }
 
 // MARK: - Purchase Result
@@ -155,7 +160,8 @@ final class IAPManager: ObservableObject {
             self.products = fetched.sorted { a, b in
                 let order: [String] = [
                     IAPProduct.proMonthly.rawValue,
-                    IAPProduct.proYearly.rawValue
+                    IAPProduct.proYearly.rawValue,
+                    IAPProduct.adfreeYearly.rawValue
                 ]
                 let ai = order.firstIndex(of: a.id) ?? 99
                 let bi = order.firstIndex(of: b.id) ?? 99
@@ -255,7 +261,8 @@ final class IAPManager: ObservableObject {
                transaction.revocationDate == nil {
                 switch transaction.productID {
                 case IAPProduct.proMonthly.rawValue,
-                     IAPProduct.proYearly.rawValue:
+                     IAPProduct.proYearly.rawValue,
+                     IAPProduct.adfreeYearly.rawValue:
                     hasPro = true
                     latestTransaction = transaction
                 default:
@@ -375,7 +382,7 @@ final class IAPManager: ObservableObject {
 
     private func updateProStatus(for transaction: Transaction) {
         switch transaction.productID {
-        case IAPProduct.proMonthly.rawValue, IAPProduct.proYearly.rawValue:
+        case IAPProduct.proMonthly.rawValue, IAPProduct.proYearly.rawValue, IAPProduct.adfreeYearly.rawValue:
             isProActive = true
         default:
             break
@@ -426,7 +433,8 @@ final class IAPManager: ObservableObject {
     private func getHighestActiveEntitlement() async -> Transaction? {
         let planRank: [String: Int] = [
             IAPProduct.proMonthly.rawValue: 1,
-            IAPProduct.proYearly.rawValue: 2
+            IAPProduct.proYearly.rawValue: 2,
+            IAPProduct.adfreeYearly.rawValue: 3
         ]
 
         var highestTransaction: Transaction? = nil
@@ -456,7 +464,8 @@ final class IAPManager: ObservableObject {
                     await MainActor.run {
                         switch transaction.productID {
                         case IAPProduct.proMonthly.rawValue,
-                             IAPProduct.proYearly.rawValue:
+                             IAPProduct.proYearly.rawValue,
+                             IAPProduct.adfreeYearly.rawValue:
                             isProActive = false
                             activeTransaction = nil
                         default:
