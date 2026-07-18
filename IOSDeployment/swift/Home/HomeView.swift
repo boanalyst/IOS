@@ -308,10 +308,12 @@ struct HomeView: View {
             }
 
             // Anchored AdMob Banner — separated from scrollable content (Google recommended)
-            SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
-                .frame(height: 50)
-                .padding(.vertical, 4)
-                .background(AppTheme.surface)
+            if !(authViewModel.currentUser?.isPro ?? false) {
+                SwiftUIBannerAd(adUnitId: "ca-app-pub-5734863079459748/8749854605")
+                    .frame(height: 50)
+                    .padding(.vertical, 4)
+                    .background(AppTheme.surface)
+            }
             } // end VStack
         }
         .task {
