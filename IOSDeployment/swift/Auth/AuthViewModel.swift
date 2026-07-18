@@ -18,7 +18,11 @@ struct AuthUiState {
 
 @MainActor
 final class AuthViewModel: ObservableObject {
-    @Published var uiState = AuthUiState()
+    @Published var uiState = AuthUiState() {
+        didSet {
+            UserDefaults.standard.set(uiState.user?.isPro == true, forKey: "is_user_pro")
+        }
+    }
 
     var isAuthenticated: Bool { uiState.isAuthenticated }
     var currentUser: User? { uiState.user }
