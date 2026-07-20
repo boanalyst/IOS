@@ -75,6 +75,7 @@ private let planInfos: [PlanInfo] = [
         accentColors: [Color(hex: "4A0033"), Color(hex: "1C0014")],
         features: [
             FeatureItem(icon: "sparkles",              text: "No Ads Anywhere in App"),
+            FeatureItem(icon: "envelope.fill",         text: "Automated emails of every new post"),
             FeatureItem(icon: "chart.bar.fill",        text: "Advanced Movie Analytics"),
             FeatureItem(icon: "mic.fill",              text: "Inside Talks Exclusive Content"),
             FeatureItem(icon: "headphones",            text: "Priority Support"),
