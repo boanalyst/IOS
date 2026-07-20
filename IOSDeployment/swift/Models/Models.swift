@@ -139,17 +139,14 @@ struct User: Decodable, Identifiable {
         role  = (try? c.decode(String.self, forKey: .role))  ?? "member"
         subscriptionPlan = (try? c.decode(String.self, forKey: .subscriptionPlan)) ?? (try? c.decode(String.self, forKey: .subscriptionPlanSnake))
         
-        if let b = try? c.decode(Bool.self, forKey: ._isAdmin) {
-            _isAdmin = b
-        } else if let b2 = try? c.decode(Bool.self, forKey: ._isAdminSnake) {
-            _isAdmin = b2
-        } else if let i = try? c.decode(Int.self, forKey: ._isAdmin) {
-            _isAdmin = (i != 0)
-        } else if let i2 = try? c.decode(Int.self, forKey: ._isAdminSnake) {
-            _isAdmin = (i2 != 0)
-        } else {
-            _isAdmin = false
+        let decodeAdminFlag = { (key: CodingKeys) -> Bool? in
+            if let b = try? c.decode(Bool.self, forKey: key) { return b }
+            if let i = try? c.decode(Int.self, forKey: key) { return i != 0 }
+            if let s = try? c.decode(String.self, forKey: key) { return s == "1" || s.lowercased() == "true" }
+            return nil
         }
+        
+        _isAdmin = decodeAdminFlag(._isAdmin) ?? decodeAdminFlag(._isAdminSnake) ?? false
         
         avatarUrl = try? c.decode(String.self, forKey: .avatarUrl)
         createdAt = try? c.decode(String.self, forKey: .createdAt)
