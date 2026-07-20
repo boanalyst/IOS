@@ -315,7 +315,8 @@ struct FlockPostCard: View {
         let hasSourceBlock = lowerPostContent.contains("\nsource:")
         let isTrendPost = post.content.hasPrefix("🚨") || hasSourceBlock
         
-        let isRewardedContent = post.showRewarded || lowerPostContent.contains("#boanalystexclusive") || lowerPostContent.contains("#boanalystsuper")
+        // Truncate rewarded content (exclusive/rewarded-flagged only — NOT super tag, which opens freely)
+        let isRewardedContent = post.showRewarded || lowerPostContent.contains("#boanalystexclusive")
         let shouldObscure = isRewardedContent && !isUnlocked
         let socialEmbeds = shouldObscure ? [] : extractSocialEmbeds(from: post.content)
         let rawCleanContent = stripEmbedUrls(from: post.content, embeds: socialEmbeds)
