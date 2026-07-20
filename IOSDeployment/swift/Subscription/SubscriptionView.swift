@@ -37,21 +37,6 @@ private let platB  = Color(hex: "A0A0A0")
 
 private let planInfos: [PlanInfo] = [
     PlanInfo(
-        productID: .proMonthly,
-        badge: "STARTER",
-        badgeColor: Color(hex: "4FC3F7"),
-        tagline: "Begin your analysis journey",
-        savings: nil,
-        accentColors: [Color(hex: "1A6080"), Color(hex: "0D2D3F")],
-        features: [
-            FeatureItem(icon: "chart.bar.fill",        text: "Advanced Movie Analytics"),
-            FeatureItem(icon: "mic.fill",              text: "Inside Talks Exclusive Content"),
-            FeatureItem(icon: "headphones",            text: "Priority Support"),
-            FeatureItem(icon: "bolt.fill",             text: "Early Access To New Features"),
-            FeatureItem(icon: "sparkles",              text: "Limited Ads")
-        ]
-    ),
-    PlanInfo(
         productID: .proYearly,
         badge: "BEST VALUE",
         badgeColor: goldA,
@@ -80,6 +65,21 @@ private let planInfos: [PlanInfo] = [
             FeatureItem(icon: "mic.fill",              text: "Inside Talks Exclusive Content"),
             FeatureItem(icon: "headphones",            text: "Priority Support"),
             FeatureItem(icon: "bolt.fill",             text: "Early Access To New Features")
+        ]
+    ),
+    PlanInfo(
+        productID: .proMonthly,
+        badge: "STARTER",
+        badgeColor: Color(hex: "4FC3F7"),
+        tagline: "Begin your analysis journey",
+        savings: nil,
+        accentColors: [Color(hex: "1A6080"), Color(hex: "0D2D3F")],
+        features: [
+            FeatureItem(icon: "chart.bar.fill",        text: "Advanced Movie Analytics"),
+            FeatureItem(icon: "mic.fill",              text: "Inside Talks Exclusive Content"),
+            FeatureItem(icon: "headphones",            text: "Priority Support"),
+            FeatureItem(icon: "bolt.fill",             text: "Early Access To New Features"),
+            FeatureItem(icon: "sparkles",              text: "Limited Ads")
         ]
     )
 ]
