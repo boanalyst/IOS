@@ -28,14 +28,19 @@ struct MenuView: View {
             // Menu Items
             VStack(spacing: 4) {
                 MenuRowView(title: "Box Office", iconName: "chart.bar.fill", isPremium: false) {
-                    if rewardedAdManager.isAdLoaded {
-                        RewardedAdController.showAd(manager: rewardedAdManager) {
+                    if !(authViewModel.currentUser?.isAdFree == true) {
+                        if rewardedAdManager.isAdLoaded {
+                            RewardedAdController.showAd(manager: rewardedAdManager) {
+                                rewardedAdManager.loadAd()
+                                isPresented = false
+                                selectedTab = 5
+                            }
+                        } else {
                             rewardedAdManager.loadAd()
                             isPresented = false
                             selectedTab = 5
                         }
                     } else {
-                        rewardedAdManager.loadAd()
                         isPresented = false
                         selectedTab = 5
                     }
