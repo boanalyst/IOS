@@ -574,7 +574,8 @@ struct FlockFeedView: View {
                                         let hasAdTag = post.showInterstitial || contentLower.contains("#boad") || contentLower.contains("#interstitial")
                                         let hasRewardedTag = post.showRewarded || contentLower.contains("#boanalystexclusive")
                                         
-                                        if authViewModel.currentUser?.isPro == true {
+                                        let isAdFreeUser = authViewModel.currentUser?.isAdFree == true
+                                        if isAdFreeUser {
                                             flockDetailPostId = post.id
                                         } else if hasSuperTag {
                                             flockDetailPostId = post.id
@@ -583,7 +584,7 @@ struct FlockFeedView: View {
                                                 unlockedRewardedPosts.insert(post.id)
                                                 flockDetailPostId = post.id
                                             }
-                                        } else if hasAdTag {
+                                        } else if !isAdFreeUser && hasAdTag {
                                             InterstitialAdController.showAd(manager: adManager) {
                                                 flockDetailPostId = post.id
                                             }
@@ -912,7 +913,7 @@ struct InsideTalkView: View {
                         
                         // ── Hourly BMS Sales Button ──────────────────────────────
                         Button(action: {
-                            if !(authViewModel.currentUser?.isPro == true) {
+                            if !(authViewModel.currentUser?.isAdFree == true) {
                                 if rewardedAdManager.isAdLoaded {
                                     RewardedAdController.showAd(manager: rewardedAdManager) {
                                         rewardedAdManager.loadAd()
