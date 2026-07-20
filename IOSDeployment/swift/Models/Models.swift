@@ -117,7 +117,9 @@ struct User: Decodable, Identifiable {
         case id2 = "id"           // some endpoints return "id" instead of "_id"
         case name, email, role, username, bio
         case subscriptionPlan = "subscriptionPlan"
+        case subscriptionPlanSnake = "subscription_plan"
         case _isAdmin = "isAdmin"
+        case _isAdminSnake = "is_admin"
         case avatarUrl = "avatar_url"
         case createdAt = "createdAt"
     }
@@ -135,12 +137,16 @@ struct User: Decodable, Identifiable {
         profileBio = nil 
         
         role  = (try? c.decode(String.self, forKey: .role))  ?? "member"
-        subscriptionPlan = try? c.decode(String.self, forKey: .subscriptionPlan)
+        subscriptionPlan = (try? c.decode(String.self, forKey: .subscriptionPlan)) ?? (try? c.decode(String.self, forKey: .subscriptionPlanSnake))
         
         if let b = try? c.decode(Bool.self, forKey: ._isAdmin) {
             _isAdmin = b
+        } else if let b2 = try? c.decode(Bool.self, forKey: ._isAdminSnake) {
+            _isAdmin = b2
         } else if let i = try? c.decode(Int.self, forKey: ._isAdmin) {
             _isAdmin = (i != 0)
+        } else if let i2 = try? c.decode(Int.self, forKey: ._isAdminSnake) {
+            _isAdmin = (i2 != 0)
         } else {
             _isAdmin = false
         }
