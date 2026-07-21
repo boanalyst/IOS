@@ -108,11 +108,11 @@ class AppOpenAdManager: NSObject, FullScreenContentDelegate {
     }
     
     func showAdIfAvailable() {
-        if UserDefaults.standard.bool(forKey: "is_user_pro") {
-            print("ℹ️ [AppOpenAdManager] Local Pro status active. Bypassing App Open Ad delivery.")
-            self.appOpenAd = nil
-            return
-        }
+        // Disabled per Apple App Store Review Guidelines (Guideline 4 - Design)
+        // Apps cannot force users to view an advertisement prior to using the app.
+        print("ℹ️ [AppOpenAdManager] App Open Ads are disabled for App Store compliance.")
+        self.appOpenAd = nil
+        return
         
         // Enforce cooldown
         if let lastShown = lastShownTime, Date().timeIntervalSince(lastShown) < cooldownSeconds {
