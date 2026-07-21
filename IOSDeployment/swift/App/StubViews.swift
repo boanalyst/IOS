@@ -1235,7 +1235,7 @@ struct InsideTalkCard: View {
                                 .font(.system(size: 12, weight: .semibold))
                         } else {
                             Image(systemName: "crown.fill").font(.system(size: 12))
-                            Text("Unlock with Pro — visit boanalyst.com")
+                            Text("Unlock with Pro")
                                 .font(.system(size: 12, weight: .semibold))
                         }
                     }
@@ -1585,7 +1585,6 @@ struct ProfileView: View {
             badgePill(label: "⭐ PRO MEMBER", color: AppTheme.goldPrimary)
         } else {
             // Non-pro: show upgrade button
-            // Subscription is purchased on boanalyst.com — Netflix/Reader strategy
             GoldOutlineButton(title: "Upgrade to Pro", icon: "crown.fill") {
                 onSubscribeRequired()
             }
