@@ -112,30 +112,6 @@ class AppOpenAdManager: NSObject, FullScreenContentDelegate {
         // Apps cannot force users to view an advertisement prior to using the app.
         print("ℹ️ [AppOpenAdManager] App Open Ads are disabled for App Store compliance.")
         self.appOpenAd = nil
-        return
-        
-        // Enforce cooldown
-        if let lastShown = lastShownTime, Date().timeIntervalSince(lastShown) < cooldownSeconds {
-            let remaining = Int(cooldownSeconds - Date().timeIntervalSince(lastShown))
-            print("ℹ️ [AppOpenAdManager] App Open ad cooldown active. \(remaining) seconds remaining.")
-            if appOpenAd == nil {
-                loadAd()
-            }
-            return
-        }
-        
-        guard let rootController = getTopMostViewController() else {
-            print("⚠️ [AppOpenAdManager] Unable to resolve topmost view controller for presentation.")
-            return
-        }
-        
-        if let ad = appOpenAd {
-            print("✅ [AppOpenAdManager] Presenting App Open Ad...")
-            ad.present(from: rootController)
-        } else {
-            print("ℹ [AppOpenAdManager] Ad not loaded. Loading and prefetching.")
-            fetchConfigAndLoad()
-        }
     }
     
     // MARK: - FullScreenContentDelegate Callbacks
