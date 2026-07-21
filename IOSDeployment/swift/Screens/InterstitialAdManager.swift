@@ -37,15 +37,10 @@ class InterstitialAdManager: NSObject, FullScreenContentDelegate, ObservableObje
     }
 
     func showAd(from viewController: UIViewController, onDismiss: @escaping () -> Void) {
-        if let interstitial = interstitial, isAdLoaded {
-            self.onAdDismissed = onDismiss
-            interstitial.present(from: viewController)
-        } else {
-            print("Ad wasn't ready.")
-            // If ad is not ready, proceed with the action immediately
-            onDismiss()
-            loadAd() // Try to load for next time
-        }
+        print("ℹ️ [InterstitialAdManager] Interstitial Ads are disabled for App Store compliance.")
+        // Immediately invoke dismiss callback if one is provided
+        onDismiss()
+        return
     }
 
     // MARK: - FullScreenContentDelegate
